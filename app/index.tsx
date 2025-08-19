@@ -10,7 +10,7 @@ export default function LoginScreen() {
 
     const handleLogin = async () => {
         try {
-            const response = await fetch("http://192.168.1.160:3000/login", {
+            const response = await fetch("http://localhost:3000/index", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, senha }),
@@ -18,6 +18,7 @@ export default function LoginScreen() {
 
 
             const data = await response.json();
+            console.log("Resposta do servidor:", data);
 
             if (response.ok) {
                 // Salva token no AsyncStorage
