@@ -38,7 +38,7 @@ app.post("/index", async (req, res) => {
     if (!senhaValida) return res.status(401).json({ error: "Senha inválida" });
 
     // Gera token JWT
-    const token = jwt.sign({ id: user.id, email: user.email }, "segredo123", {
+    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
         expiresIn: "1h",
     });
 
@@ -51,16 +51,15 @@ function autenticarToken(req, res, next) {
 
     if (!token) return res.sendStatus(401);
 
-    jwt.verify(token, "segredo123", (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) return res.sendStatus(403);
         req.user = user;
         next();
     });
 }
 
-// Exemplo de rota protegida
 app.get("/dados-protegidos", autenticarToken, (req, res) => {
-    res.json({ message: "Aqui estão os dados secretos 🚀", user: req.user });
+    res.json({ message: "Aqui estão os dados secretos", user: req.user });
 });
 
 
