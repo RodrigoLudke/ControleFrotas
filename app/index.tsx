@@ -1,29 +1,44 @@
 import { useState } from "react";
-import { View, Text, TextInput, Button, StyleSheet, Alert } from "react-native";
+import {
+    Pressable,
+    TextInput,
+    StyleSheet,
+    Alert,
+} from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import {Colors} from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
+
+// Use a variável de ambiente para a URL base
+// Para testar no emulador/navegador:
+const BASE_URL = process.env.LOCALHOST;
+
+// Para testar no seu celular (com o backend rodando na mesma rede):
+// const BASE_URL = process.env.PortaCellTrabalho;
+
 
 export default function LoginScreen() {
     const [email, setEmail] = useState("");
     const [senha, setSenha] = useState("");
     const router = useRouter();
+    const colorScheme = useColorScheme() as "light" | "dark";
 
     const handleLogin = async () => {
         try {
-            const response = await fetch("http://localhost:3000/index", {
+            const response = await fetch(`${BASE_URL}/index`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, senha }),
             });
 
-
             const data = await response.json();
             console.log("Resposta do servidor:", data);
 
             if (response.ok) {
-                // Salva token no AsyncStorage
                 await AsyncStorage.setItem("token", data.token);
-
                 Alert.alert("Sucesso", "Login realizado!");
                 router.replace("/(tabs)/Temp");
             } else {
@@ -35,34 +50,56 @@ export default function LoginScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Login</Text>
+        <ThemedView style={styles.container}>
+            <ThemedText type="title" style={styles.title}>
+                Bem-vindo
+            </ThemedText>
+
             <TextInput
-                style={styles.input}
+                style={[styles.input, {borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text,},]}
                 placeholder="Email"
+                placeholderTextColor={Colors[colorScheme].icon}
                 value={email}
                 onChangeText={setEmail}
             />
             <TextInput
-                style={styles.input}
+                style={[styles.input, {borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text,},]}
                 placeholder="Senha"
+                placeholderTextColor={Colors[colorScheme].icon}
                 secureTextEntry
                 value={senha}
                 onChangeText={setSenha}
             />
-            <Button title="Entrar" onPress={handleLogin} />
-        </View>
+
+            <Pressable style={[styles.button, { backgroundColor: Colors[colorScheme].tint }]} onPress={handleLogin}>
+                <ThemedText
+                    style={[
+                        styles.buttonText, {color: Colors[colorScheme].background,},]}>Entrar
+                </ThemedText>
+            </Pressable>
+        </ThemedView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, justifyContent: "center", padding: 20 },
-    title: { fontSize: 24, marginBottom: 20, textAlign: "center" },
+    container: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+    title: { fontSize: 28, fontWeight: "bold", marginBottom: 30 },
     input: {
+        width: "100%",
+        padding: 12,
         borderWidth: 1,
-        borderColor: "#ccc",
-        padding: 10,
+        borderRadius: 10,
         marginBottom: 15,
-        borderRadius: 5,
+        fontSize: 16,
+    },
+    button: {
+        width: "100%",
+        padding: 15,
+        borderRadius: 10,
+        alignItems: "center",
+    },
+    buttonText: {
+        fontSize: 18,
+        fontWeight: "600",
     },
 });

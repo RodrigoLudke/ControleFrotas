@@ -16,7 +16,7 @@ export default function RootLayout() {
     }
 
     return (
-        <ThemeProvider value={colorScheme === "light" ? DarkTheme : DefaultTheme}>
+        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
             <Stack screenOptions={{ headerShown: false }}>
                 {/* Tela inicial: login */}
                 <Stack.Screen name="index" />
