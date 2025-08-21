@@ -4,6 +4,9 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pkg from "@prisma/client";
 
+import veiculosRoutes from "./routes/veiculos.js";
+import viagensRoutes from "./routes/viagens.js";
+
 import cors from "cors";
 
 const { PrismaClient } = pkg;
@@ -12,6 +15,9 @@ const prisma = new PrismaClient();
 const app = express();
 app.use(bodyParser.json());
 app.use(cors());
+
+app.use("/veiculos", veiculosRoutes);
+app.use("/viagens", viagensRoutes);
 
 // Rota de cadastro (já existe)
 app.post("/register", async (req, res) => {
@@ -45,7 +51,7 @@ app.post("/index", async (req, res) => {
     res.json({ message: "Login realizado", token });
 });
 
-function autenticarToken(req, res, next) {
+export function autenticarToken(req, res, next) {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
 

@@ -1,0 +1,43 @@
+import express from "express";
+import pkg from "@prisma/client";
+import { autenticarToken } from "../index.js";
+
+const router = express.Router();
+const { PrismaClient } = pkg;
+const prisma = new PrismaClient();
+
+// Registrar viagem
+router.post("/", autenticarToken, async (req, res) => {
+    try {
+        const { veiculoId, data, horarioSaida, horarioChegada, finalidade, kmFinal } = req.body;
+        const userId = req.user.id;
+
+        // valida se o usuário pode dirigir o veículo
+        const permitido = await prisma.userVeiculo.findFirst({
+            where: { userId: parseInt(userId), veiculoId },
+        });
+
+        if (!permitido) {
+            return res.status(403).json({ error: "Você não pode dirigir este veículo" });
+        }
+
+        const viagem = await prisma.viagem.create({
+            data: {
+                userId: parseInt(userId),
+                veiculoId,
+                data: new Date(data),
+                horarioSaida: new Date(horarioSaida),
+                horarioChegada: new Date(horarioChegada),
+                finalidade,
+                kmFinal,
+            },
+        });
+
+        res.json(viagem);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Erro ao registrar viagem" });
+    }
+});
+
+export default router;
