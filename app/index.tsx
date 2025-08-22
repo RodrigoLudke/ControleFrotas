@@ -14,10 +14,10 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 
 // Use a variável de ambiente para a URL base
 // Para testar no emulador/navegador:
-const BASE_URL = process.env.LOCALHOST;
+// const BASE_URL = process.env.LOCALHOST;
 
 // Para testar no seu celular (com o backend rodando na mesma rede):
-// const BASE_URL = process.env.PortaCellTrabalho;
+const BASE_URL = process.env.PortaCellTrabalho;
 
 
 export default function LoginScreen() {
@@ -40,7 +40,7 @@ export default function LoginScreen() {
             if (response.ok) {
                 await AsyncStorage.setItem("token", data.token);
                 Alert.alert("Sucesso", "Login realizado!");
-                router.replace("/(tabs)/Temp");
+                router.replace("/(tabs)");
             } else {
                 Alert.alert("Erro", data.error || "Falha no login");
             }
