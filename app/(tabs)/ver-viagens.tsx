@@ -8,10 +8,13 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 
 // Use a variável de ambiente para a URL base
 // Para testar no emulador/navegador:
-const BASE_URL = process.env.LOCALHOST;
+// const BASE_URL = process.env.LOCALHOST;
 
 // Para testar no seu celular (com o backend rodando na mesma rede):
 // const BASE_URL = process.env.PortaCellTrabalho;
+
+// Para testar no seu celular (com o backend rodando na mesma rede):
+const BASE_URL = process.env.PortaCellCasa;
 
 export default function VerViagens() {
     const [viagens, setViagens] = useState<any[]>([]);
