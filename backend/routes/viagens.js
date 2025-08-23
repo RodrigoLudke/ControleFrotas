@@ -40,4 +40,22 @@ router.post("/", autenticarToken, async (req, res) => {
     }
 });
 
+// Listar viagens do usuário autenticado
+router.get("/", autenticarToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const viagens = await prisma.viagem.findMany({
+            where: { userId: parseInt(userId) },
+            orderBy: { data: "desc" },
+        });
+
+        res.json(viagens);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Erro ao buscar viagens" });
+    }
+});
+
+
 export default router;

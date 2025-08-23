@@ -25,6 +25,16 @@ export default function ViagensMenu() {
                     Registrar Viagem
                 </ThemedText>
             </Pressable>
+            <Pressable
+                style={[styles.button, { backgroundColor: Colors[colorScheme].tint }]}
+                onPress={() => router.push("/(tabs)/ver-viagens")}
+            >
+                <ThemedText
+                    style={[styles.buttonText, { color: Colors[colorScheme].background }]}
+                >
+                    Ver Registros de Viagens
+                </ThemedText>
+            </Pressable>
         </ThemedView>
     );
 }
@@ -37,6 +47,7 @@ const styles = StyleSheet.create({
         padding: 15,
         borderRadius: 10,
         alignItems: "center",
+        marginTop: 15,
     },
     buttonText: { fontSize: 18, fontWeight: "600" },
 });
