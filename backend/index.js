@@ -4,6 +4,8 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pkg from "@prisma/client";
 
+import { randomBytes } from "crypto";
+
 import veiculosRoutes from "./routes/veiculos.js";
 import viagensRoutes from "./routes/viagens.js";
 
@@ -56,7 +58,7 @@ function gerarAccessToken(user) {
 }
 
 async function gerarRefreshToken(userId) {
-    const token = crypto.randomBytes(40).toString("hex"); // string aleatória segura
+    const token = randomBytes(40).toString("hex"); // string aleatória segura
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
 
     await prisma.refreshToken.create({
