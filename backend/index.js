@@ -43,13 +43,32 @@ app.post("/index", async (req, res) => {
     const senhaValida = await bcrypt.compare(senha, user.senha);
     if (!senhaValida) return res.status(401).json({ error: "Senha inválida" });
 
-    // Gera token JWT
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-        expiresIn: "1h",
+    const accessToken = gerarAccessToken(user);
+    const refreshToken = await gerarRefreshToken(user.id);
+
+    res.json({ message: "Login realizado", accessToken, refreshToken });
+});
+
+function gerarAccessToken(user) {
+    return jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+        expiresIn: "15m", // expira rápido
+    });
+}
+
+async function gerarRefreshToken(userId) {
+    const token = crypto.randomBytes(40).toString("hex"); // string aleatória segura
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
+
+    await prisma.refreshToken.create({
+        data: {
+            token,
+            userId,
+            expiresAt,
+        },
     });
 
-    res.json({ message: "Login realizado", token });
-});
+    return token;
+}
 
 export function autenticarToken(req, res, next) {
     const authHeader = req.headers["authorization"];

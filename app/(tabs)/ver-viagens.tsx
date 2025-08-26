@@ -5,16 +5,11 @@ import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { apiFetch } from "@/services/api";
 
 // Use a variável de ambiente para a URL base
 // Para testar no emulador/navegador:
-// const BASE_URL = process.env.LOCALHOST;
-
-// Para testar no seu celular (com o backend rodando na mesma rede):
-// const BASE_URL = process.env.PortaCellTrabalho;
-
-// Para testar no seu celular (com o backend rodando na mesma rede):
-const BASE_URL = process.env.PortaCellCasa;
+const BASE_URL = process.env.LOCALHOST;
 
 export default function VerViagens() {
     const [viagens, setViagens] = useState<any[]>([]);
@@ -23,12 +18,8 @@ export default function VerViagens() {
     useEffect(() => {
         const fetchViagens = async () => {
             try {
-                const token = await AsyncStorage.getItem("token");
-                if (!token) return;
-
-                const response = await fetch(`${BASE_URL}/viagens`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
+                const response = await apiFetch("/viagens"); // 👈 sem precisar pegar token
+                if (!response.ok) throw new Error("Erro ao buscar viagens");
 
                 const data = await response.json();
                 setViagens(data);

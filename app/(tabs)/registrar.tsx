@@ -12,16 +12,11 @@ import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { apiFetch } from "@/services/api";
 
 // Use a variável de ambiente para a URL base
 // Para testar no emulador/navegador:
-// const BASE_URL = process.env.LOCALHOST;
-
-// Para testar no seu celular (com o backend rodando na mesma rede):
-// const BASE_URL = process.env.PortaCellTrabalho;
-
-// Para testar no seu celular (com o backend rodando na mesma rede):
-const BASE_URL = process.env.PortaCellCasa;
+const BASE_URL = process.env.LOCALHOST;
 
 export default function RegistrarViagem() {
     const [veiculoId, setVeiculoId] = useState("");
@@ -39,12 +34,6 @@ export default function RegistrarViagem() {
 
     const salvarViagem = async () => {
         try {
-            const token = await AsyncStorage.getItem("token"); // 🔑 pega token salvo no login
-
-            if (!token) {
-                Alert.alert("Erro", "Usuário não autenticado. Faça login novamente.");
-                return;
-            }
             const body = {
                 veiculoId: parseInt(veiculoId),
                 data: data.toISOString(),
@@ -54,9 +43,8 @@ export default function RegistrarViagem() {
                 kmFinal: parseInt(kmFinal),
             };
 
-            const response = await fetch(`${BASE_URL}/viagens`, {
+            const response = await apiFetch(`/viagens`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, // 🛡️ envia token no header,
                 body: JSON.stringify(body),
             });
 
@@ -64,6 +52,9 @@ export default function RegistrarViagem() {
 
             if (response.ok) {
                 Alert.alert("Sucesso", "Viagem registrada!");
+                setVeiculoId("");
+                setFinalidade("");
+                setKmFinal("");
             } else {
                 Alert.alert("Erro", result.error || "Falha ao salvar viagem");
             }
