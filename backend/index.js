@@ -51,7 +51,7 @@ app.post("/index", async (req, res) => {
 });
 
 function gerarAccessToken(user) {
-    return jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+    return jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, {
         expiresIn: "15m", // expira rápido
     });
 }
@@ -84,10 +84,24 @@ export function autenticarToken(req, res, next) {
     });
 }
 
+export function autorizarRoles(...rolesPermitidos) {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ error: "Não autenticado" });
+        }
+
+        if (!rolesPermitidos.includes(req.user.role)) {
+            return res.status(403).json({ error: "Acesso negado" });
+        }
+
+        next();
+    };
+}
+
+
 app.get("/dados-protegidos", autenticarToken, (req, res) => {
     res.json({ message: "Aqui estão os dados secretos", user: req.user });
 });
-
 
 app.listen(3000, () => {
     console.log("API rodando na porta 3000");
