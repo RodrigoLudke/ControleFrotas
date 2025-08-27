@@ -5,6 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "db-init": "docker compose up && prisma migrate dev && prisma generate",
+    "db-generate": "prisma generate",
     "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

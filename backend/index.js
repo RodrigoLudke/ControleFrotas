@@ -2,14 +2,13 @@ import express from "express";
 import bodyParser from "body-parser";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import pkg from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 import veiculosRoutes from "./routes/veiculos.js";
 import viagensRoutes from "./routes/viagens.js";
 
 import cors from "cors";
 
-const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 
 const app = express();
