@@ -34,7 +34,7 @@ export default function LoginScreen() {
             console.log("Resposta do servidor:", data);
 
             if (response.ok) {
-                await AsyncStorage.setItem("token", data.acessToken);
+                await AsyncStorage.setItem("token", data.accessToken);
                 await AsyncStorage.setItem("refreshToken", data.refreshToken);
                 Alert.alert("Sucesso", "Login realizado!");
                 router.replace("/(tabs)");
