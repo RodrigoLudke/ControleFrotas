@@ -50,25 +50,21 @@ export default function RegistrarViagem() {
 
             const result = await response.json();
 
-            if (response.ok) {
-                Alert.alert("Sucesso", "Viagem registrada!");
-                setVeiculoId("");
-                setFinalidade("");
-                setKmFinal("");
-
-                const errorData = await response.json();
-                if (response.status === 400 && errorData.ultimaKm) {
+            if (!response.ok) {
+                if (response.status === 400 && result.ultimaKm) {
                     Alert.alert(
                         "Quilometragem inválida",
-                        `A quilometragem final não pode ser menor que a última registrada (${errorData.ultimaKm}).`
+                        `A quilometragem final não pode ser menor que a última registrada (${result.ultimaKm}).`
                     );
                 } else {
-                    Alert.alert("Erro", errorData.error || "Erro ao registrar viagem.");
+                    Alert.alert("Erro", result.error || "Erro ao registrar viagem.");
                 }
                 return;
             }
-
-            Alert.alert("Sucesso", "Viagem registrada com sucesso!");
+            Alert.alert("Sucesso", "Viagem registrada!");
+            setVeiculoId("");
+            setFinalidade("");
+            setKmFinal("");
         } catch (error) {
             console.error("Erro ao salvar viagem:", error);
             Alert.alert("Erro", "Não foi possível salvar a viagem.");

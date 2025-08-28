@@ -23,7 +23,7 @@ router.post("/", autenticarToken, async (req, res) => {
 
         const ultimaViagem = await prisma.viagem.findFirst({
             where: { veiculoId },
-            orderBy: { createdAt: "desc" }, // pega a última
+            orderBy: { kmFinal: "desc" }, // pega a última
         });
 
         if (ultimaViagem && kmFinal < ultimaViagem.kmFinal) {
