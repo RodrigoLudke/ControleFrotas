@@ -55,11 +55,23 @@ export default function RegistrarViagem() {
                 setVeiculoId("");
                 setFinalidade("");
                 setKmFinal("");
-            } else {
-                Alert.alert("Erro", result.error || "Falha ao salvar viagem");
+
+                const errorData = await response.json();
+                if (response.status === 400 && errorData.ultimaKm) {
+                    Alert.alert(
+                        "Quilometragem inválida",
+                        `A quilometragem final não pode ser menor que a última registrada (${errorData.ultimaKm}).`
+                    );
+                } else {
+                    Alert.alert("Erro", errorData.error || "Erro ao registrar viagem.");
+                }
+                return;
             }
-        } catch (err) {
-            Alert.alert("Erro", "Não foi possível conectar ao servidor");
+
+            Alert.alert("Sucesso", "Viagem registrada com sucesso!");
+        } catch (error) {
+            console.error("Erro ao salvar viagem:", error);
+            Alert.alert("Erro", "Não foi possível salvar a viagem.");
         }
     };
 
