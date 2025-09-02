@@ -1,11 +1,8 @@
 {
   "expo": {
-    "name": "controledefrota",
-    "slug": "controledefrota",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "controledefrota",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

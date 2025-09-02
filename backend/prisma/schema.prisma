@@ -1,0 +1,64 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id       Int       @id @default(autoincrement())
+  email    String    @unique
+  senha    String
+  veiculos UserVeiculo[]
+  viagens  Viagem[]
+  refreshTokens RefreshToken[]
+  role Role @default(USER)
+}
+
+model Veiculo {
+  id        Int           @id @default(autoincrement())
+  nome      String
+  tipo      String        // carro, van, ônibus, caminhão etc
+  usuarios  UserVeiculo[]
+  viagens   Viagem[]
+}
+
+model UserVeiculo {
+  id        Int   @id @default(autoincrement())
+  userId    Int
+  veiculoId Int
+
+  user     User    @relation(fields: [userId], references: [id])
+  veiculo  Veiculo @relation(fields: [veiculoId], references: [id])
+}
+
+model Viagem {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  veiculoId      Int
+  data           DateTime
+  horarioSaida   DateTime
+  horarioChegada DateTime
+  finalidade     String
+  kmFinal        Int
+
+  user     User    @relation(fields: [userId], references: [id])
+  veiculo  Veiculo @relation(fields: [veiculoId], references: [id])
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
