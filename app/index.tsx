@@ -1,14 +1,18 @@
 import { useState } from "react";
 import {
-    Pressable,
-    TextInput,
-    StyleSheet,
     Alert,
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    Image,
+    StyleSheet,
+    ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { Mail, Lock, Truck } from "lucide-react-native";
+
 import {Colors} from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 
@@ -20,7 +24,10 @@ export default function LoginScreen() {
     const [email, setEmail] = useState("");
     const [senha, setSenha] = useState("");
     const router = useRouter();
-    const colorScheme = useColorScheme() as "light" | "dark";
+    const [isLoading, setIsLoading] = useState(false);
+
+    const colorScheme = useColorScheme();
+    const theme = Colors[colorScheme ?? "light"];
 
     const handleLogin = async () => {
         try {
@@ -47,56 +54,183 @@ export default function LoginScreen() {
     };
 
     return (
-        <ThemedView style={styles.container}>
-            <ThemedText type="title" style={styles.title}>
-                Bem-vindo
-            </ThemedText>
+        <View style={[styles.container, { backgroundColor: theme.primary }]}>
+            {/* Logo + título */}
+            <View style={styles.header}>
+                <Image
+                    source={require("@/assets/images/CF-logoWhite.png")}
+                    style={styles.logo}
+                />
+                <Text style={[styles.title, { color: theme.textBack }]}>ControleFrotas</Text>
+                <Text style={[styles.subtitle, { color: theme.iconBack }]}>
+                    Sistema profissional de gestão de veículos
+                </Text>
+            </View>
 
-            <TextInput
-                style={[styles.input, {borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text,},]}
-                placeholder="Email"
-                placeholderTextColor={Colors[colorScheme].icon}
-                value={email}
-                onChangeText={setEmail}
-            />
-            <TextInput
-                style={[styles.input, {borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text,},]}
-                placeholder="Senha"
-                placeholderTextColor={Colors[colorScheme].icon}
-                secureTextEntry
-                value={senha}
-                onChangeText={setSenha}
-            />
+            {/* Card */}
+            <View style={[styles.card, { backgroundColor: theme.background }]}>
+                <Text style={[styles.cardTitle, { color: theme.text }]}>Entrar</Text>
+                <Text style={[styles.cardDescription, { color: theme.icon }]}>
+                    Acesse sua conta para gerenciar a frota
+                </Text>
 
-            <Pressable style={[styles.button, { backgroundColor: Colors[colorScheme].tint }]} onPress={handleLogin}>
-                <ThemedText
-                    style={[
-                        styles.buttonText, {color: Colors[colorScheme].background,},]}>Entrar
-                </ThemedText>
-            </Pressable>
-        </ThemedView>
+                {/* Form */}
+                <View style={styles.form}>
+                    {/* Campo email */}
+                    <View
+                        style={[
+                            styles.inputGroup,
+                            { backgroundColor: theme.card, borderColor: theme.border },
+                        ]}
+                    >
+                        <Mail size={18} color={theme.icon} style={styles.icon} />
+                        <TextInput
+                            style={[styles.input, { color: theme.text }]}
+                            placeholder="Email"
+                            placeholderTextColor={theme.icon}
+                            value={email}
+                            onChangeText={setEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                        />
+                    </View>
+
+                    {/* Campo senha */}
+                    <View
+                        style={[
+                            styles.inputGroup,
+                            { backgroundColor: theme.card, borderColor: theme.border },
+                        ]}
+                    >
+                        <Lock size={18} color={theme.icon} style={styles.icon} />
+                        <TextInput
+                            style={[styles.input, { color: theme.text }]}
+                            placeholder="Senha"
+                            placeholderTextColor={theme.icon}
+                            secureTextEntry
+                            value={senha}
+                            onChangeText={setSenha}
+                        />
+                    </View>
+
+                    {/* Botão */}
+                    <TouchableOpacity
+                        style={[styles.button, { backgroundColor: theme.primary }]}
+                        onPress={handleLogin}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <ActivityIndicator color="#fff" />
+                        ) : (
+                            <View style={styles.buttonContent}>
+                                <Truck size={18} color="#fff" style={{ marginRight: 6 }} />
+                                <Text style={styles.buttonText}>Entrar</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* Rodapé */}
+            <View style={styles.footer}>
+                <Text style={[styles.footerText, { color: theme.iconBack }]}>
+                    Problemas para acessar?{" "}
+                    <Text style={[styles.footerLink, { color: theme.textBack }]}>
+                        Entre em contato
+                    </Text>
+                </Text>
+            </View>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
-    title: { fontSize: 28, fontWeight: "bold", marginBottom: 30 },
-    input: {
+    container: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+    },
+    header: {
+        alignItems: "center",
+        marginBottom: 30,
+    },
+    logo: {
+        width: 164,
+        height: 164,
+        marginBottom: 12,
+    },
+    title: {
+        fontSize: 26,
+        fontWeight: "bold",
+    },
+    subtitle: {
+        fontSize: 14,
+        marginTop: 4,
+        textAlign: "center",
+    },
+    card: {
+        borderRadius: 16,
+        padding: 20,
         width: "100%",
-        padding: 12,
+        elevation: 4, // sombra Android
+        shadowColor: "#000", // sombra iOS
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+    },
+    cardTitle: {
+        fontSize: 22,
+        fontWeight: "600",
+        textAlign: "center",
+        marginBottom: 4,
+    },
+    cardDescription: {
+        fontSize: 14,
+        textAlign: "center",
+        marginBottom: 20,
+    },
+    form: {
+        gap: 14,
+    },
+    inputGroup: {
+        flexDirection: "row",
+        alignItems: "center",
+        borderRadius: 12,
         borderWidth: 1,
-        borderRadius: 10,
-        marginBottom: 15,
+        paddingHorizontal: 12,
+    },
+    icon: {
+        marginRight: 8,
+    },
+    input: {
+        flex: 1,
+        paddingVertical: 12,
         fontSize: 16,
     },
     button: {
-        width: "100%",
-        padding: 15,
-        borderRadius: 10,
+        borderRadius: 12,
+        paddingVertical: 14,
+        alignItems: "center",
+        marginTop: 10,
+    },
+    buttonContent: {
+        flexDirection: "row",
         alignItems: "center",
     },
     buttonText: {
-        fontSize: 18,
+        color: "#fff",
+        fontSize: 16,
+        fontWeight: "600",
+    },
+    footer: {
+        marginTop: 24,
+    },
+    footerText: {
+        fontSize: 13,
+        textAlign: "center",
+    },
+    footerLink: {
         fontWeight: "600",
     },
 });
