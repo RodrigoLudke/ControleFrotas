@@ -18,7 +18,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 
 // Use a variável de ambiente para a URL base
 // Para testar no emulador/navegador:
-const BASE_URL = process.env.LOCALHOST;
+const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
 
 export default function LoginScreen() {
     const [email, setEmail] = useState("");

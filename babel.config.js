@@ -5,7 +5,7 @@ module.exports = function(api) {
         presets: ['babel-preset-expo'],
         plugins: [
             'expo-router/babel',
-            'transform-inline-environment-variables',
+            //'transform-inline-environment-variables',
         ],
     };
 };
