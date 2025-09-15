@@ -1,7 +1,7 @@
 // services/api.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE_URL = process.env.LOCALHOST;
+const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
     let token = await AsyncStorage.getItem("token");

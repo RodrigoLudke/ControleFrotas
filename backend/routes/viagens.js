@@ -26,9 +26,9 @@ router.post("/", autenticarToken, async (req, res) => {
             orderBy: { kmFinal: "desc" }, // pega a última
         });
 
-        if (ultimaViagem && kmFinal < ultimaViagem.kmFinal) {
+        if (ultimaViagem && kmFinal <= ultimaViagem.kmFinal) {
             return res.status(400).json({
-                error: "A quilometragem final não pode ser menor que a última registrada.",
+                error: "A quilometragem final não pode ser menor ou igual que a última registrada.",
                 ultimaKm: ultimaViagem.kmFinal,
             });
         }

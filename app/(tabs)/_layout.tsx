@@ -8,6 +8,8 @@ import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
+import {File, FolderOpen} from "lucide-react-native";
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
@@ -29,16 +31,25 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Menu',
+          tabBarIcon: ({ color }) =>
+              <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="registrar"
         options={{
-          title: 'Explore',
+          title: 'Registrar',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
         }}
+      />
+      <Tabs.Screen
+          name="ver-viagens"
+          options={{
+              title: 'Relatorio',
+              tabBarIcon: ({ color }) =>
+                  <FolderOpen size={28} color={color} />,
+          }}
       />
     </Tabs>
   );

@@ -54,8 +54,10 @@ export default function RegistrarViagem() {
                 if (response.status === 400 && result.ultimaKm) {
                     Alert.alert(
                         "Quilometragem inválida",
-                        `A quilometragem final não pode ser menor que a última registrada (${result.ultimaKm}).`
+                        `A quilometragem final não pode ser menor ou igual que a última registrada (${result.ultimaKm}).`
                     );
+                } else if (response.status === 403) {
+                    Alert.alert("Erro de Permissão", result.error || "Você não tem permissão para realizar esta ação.");
                 } else {
                     Alert.alert("Erro", result.error || "Erro ao registrar viagem.");
                 }
