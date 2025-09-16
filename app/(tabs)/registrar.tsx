@@ -5,6 +5,9 @@ import {
     TextInput,
     Platform,
     Alert,
+    KeyboardAvoidingView,
+    ScrollView,
+    View,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { ThemedView } from "@/components/ThemedView";
@@ -13,10 +16,7 @@ import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiFetch } from "@/services/api";
-import ParallaxScrollView from "@/components/ParallaxScrollView";
 
-// Use a variável de ambiente para a URL base
-// Para testar no emulador/navegador:
 const BASE_URL = process.env.LOCALHOST;
 
 export default function RegistrarViagem() {
@@ -28,7 +28,6 @@ export default function RegistrarViagem() {
     const [kmFinal, setKmFinal] = useState("");
     const colorScheme = useColorScheme() as "light" | "dark";
 
-    // controla se o picker aparece
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showSaidaPicker, setShowSaidaPicker] = useState(false);
     const [showChegadaPicker, setShowChegadaPicker] = useState(false);
@@ -75,97 +74,124 @@ export default function RegistrarViagem() {
     };
 
     return (
-        <ThemedView style={styles.container}>
-            <ThemedText type="title" style={styles.title}>
-                Registrar Viagem
-            </ThemedText>
+        <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.keyboardAvoidingView}
+        >
+            <ScrollView contentContainerStyle={styles.scrollContainer}>
+                <ThemedView style={styles.contentWrapper}>
+                    <ThemedText type="title" style={styles.title}>
+                        Registrar Viagem
+                    </ThemedText>
 
-            <TextInput
-                style={[styles.input, { borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text }]}
-                placeholder="ID do Veículo"
-                placeholderTextColor={Colors[colorScheme].icon}
-                value={veiculoId}
-                onChangeText={setVeiculoId}
-                keyboardType="numeric"
-            />
+                    <TextInput
+                        style={[styles.input, { borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text }]}
+                        placeholder="ID do Veículo"
+                        placeholderTextColor={Colors[colorScheme].icon}
+                        value={veiculoId}
+                        onChangeText={setVeiculoId}
+                        keyboardType="numeric"
+                    />
 
-            {/* Data */}
-            <Pressable onPress={() => setShowDatePicker(true)} style={[styles.input, styles.pressable]}>
-                <ThemedText>{data.toLocaleDateString()}</ThemedText>
-            </Pressable>
-            {showDatePicker && (
-                <DateTimePicker
-                    value={data}
-                    mode="date"
-                    display="default"
-                    onChange={(e, selected) => {
-                        setShowDatePicker(false);
-                        if (selected) setData(selected);
-                    }}
-                />
-            )}
+                    {/* Data */}
+                    <Pressable onPress={() => setShowDatePicker(true)} style={[styles.input, styles.pressable]}>
+                        <ThemedText>{data.toLocaleDateString()}</ThemedText>
+                    </Pressable>
+                    {showDatePicker && (
+                        <DateTimePicker
+                            value={data}
+                            mode="date"
+                            display="default"
+                            onChange={(e, selected) => {
+                                setShowDatePicker(false);
+                                if (selected) setData(selected);
+                            }}
+                        />
+                    )}
 
-            {/* Horário de Saída */}
-            <Pressable onPress={() => setShowSaidaPicker(true)} style={[styles.input, styles.pressable]}>
-                <ThemedText>{horarioSaida.toLocaleTimeString()}</ThemedText>
-            </Pressable>
-            {showSaidaPicker && (
-                <DateTimePicker
-                    value={horarioSaida}
-                    mode="time"
-                    display="default"
-                    onChange={(e, selected) => {
-                        setShowSaidaPicker(false);
-                        if (selected) setHorarioSaida(selected);
-                    }}
-                />
-            )}
+                    {/* Horário de Saída */}
+                    <Pressable onPress={() => setShowSaidaPicker(true)} style={[styles.input, styles.pressable]}>
+                        <ThemedText>{horarioSaida.toLocaleTimeString()}</ThemedText>
+                    </Pressable>
+                    {showSaidaPicker && (
+                        <DateTimePicker
+                            value={horarioSaida}
+                            mode="time"
+                            display="default"
+                            onChange={(e, selected) => {
+                                setShowSaidaPicker(false);
+                                if (selected) setHorarioSaida(selected);
+                            }}
+                        />
+                    )}
 
-            {/* Horário de Chegada */}
-            <Pressable onPress={() => setShowChegadaPicker(true)} style={[styles.input, styles.pressable]}>
-                <ThemedText>{horarioChegada.toLocaleTimeString()}</ThemedText>
-            </Pressable>
-            {showChegadaPicker && (
-                <DateTimePicker
-                    value={horarioChegada}
-                    mode="time"
-                    display="default"
-                    onChange={(e, selected) => {
-                        setShowChegadaPicker(false);
-                        if (selected) setHorarioChegada(selected);
-                    }}
-                />
-            )}
+                    {/* Horário de Chegada */}
+                    <Pressable onPress={() => setShowChegadaPicker(true)} style={[styles.input, styles.pressable]}>
+                        <ThemedText>{horarioChegada.toLocaleTimeString()}</ThemedText>
+                    </Pressable>
+                    {showChegadaPicker && (
+                        <DateTimePicker
+                            value={horarioChegada}
+                            mode="time"
+                            display="default"
+                            onChange={(e, selected) => {
+                                setShowChegadaPicker(false);
+                                if (selected) setHorarioChegada(selected);
+                            }}
+                        />
+                    )}
 
-            <TextInput
-                style={[styles.input, { borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text }]}
-                placeholder="Finalidade"
-                placeholderTextColor={Colors[colorScheme].icon}
-                value={finalidade}
-                onChangeText={setFinalidade}
-            />
+                    <TextInput
+                        style={[styles.input, { borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text }]}
+                        placeholder="Finalidade"
+                        placeholderTextColor={Colors[colorScheme].icon}
+                        value={finalidade}
+                        onChangeText={setFinalidade}
+                    />
 
-            <TextInput
-                style={[styles.input, { borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text }]}
-                placeholder="Km Final"
-                placeholderTextColor={Colors[colorScheme].icon}
-                value={kmFinal}
-                onChangeText={setKmFinal}
-                keyboardType="numeric"
-            />
+                    <TextInput
+                        style={[styles.input, { borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text }]}
+                        placeholder="Km Final"
+                        placeholderTextColor={Colors[colorScheme].icon}
+                        value={kmFinal}
+                        onChangeText={setKmFinal}
+                        keyboardType="numeric"
+                    />
 
-            <Pressable style={[styles.button, { backgroundColor: Colors[colorScheme].tint }]} onPress={salvarViagem}>
-                <ThemedText style={[styles.buttonText, { color: Colors[colorScheme].background }]}>
-                    Salvar Viagem
-                </ThemedText>
-            </Pressable>
-        </ThemedView>
+                    <Pressable style={[styles.button, { backgroundColor: Colors[colorScheme].tint }]} onPress={salvarViagem}>
+                        <ThemedText style={[styles.buttonText, { color: Colors[colorScheme].background }]}>
+                            Salvar Viagem
+                        </ThemedText>
+                    </Pressable>
+                </ThemedView>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
-    title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+    keyboardAvoidingView: {
+        flex: 1,
+    },
+    scrollContainer: {
+        flexGrow: 1,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    // Novo container para envolver todo o formulário
+    contentWrapper: {
+        flex: 1, // Isso fará com que o ThemedView se expanda para ocupar o espaço do ScrollView
+        width: '100%',
+        maxWidth: 600, // Largura máxima para telas maiores, você pode ajustar este valor
+        paddingHorizontal: 20,
+        justifyContent: 'center', // Centraliza o conteúdo verticalmente dentro do wrapper
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: "bold",
+        marginBottom: 20,
+        textAlign: "center"
+    },
     input: {
         width: "100%",
         padding: 12,

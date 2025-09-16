@@ -57,6 +57,7 @@ export default function LoginScreen() {
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={-50}
             style={[styles.keyboardAvoidingView, { backgroundColor: theme.primary }]}
         >
             <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -72,7 +73,6 @@ export default function LoginScreen() {
                             Sistema profissional de gestão de veículos
                         </Text>
                     </View>
-
                     {/* Card */}
                     <View style={[styles.card, { backgroundColor: theme.background }]}>
                         <Text style={[styles.cardTitle, { color: theme.text }]}>Entrar</Text>
