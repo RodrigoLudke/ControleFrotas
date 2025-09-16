@@ -46,7 +46,7 @@ export default function TabLayout() {
       <Tabs.Screen
           name="ver-viagens"
           options={{
-              title: 'Relatorio',
+              title: 'Relatório',
               tabBarIcon: ({ color }) =>
                   <FolderOpen size={28} color={color} />,
           }}

@@ -13,6 +13,7 @@ import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiFetch } from "@/services/api";
+import ParallaxScrollView from "@/components/ParallaxScrollView";
 
 // Use a variável de ambiente para a URL base
 // Para testar no emulador/navegador:

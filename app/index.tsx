@@ -8,16 +8,17 @@ import {
     Image,
     StyleSheet,
     ActivityIndicator,
+    KeyboardAvoidingView,
+    ScrollView,
+    Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Mail, Lock, Truck } from "lucide-react-native";
 
-import {Colors} from "@/constants/Colors";
+import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 
-// Use a variável de ambiente para a URL base
-// Para testar no emulador/navegador:
 const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
 
 export default function LoginScreen() {
@@ -54,111 +55,126 @@ export default function LoginScreen() {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.primary }]}>
-            {/* Logo + título */}
-            <View style={styles.header}>
-                <Image
-                    source={require("@/assets/images/CF-logoWhite.png")}
-                    style={styles.logo}
-                />
-                <Text style={[styles.title, { color: theme.textBack }]}>ControleFrotas</Text>
-                <Text style={[styles.subtitle, { color: theme.iconBack }]}>
-                    Sistema profissional de gestão de veículos
-                </Text>
-            </View>
-
-            {/* Card */}
-            <View style={[styles.card, { backgroundColor: theme.background }]}>
-                <Text style={[styles.cardTitle, { color: theme.text }]}>Entrar</Text>
-                <Text style={[styles.cardDescription, { color: theme.icon }]}>
-                    Acesse sua conta para gerenciar a frota
-                </Text>
-
-                {/* Form */}
-                <View style={styles.form}>
-                    {/* Campo email */}
-                    <View
-                        style={[
-                            styles.inputGroup,
-                            { backgroundColor: theme.card, borderColor: theme.border },
-                        ]}
-                    >
-                        <Mail size={18} color={theme.icon} style={styles.icon} />
-                        <TextInput
-                            style={[styles.input, { color: theme.text }]}
-                            placeholder="Email"
-                            placeholderTextColor={theme.icon}
-                            value={email}
-                            onChangeText={setEmail}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
+        <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={[styles.keyboardAvoidingView, { backgroundColor: theme.primary }]}
+        >
+            <ScrollView contentContainerStyle={styles.scrollContainer}>
+                <View style={styles.contentContainer}>
+                    {/* Logo + título */}
+                    <View style={styles.header}>
+                        <Image
+                            source={require("@/assets/images/CF-logoWhite.png")}
+                            style={styles.logo}
                         />
+                        {/*<Text style={[styles.title, { color: theme.textBack }]}>Controle de Frotas</Text>*/}
+                        <Text style={[styles.subtitle, { color: theme.iconBack }]}>
+                            Sistema profissional de gestão de veículos
+                        </Text>
                     </View>
 
-                    {/* Campo senha */}
-                    <View
-                        style={[
-                            styles.inputGroup,
-                            { backgroundColor: theme.card, borderColor: theme.border },
-                        ]}
-                    >
-                        <Lock size={18} color={theme.icon} style={styles.icon} />
-                        <TextInput
-                            style={[styles.input, { color: theme.text }]}
-                            placeholder="Senha"
-                            placeholderTextColor={theme.icon}
-                            secureTextEntry
-                            value={senha}
-                            onChangeText={setSenha}
-                        />
-                    </View>
+                    {/* Card */}
+                    <View style={[styles.card, { backgroundColor: theme.background }]}>
+                        <Text style={[styles.cardTitle, { color: theme.text }]}>Entrar</Text>
+                        <Text style={[styles.cardDescription, { color: theme.icon }]}>
+                            Acesse sua conta para gerenciar a frota
+                        </Text>
 
-                    {/* Botão */}
-                    <TouchableOpacity
-                        style={[styles.button, { backgroundColor: theme.primary }]}
-                        onPress={handleLogin}
-                        disabled={isLoading}
-                    >
-                        {isLoading ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <View style={styles.buttonContent}>
-                                <Truck size={18} color="#fff" style={{ marginRight: 6 }} />
-                                <Text style={styles.buttonText}>Entrar</Text>
+                        {/* Form */}
+                        <View style={styles.form}>
+                            {/* Campo email */}
+                            <View
+                                style={[
+                                    styles.inputGroup,
+                                    { backgroundColor: theme.card, borderColor: theme.border },
+                                ]}
+                            >
+                                <Mail size={18} color={theme.icon} style={styles.icon} />
+                                <TextInput
+                                    style={[styles.input, { color: theme.text }]}
+                                    placeholder="Email"
+                                    placeholderTextColor={theme.icon}
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                />
                             </View>
-                        )}
-                    </TouchableOpacity>
-                </View>
-            </View>
 
-            {/* Rodapé */}
-            <View style={styles.footer}>
-                <Text style={[styles.footerText, { color: theme.iconBack }]}>
-                    Problemas para acessar?{" "}
-                    <Text style={[styles.footerLink, { color: theme.textBack }]}>
-                        Entre em contato
-                    </Text>
-                </Text>
-            </View>
-        </View>
+                            {/* Campo senha */}
+                            <View
+                                style={[
+                                    styles.inputGroup,
+                                    { backgroundColor: theme.card, borderColor: theme.border },
+                                ]}
+                            >
+                                <Lock size={18} color={theme.icon} style={styles.icon} />
+                                <TextInput
+                                    style={[styles.input, { color: theme.text }]}
+                                    placeholder="Senha"
+                                    placeholderTextColor={theme.icon}
+                                    secureTextEntry
+                                    value={senha}
+                                    onChangeText={setSenha}
+                                />
+                            </View>
+
+                            {/* Botão */}
+                            <TouchableOpacity
+                                style={[styles.button, { backgroundColor: theme.primary }]}
+                                onPress={handleLogin}
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <View style={styles.buttonContent}>
+                                        <Truck size={18} color="#fff" style={{ marginRight: 6 }} />
+                                        <Text style={styles.buttonText}>Entrar</Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    {/* Rodapé */}
+                    <View style={styles.footer}>
+                        <Text style={[styles.footerText, { color: theme.iconBack }]}>
+                            Problemas para acessar?{" "}
+                            <Text style={[styles.footerLink, { color: theme.textBack }]}>
+                                Entre em contato
+                            </Text>
+                        </Text>
+                    </View>
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    keyboardAvoidingView: {
         flex: 1,
+    },
+    scrollContainer: {
+        flexGrow: 1,
         justifyContent: "center",
         alignItems: "center",
+    },
+    contentContainer: {
+        width: "100%",
+        maxWidth: 400, // opcional, para telas maiores
         padding: 20,
+        alignItems: 'center',
     },
     header: {
         alignItems: "center",
         marginBottom: 30,
     },
     logo: {
-        width: 164,
-        height: 164,
-        marginBottom: 12,
+        width: 264,
+        height: 264,
+        marginBottom: -40,
     },
     title: {
         fontSize: 26,
@@ -173,8 +189,8 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 20,
         width: "100%",
-        elevation: 4, // sombra Android
-        shadowColor: "#000", // sombra iOS
+        elevation: 4,
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 6,
