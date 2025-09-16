@@ -9,8 +9,14 @@ const prisma = new PrismaClient();
 // Registrar viagem
 router.post("/", autenticarToken, async (req, res) => {
     try {
-        const { veiculoId, data, horarioSaida, horarioChegada, finalidade, kmFinal } = req.body;
+        const { veiculoId, dataSaida, dataChegada, horarioSaida, horarioChegada, finalidade, kmFinal } = req.body;
         const userId = req.user.id;
+
+        const inicioViagem = new Date(`${dataSaida}T${horarioSaida}`);
+        const fimViagem = new Date(`${dataChegada}T${horarioChegada}`);
+        if (fimViagem.getTime() <= inicioViagem.getTime()) {
+            return res.status(400).json({ error: "O horário de chegada não pode ser menor ou igual ao horário de saída." });
+        }
 
         // valida se o usuário pode dirigir o veículo
         const permitido = await prisma.userVeiculo.findFirst({
@@ -37,7 +43,8 @@ router.post("/", autenticarToken, async (req, res) => {
             data: {
                 userId: parseInt(userId),
                 veiculoId,
-                data: new Date(data),
+                dataSaida: new Date(dataSaida),
+                dataChegada: new Date(dataChegada),
                 horarioSaida: new Date(horarioSaida),
                 horarioChegada: new Date(horarioChegada),
                 finalidade,

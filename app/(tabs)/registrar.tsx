@@ -23,6 +23,7 @@ const BASE_URL = process.env.LOCALHOST;
 export default function RegistrarViagem() {
     const [veiculoId, setVeiculoId] = useState("");
     const [data, setData] = useState(new Date());
+    const [dataChegada, setDataChegada] = useState(new Date());
     const [horarioSaida, setHorarioSaida] = useState(new Date());
     const [horarioChegada, setHorarioChegada] = useState(new Date());
     const [finalidade, setFinalidade] = useState("");
@@ -30,6 +31,7 @@ export default function RegistrarViagem() {
     const colorScheme = useColorScheme() as "light" | "dark";
 
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [showDataChegadaPicker, setShowDataChegadaPicker] = useState(false);
     const [showSaidaPicker, setShowSaidaPicker] = useState(false);
     const [showChegadaPicker, setShowChegadaPicker] = useState(false);
 
@@ -38,6 +40,7 @@ export default function RegistrarViagem() {
             // Este código será executado toda vez que a tela entra em foco
             setVeiculoId("");
             setData(new Date());
+            setDataChegada(new Date());
             setHorarioSaida(new Date());
             setHorarioChegada(new Date());
             setFinalidade("");
@@ -49,7 +52,8 @@ export default function RegistrarViagem() {
         try {
             const body = {
                 veiculoId: parseInt(veiculoId),
-                data: data.toISOString(),
+                dataSaida: data.toISOString().split("T")[0],   // só a data
+                dataChegada: dataChegada.toISOString().split("T")[0],
                 horarioSaida: horarioSaida.toISOString(),
                 horarioChegada: horarioChegada.toISOString(),
                 finalidade,
@@ -62,6 +66,17 @@ export default function RegistrarViagem() {
             });
 
             const result = await response.json();
+
+            const inicioViagem = new Date(data);
+            inicioViagem.setHours(horarioSaida.getHours(), horarioSaida.getMinutes(), 0, 0);
+
+            const fimViagem = new Date(dataChegada);
+            fimViagem.setHours(horarioChegada.getHours(), horarioChegada.getMinutes(), 0, 0);
+
+            if (fimViagem <= inicioViagem) {
+                Alert.alert("Erro", "A data/horário de chegada não pode ser anterior à saída.");
+                return;
+            }
 
             if (!response.ok) {
                 if (response.status === 400 && result.ultimaKm) {
@@ -121,6 +136,22 @@ export default function RegistrarViagem() {
                             }}
                         />
                     )}
+                    {/* Data de Chegada */}
+                    <Pressable onPress={() => setShowDataChegadaPicker(true)} style={[styles.input, styles.pressable]}>
+                        <ThemedText>{dataChegada.toLocaleDateString()}</ThemedText>
+                    </Pressable>
+                    {showDataChegadaPicker && (
+                        <DateTimePicker
+                            value={dataChegada}
+                            mode="date"
+                            display="default"
+                            onChange={(e, selected) => {
+                                setShowDataChegadaPicker(false);
+                                if (selected) setDataChegada(selected);
+                            }}
+                        />
+                    )}
+
 
                     {/* Horário de Saída */}
                     <Pressable onPress={() => setShowSaidaPicker(true)} style={[styles.input, styles.pressable]}>

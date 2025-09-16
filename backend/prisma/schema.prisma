@@ -38,9 +38,12 @@ model Viagem {
   id             Int      @id @default(autoincrement())
   userId         Int
   veiculoId      Int
-  data           DateTime
+
+  dataSaida      DateTime
+  dataChegada    DateTime
   horarioSaida   DateTime
   horarioChegada DateTime
+
   finalidade     String
   kmFinal        Int
 
