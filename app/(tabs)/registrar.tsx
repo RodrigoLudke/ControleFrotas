@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback} from "react";
 import {
     Pressable,
     StyleSheet,
@@ -9,6 +9,7 @@ import {
     ScrollView,
     View,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
@@ -31,6 +32,18 @@ export default function RegistrarViagem() {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showSaidaPicker, setShowSaidaPicker] = useState(false);
     const [showChegadaPicker, setShowChegadaPicker] = useState(false);
+
+    useFocusEffect(
+        useCallback(() => {
+            // Este código será executado toda vez que a tela entra em foco
+            setVeiculoId("");
+            setData(new Date());
+            setHorarioSaida(new Date());
+            setHorarioChegada(new Date());
+            setFinalidade("");
+            setKmFinal("");
+        }, [])
+    );
 
     const salvarViagem = async () => {
         try {
@@ -178,7 +191,6 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
-    // Novo container para envolver todo o formulário
     contentWrapper: {
         flex: 1, // Isso fará com que o ThemedView se expanda para ocupar o espaço do ScrollView
         width: '100%',
