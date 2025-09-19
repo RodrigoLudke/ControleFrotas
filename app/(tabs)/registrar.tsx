@@ -50,15 +50,22 @@ export default function RegistrarViagem() {
 
     const salvarViagem = async () => {
         try {
+            // Combina data + hora de saída
+            const inicioViagem = new Date(data);
+            inicioViagem.setHours(horarioSaida.getHours(), horarioSaida.getMinutes(), 0, 0);
+
+            // Combina data + hora de chegada
+            const fimViagem = new Date(dataChegada);
+            fimViagem.setHours(horarioChegada.getHours(), horarioChegada.getMinutes(), 0, 0);
+
             const body = {
                 veiculoId: parseInt(veiculoId),
-                dataSaida: data.toISOString().split("T")[0],   // só a data
-                dataChegada: dataChegada.toISOString().split("T")[0],
-                horarioSaida: horarioSaida.toISOString(),
-                horarioChegada: horarioChegada.toISOString(),
+                dataSaida: inicioViagem.toISOString(),   // já datetime completo
+                dataChegada: fimViagem.toISOString(),    // idem
                 finalidade,
                 kmFinal: parseInt(kmFinal),
             };
+
 
             const response = await apiFetch(`/viagens`, {
                 method: "POST",
@@ -66,12 +73,6 @@ export default function RegistrarViagem() {
             });
 
             const result = await response.json();
-
-            const inicioViagem = new Date(data);
-            inicioViagem.setHours(horarioSaida.getHours(), horarioSaida.getMinutes(), 0, 0);
-
-            const fimViagem = new Date(dataChegada);
-            fimViagem.setHours(horarioChegada.getHours(), horarioChegada.getMinutes(), 0, 0);
 
             if (fimViagem <= inicioViagem) {
                 Alert.alert("Erro", "A data/horário de chegada não pode ser anterior à saída.");

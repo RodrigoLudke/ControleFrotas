@@ -9,13 +9,14 @@ const prisma = new PrismaClient();
 // Registrar viagem
 router.post("/", autenticarToken, async (req, res) => {
     try {
-        const { veiculoId, dataSaida, dataChegada, horarioSaida, horarioChegada, finalidade, kmFinal } = req.body;
+        const { veiculoId, dataSaida, dataChegada, finalidade, kmFinal } = req.body;
         const userId = req.user.id;
 
-        const inicioViagem = new Date(`${dataSaida}T${horarioSaida}`);
-        const fimViagem = new Date(`${dataChegada}T${horarioChegada}`);
-        if (fimViagem.getTime() <= inicioViagem.getTime()) {
-            return res.status(400).json({ error: "O horário de chegada não pode ser menor ou igual ao horário de saída." });
+        const inicioViagem = new Date(dataSaida);
+        const fimViagem = new Date(dataChegada);
+
+        if (fimViagem <= inicioViagem) {
+            return res.status(400).json({ error: "Data/Horário de chegada não pode ser anterior à saída." });
         }
 
         // valida se o usuário pode dirigir o veículo
@@ -32,21 +33,28 @@ router.post("/", autenticarToken, async (req, res) => {
             orderBy: { kmFinal: "desc" }, // pega a última
         });
 
-        if (ultimaViagem && kmFinal <= ultimaViagem.kmFinal) {
-            return res.status(400).json({
-                error: "A quilometragem final não pode ser menor ou igual que a última registrada.",
-                ultimaKm: ultimaViagem.kmFinal,
-            });
+        if (ultimaViagem) {
+            if (inicioViagem <= new Date(ultimaViagem.dataSaida)) {
+                return res.status(400).json({
+                    error: "A data/hora de saída não pode ser anterior ou igual à última viagem registrada.",
+                    ultimaData: ultimaViagem.dataSaida,
+                });
+            }
+
+            if (kmFinal <= ultimaViagem.kmFinal) {
+                return res.status(400).json({
+                    error: "A quilometragem final não pode ser menor ou igual que a última registrada.",
+                    ultimaKm: ultimaViagem.kmFinal,
+                });
+            }
         }
 
         const viagem = await prisma.viagem.create({
             data: {
-                userId: parseInt(userId),
+                userId,
                 veiculoId,
-                dataSaida: new Date(dataSaida),
-                dataChegada: new Date(dataChegada),
-                horarioSaida: new Date(horarioSaida),
-                horarioChegada: new Date(horarioChegada),
+                dataSaida: inicioViagem,
+                dataChegada: fimViagem,
                 finalidade,
                 kmFinal,
             },
@@ -66,7 +74,7 @@ router.get("/", autenticarToken, async (req, res) => {
 
         const viagens = await prisma.viagem.findMany({
             where: { userId: parseInt(userId) },
-            orderBy: { data: "desc" },
+            orderBy: { kmFinal: "desc" },
         });
 
         res.json(viagens);

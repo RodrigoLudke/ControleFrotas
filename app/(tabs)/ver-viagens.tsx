@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { FlatList, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedView } from "@/components/ThemedView";
@@ -15,38 +16,48 @@ export default function VerViagens() {
     const [viagens, setViagens] = useState<any[]>([]);
     const colorScheme = useColorScheme() as "light" | "dark";
 
-    useEffect(() => {
-        const fetchViagens = async () => {
-            try {
-                const response = await apiFetch("/viagens"); // 👈 sem precisar pegar token
-                if (!response.ok) throw new Error("Erro ao buscar viagens");
+    useFocusEffect(
+        useCallback(() => {
+            const fetchViagens = async () => {
+                try {
+                    const response = await apiFetch("/viagens");
+                    if (!response.ok) throw new Error("Erro ao buscar viagens");
 
-                const data = await response.json();
-                setViagens(data);
-            } catch (err) {
-                console.error("Erro ao carregar viagens:", err);
-            }
-        };
+                    const data = await response.json();
+                    setViagens(data);
+                } catch (err) {
+                    console.error("Erro ao carregar viagens:", err);
+                }
+            };
 
-        fetchViagens();
-    }, []);
+            fetchViagens();
 
-    const renderViagem = ({ item }: { item: any }) => (
-        <ThemedView style={[styles.card, { borderColor: Colors[colorScheme].tint }]}>
-            <ThemedText type="subtitle">Veículo: {item.veiculoId}</ThemedText>
-            <ThemedText>
-                Data: {new Date(item.data).toLocaleDateString("pt-BR")}
-            </ThemedText>
-            <ThemedText>
-                Saída: {new Date(item.horarioSaida).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-            </ThemedText>
-            <ThemedText>
-                Chegada: {new Date(item.horarioChegada).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-            </ThemedText>
-            <ThemedText>Finalidade: {item.finalidade}</ThemedText>
-            <ThemedText>KM Final: {item.kmFinal}</ThemedText>
-        </ThemedView>
+        }, [])
     );
+
+    const renderViagem = ({ item }: { item: any }) => {
+        const saida = new Date(item.dataSaida);
+        const chegada = new Date(item.dataChegada);
+
+        return (
+            <ThemedView style={[styles.card, { borderColor: Colors[colorScheme].tint }]}>
+                <ThemedText type="subtitle">Veículo: {item.veiculoId}</ThemedText>
+
+                <ThemedText>
+                    Saída: {saida.toLocaleDateString("pt-BR")} às{" "}
+                    {saida.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                </ThemedText>
+
+                <ThemedText>
+                    Chegada: {chegada.toLocaleDateString("pt-BR")} às{" "}
+                    {chegada.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                </ThemedText>
+
+                <ThemedText>Finalidade: {item.finalidade}</ThemedText>
+                <ThemedText>KM Final: {item.kmFinal}</ThemedText>
+            </ThemedView>
+        );
+    };
 
     return (
         <ThemedView style={styles.container}>
