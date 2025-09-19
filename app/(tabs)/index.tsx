@@ -20,7 +20,7 @@ export default function ViagensMenu() {
                 onPress={() => router.push("/(tabs)/registrar")}
             >
                 <ThemedText
-                    style={[styles.buttonText, { color: Colors[colorScheme].background }]}
+                    style={[styles.buttonText, { color: Colors[colorScheme].textBack }]}
                 >
                     Registrar Viagem
                 </ThemedText>
@@ -30,7 +30,7 @@ export default function ViagensMenu() {
                 onPress={() => router.push("/(tabs)/ver-viagens")}
             >
                 <ThemedText
-                    style={[styles.buttonText, { color: Colors[colorScheme].background }]}
+                    style={[styles.buttonText, { color: Colors[colorScheme].textBack }]}
                 >
                     Ver Registros de Viagens
                 </ThemedText>

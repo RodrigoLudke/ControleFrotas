@@ -71,7 +71,7 @@ export default function VerViagens() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 16 },
+    container: { flex: 1, padding: 16, paddingTop: 60 },
     card: {
         borderWidth: 1,
         borderRadius: 10,

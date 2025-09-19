@@ -113,6 +113,7 @@ export default function RegistrarViagem() {
                         Registrar Viagem
                     </ThemedText>
 
+                    <ThemedText style={styles.subtitle}>ID do Veículo</ThemedText>
                     <TextInput
                         style={[styles.input, { borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text }]}
                         placeholder="ID do Veículo"
@@ -123,7 +124,8 @@ export default function RegistrarViagem() {
                     />
 
                     {/* Data */}
-                    <Pressable onPress={() => setShowDatePicker(true)} style={[styles.input, styles.pressable]}>
+                    <ThemedText style={styles.subtitle}>Data de Saída</ThemedText>
+                    <Pressable onPress={() => setShowDatePicker(true)} style={[styles.input, {borderColor: Colors[colorScheme].tint}, styles.pressable]}>
                         <ThemedText>{data.toLocaleDateString()}</ThemedText>
                     </Pressable>
                     {showDatePicker && (
@@ -138,7 +140,8 @@ export default function RegistrarViagem() {
                         />
                     )}
                     {/* Data de Chegada */}
-                    <Pressable onPress={() => setShowDataChegadaPicker(true)} style={[styles.input, styles.pressable]}>
+                    <ThemedText style={styles.subtitle}>Data de Chegada</ThemedText>
+                    <Pressable onPress={() => setShowDataChegadaPicker(true)} style={[styles.input, {borderColor: Colors[colorScheme].tint}, styles.pressable]}>
                         <ThemedText>{dataChegada.toLocaleDateString()}</ThemedText>
                     </Pressable>
                     {showDataChegadaPicker && (
@@ -155,7 +158,8 @@ export default function RegistrarViagem() {
 
 
                     {/* Horário de Saída */}
-                    <Pressable onPress={() => setShowSaidaPicker(true)} style={[styles.input, styles.pressable]}>
+                    <ThemedText style={styles.subtitle}>Horário de Saída</ThemedText>
+                    <Pressable onPress={() => setShowSaidaPicker(true)} style={[styles.input, {borderColor: Colors[colorScheme].tint}, styles.pressable]}>
                         <ThemedText>{horarioSaida.toLocaleTimeString()}</ThemedText>
                     </Pressable>
                     {showSaidaPicker && (
@@ -171,7 +175,8 @@ export default function RegistrarViagem() {
                     )}
 
                     {/* Horário de Chegada */}
-                    <Pressable onPress={() => setShowChegadaPicker(true)} style={[styles.input, styles.pressable]}>
+                    <ThemedText style={styles.subtitle}>Horário de Chegada</ThemedText>
+                    <Pressable onPress={() => setShowChegadaPicker(true)} style={[styles.input, {borderColor: Colors[colorScheme].tint}, styles.pressable]}>
                         <ThemedText>{horarioChegada.toLocaleTimeString()}</ThemedText>
                     </Pressable>
                     {showChegadaPicker && (
@@ -186,6 +191,7 @@ export default function RegistrarViagem() {
                         />
                     )}
 
+                    <ThemedText style={styles.subtitle}>Finalidade</ThemedText>
                     <TextInput
                         style={[styles.input, { borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text }]}
                         placeholder="Finalidade"
@@ -194,6 +200,7 @@ export default function RegistrarViagem() {
                         onChangeText={setFinalidade}
                     />
 
+                    <ThemedText style={styles.subtitle}>Quilometragem Final</ThemedText>
                     <TextInput
                         style={[styles.input, { borderColor: Colors[colorScheme].tint, color: Colors[colorScheme].text }]}
                         placeholder="Km Final"
@@ -204,7 +211,7 @@ export default function RegistrarViagem() {
                     />
 
                     <Pressable style={[styles.button, { backgroundColor: Colors[colorScheme].tint }]} onPress={salvarViagem}>
-                        <ThemedText style={[styles.buttonText, { color: Colors[colorScheme].background }]}>
+                        <ThemedText style={[styles.buttonText, { color: Colors[colorScheme].textBack }]}>
                             Salvar Viagem
                         </ThemedText>
                     </Pressable>
@@ -235,6 +242,11 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         marginBottom: 20,
         textAlign: "center"
+    },
+    subtitle: {
+        fontSize: 18,
+        fontWeight: "300",
+        marginBottom: 5,
     },
     input: {
         width: "100%",
