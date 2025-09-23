@@ -22,13 +22,13 @@ app.use("/viagens", viagensRoutes);
 
 // Rota de cadastro (já existe)
 app.post("/register", async (req, res) => {
-    const { email, senha } = req.body;
+    const { email, senha, role } = req.body;
     if (!email || !senha) return res.status(400).json({ error: "Dados inválidos" });
 
     const senhaHash = await bcrypt.hash(senha, 10);
 
     const user = await prisma.user.create({
-        data: { email, senha: senhaHash },
+        data: { email, senha: senhaHash, role: role === "ADMIN" ? "ADMIN" : "USER" },
     });
 
     res.json({ message: "Usuário cadastrado", user });

@@ -1,6 +1,7 @@
 import express from "express";
 import pkg from "@prisma/client";
 import { autenticarToken } from "../index.js";
+import { autorizarRoles } from "../index.js";
 
 const router = express.Router();
 const { PrismaClient } = pkg;
@@ -75,6 +76,19 @@ router.get("/", autenticarToken, async (req, res) => {
         const viagens = await prisma.viagem.findMany({
             where: { userId: parseInt(userId) },
             orderBy: { kmFinal: "desc" },
+        });
+
+        res.json(viagens);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Erro ao buscar viagens" });
+    }
+});
+
+router.get("/admin", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
+    try {
+        const viagens = await prisma.viagem.findMany({
+            orderBy: { dataSaida: "desc" },
         });
 
         res.json(viagens);
