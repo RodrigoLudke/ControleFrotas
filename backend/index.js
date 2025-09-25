@@ -8,6 +8,8 @@ import { randomBytes } from "crypto";
 
 import veiculosRoutes from "./routes/veiculos.js";
 import viagensRoutes from "./routes/viagens.js";
+import motoristasRoutes from "./routes/motoristas.js";
+import refreshRoutes from "./routes/refresh.js";
 
 import cors from "cors";
 
@@ -19,6 +21,8 @@ app.use(cors());
 
 app.use("/veiculos", veiculosRoutes);
 app.use("/viagens", viagensRoutes);
+app.use("users/motoristas", motoristasRoutes);
+app.use("/refresh", refreshRoutes);
 
 // Rota de cadastro (já existe)
 app.post("/register", async (req, res) => {

@@ -7,6 +7,8 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import RegistrarVeiculos from "./pages/RegistrarVeiculos.tsx";
+import RegistrarMotoristas from "./pages/RegistrarMotoristas.tsx";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +25,9 @@ const App = () => (
           <Route path="/index" element={<Index />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
+          <Route path="/registrarveiculos" element={<RegistrarVeiculos />} />
+          <Route path="/registrarmotoristas" element={<RegistrarMotoristas />} />
+
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
