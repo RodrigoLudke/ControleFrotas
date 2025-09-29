@@ -37,7 +37,7 @@ router.post("/refresh", async (req, res) => {
 
         // gerar novo access token
         const accessToken = jwt.sign(
-            { userId: dbToken.user.id, email: dbToken.user.email, role: dbToken.user.role },
+            { id: dbToken.user.id, email: dbToken.user.email, role: dbToken.user.role },
             JWT_SECRET,
             { expiresIn: ACCESS_TOKEN_EXPIRES }
         );
