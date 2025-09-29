@@ -56,7 +56,7 @@ app.post("/index", async (req, res) => {
 
 function gerarAccessToken(user) {
     return jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, {
-        expiresIn: "15m", // expira rápido
+        expiresIn: "1m", // expira rápido
     });
 }
 
@@ -82,7 +82,7 @@ export function autenticarToken(req, res, next) {
     if (!token) return res.sendStatus(401);
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403);
+        if (err) return res.sendStatus(401);
         req.user = user;
         next();
     });

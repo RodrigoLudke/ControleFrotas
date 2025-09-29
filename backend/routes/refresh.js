@@ -1,7 +1,7 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import jwt from "jsonwebtoken";
-import crypto from "crypto";
+import {randomBytes} from "crypto";
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -10,7 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const ACCESS_TOKEN_EXPIRES = "15m"; // expiração curta
 
 // rota de refresh
-router.post("/refresh", async (req, res) => {
+router.post("/", async (req, res) => {
     try {
         const { refreshToken } = req.body;
 
@@ -43,7 +43,7 @@ router.post("/refresh", async (req, res) => {
         );
 
         // opcional: gerar novo refresh token para renovar continuamente
-        const newRefreshToken = crypto.randomUUID();
+        const newRefreshToken = randomBytes(40).toString("hex");
         const refreshExpiry = new Date();
         refreshExpiry.setDate(refreshExpiry.getDate() + 7); // 7 dias
 
