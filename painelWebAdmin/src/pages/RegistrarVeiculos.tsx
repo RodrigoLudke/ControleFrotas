@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { Save, Car } from "lucide-react";
+import { apiFetch } from "@/services/api";
+import { useNavigate } from "react-router-dom";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const vehicleSchema = z.object({
     plate: z.string().min(7, "Placa deve ter 7 caracteres").max(8, "Placa inválida"),
@@ -18,8 +21,8 @@ const vehicleSchema = z.object({
     color: z.string().min(2, "Cor é obrigatória").max(30, "Cor muito longa"),
     chassis: z.string().min(17, "Chassi deve ter 17 caracteres").max(17, "Chassi deve ter 17 caracteres"),
     renavam: z.string().min(9, "RENAVAM deve ter pelo menos 9 dígitos").max(11, "RENAVAM muito longo"),
-    fuel: z.enum(["gasoline", "alcohol", "flex", "diesel", "electric", "hybrid"], {
-        required_error: "Selecione o tipo de combustível"
+    fuel: z.enum(["gasolina", "alcool", "flex", "diesel", "eletrico", "hibrido"], {
+        required_error: "Selecione o tipo de combustível",
     }),
     capacity: z.string().min(1, "Capacidade é obrigatória"),
     mileage: z.string().min(1, "Quilometragem é obrigatória"),
@@ -28,41 +31,83 @@ const vehicleSchema = z.object({
     insuranceCompany: z.string().max(100, "Nome da seguradora muito longo").optional(),
     insurancePolicy: z.string().max(50, "Número da apólice muito longo").optional(),
     insuranceExpiry: z.string().optional(),
-    observations: z.string().max(500, "Observações muito longas").optional()
+    observations: z.string().max(500, "Observações muito longas").optional(),
 });
 
 type VehicleFormData = z.infer<typeof vehicleSchema>;
 
 const fuelOptions = [
-    { value: "gasoline", label: "Gasolina" },
-    { value: "alcohol", label: "Álcool" },
+    { value: "gasolina", label: "Gasolina" },
+    { value: "alcool", label: "Álcool" },
     { value: "flex", label: "Flex" },
     { value: "diesel", label: "Diesel" },
-    { value: "electric", label: "Elétrico" },
-    { value: "hybrid", label: "Híbrido" }
+    { value: "eletrico", label: "Elétrico" },
+    { value: "hibrido", label: "Híbrido" },
 ];
+
+interface Driver {
+    id: number;
+    nome: string;
+    email: string;
+}
 
 export default function RegisterVehicle() {
     const { toast } = useToast();
+    const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState<Partial<VehicleFormData>>({});
     const [errors, setErrors] = useState<Partial<Record<keyof VehicleFormData, string>>>({});
+    const [motoristas, setMotoristas] = useState<Driver[]>([]);
+    const [selectedMotoristas, setSelectedMotoristas] = useState<number[]>([]);
+
+    useEffect(() => {
+        const fetchMotoristas = async () => {
+            try {
+                const response = await apiFetch("/motoristas");
+                if (response.ok) {
+                    const data = await response.json();
+                    setMotoristas(data);
+                } else {
+                    console.error("Erro ao carregar motoristas:", response.statusText);
+                    toast({
+                        title: "Erro ao carregar motoristas",
+                        description: "Não foi possível carregar a lista de motoristas. Tente recarregar a página.",
+                        variant: "destructive",
+                    });
+                }
+            } catch (error) {
+                console.error("Falha ao buscar motoristas:", error);
+                toast({
+                    title: "Erro de conexão",
+                    description: "Não foi possível conectar ao servidor para carregar a lista de motoristas.",
+                    variant: "destructive",
+                });
+            }
+        };
+        fetchMotoristas();
+    }, [toast]);
 
     const validateField = (name: keyof VehicleFormData, value: string) => {
         try {
             const fieldSchema = vehicleSchema.shape[name];
             fieldSchema.parse(value);
-            setErrors(prev => ({ ...prev, [name]: undefined }));
+            setErrors((prev) => ({ ...prev, [name]: undefined }));
         } catch (error) {
             if (error instanceof z.ZodError) {
-                setErrors(prev => ({ ...prev, [name]: error.errors[0].message }));
+                setErrors((prev) => ({ ...prev, [name]: error.errors[0].message }));
             }
         }
     };
 
     const handleInputChange = (name: keyof VehicleFormData, value: string) => {
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData((prev) => ({ ...prev, [name]: value }));
         validateField(name, value);
+    };
+
+    const handleCheckboxChange = (motoristaId: number, isChecked: boolean) => {
+        setSelectedMotoristas((prev) =>
+            isChecked ? [...prev, motoristaId] : prev.filter((id) => id !== motoristaId)
+        );
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -70,25 +115,53 @@ export default function RegisterVehicle() {
         setIsLoading(true);
 
         try {
-            const validatedData = vehicleSchema.parse(formData);
+            const finalData = { ...formData, motoristasIds: selectedMotoristas };
+            const validatedData = vehicleSchema.parse(finalData);
 
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const vehicleData = {
+                placa: validatedData.plate,
+                marca: validatedData.brand,
+                modelo: validatedData.model,
+                ano: validatedData.year,
+                cor: validatedData.color,
+                chassi: validatedData.chassis,
+                renavam: validatedData.renavam,
+                combustivel: validatedData.fuel,
+                capacidade: validatedData.capacity,
+                quilometragem: validatedData.mileage,
+                dataCompra: validatedData.purchaseDate,
+                valorCompra: validatedData.purchaseValue,
+                seguradora: validatedData.insuranceCompany || "",
+                apoliceSeguro: validatedData.insurancePolicy || "",
+                validadeSeguro: validatedData.insuranceExpiry || "",
+                observacoes: validatedData.observations || "",
+                motoristasIds: selectedMotoristas,
+            };
 
-            toast({
-                title: "Veículo cadastrado com sucesso!",
-                description: `${validatedData.brand} ${validatedData.model} (${validatedData.plate}) foi adicionado ao sistema.`,
-                variant: "default"
+            const response = await apiFetch("/veiculos/cadastrar", {
+                method: "POST",
+                body: JSON.stringify(vehicleData),
             });
 
-            // Reset form
-            setFormData({});
-            setErrors({});
-
+            if (response.ok) {
+                toast({
+                    title: "Veículo cadastrado com sucesso!",
+                    description: `${validatedData.brand} ${validatedData.model} (${validatedData.plate}) foi adicionado ao sistema.`,
+                    variant: "default",
+                });
+                navigate("/veiculos");
+            } else {
+                const errorData = await response.json();
+                toast({
+                    title: "Erro no cadastro",
+                    description: errorData.error || "Erro ao cadastrar veículo. Por favor, tente novamente.",
+                    variant: "destructive",
+                });
+            }
         } catch (error) {
             if (error instanceof z.ZodError) {
                 const fieldErrors: Partial<Record<keyof VehicleFormData, string>> = {};
-                error.errors.forEach(err => {
+                error.errors.forEach((err) => {
                     if (err.path[0]) {
                         fieldErrors[err.path[0] as keyof VehicleFormData] = err.message;
                     }
@@ -98,7 +171,14 @@ export default function RegisterVehicle() {
                 toast({
                     title: "Erro de validação",
                     description: "Por favor, corrija os campos destacados.",
-                    variant: "destructive"
+                    variant: "destructive",
+                });
+            } else {
+                console.error("Erro inesperado:", error);
+                toast({
+                    title: "Erro de conexão",
+                    description: "Não foi possível conectar ao servidor. Verifique sua conexão.",
+                    variant: "destructive",
                 });
             }
         } finally {
@@ -119,7 +199,6 @@ export default function RegisterVehicle() {
                             Preencha os dados do veículo para cadastrá-lo no sistema
                         </CardDescription>
                     </CardHeader>
-
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {/* Dados do Veículo */}
@@ -127,7 +206,6 @@ export default function RegisterVehicle() {
                                 <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">
                                     Dados do Veículo
                                 </h3>
-
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="plate">Placa *</Label>
@@ -143,7 +221,6 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.plate}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="brand">Marca *</Label>
                                         <Input
@@ -157,7 +234,6 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.brand}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="model">Modelo *</Label>
                                         <Input
@@ -171,11 +247,11 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.model}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="year">Ano *</Label>
                                         <Input
                                             id="year"
+                                            type="number"
                                             value={formData.year || ""}
                                             onChange={(e) => handleInputChange("year", e.target.value)}
                                             className={errors.year ? "border-destructive" : ""}
@@ -186,7 +262,6 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.year}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="color">Cor *</Label>
                                         <Input
@@ -200,7 +275,6 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.color}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="fuel">Combustível *</Label>
                                         <Select
@@ -222,7 +296,6 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.fuel}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="chassis">Chassi *</Label>
                                         <Input
@@ -237,7 +310,6 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.chassis}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="renavam">RENAVAM *</Label>
                                         <Input
@@ -251,7 +323,6 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.renavam}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="capacity">Capacidade de Passageiros *</Label>
                                         <Input
@@ -266,7 +337,6 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.capacity}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="mileage">Quilometragem Atual *</Label>
                                         <Input
@@ -283,13 +353,11 @@ export default function RegisterVehicle() {
                                     </div>
                                 </div>
                             </div>
-
                             {/* Dados de Compra */}
                             <div className="space-y-4">
                                 <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">
                                     Dados de Compra
                                 </h3>
-
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="purchaseDate">Data de Compra *</Label>
@@ -304,7 +372,6 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.purchaseDate}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="purchaseValue">Valor de Compra *</Label>
                                         <Input
@@ -322,13 +389,11 @@ export default function RegisterVehicle() {
                                     </div>
                                 </div>
                             </div>
-
                             {/* Dados do Seguro */}
                             <div className="space-y-4">
                                 <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">
                                     Dados do Seguro (Opcional)
                                 </h3>
-
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="insuranceCompany">Seguradora</Label>
@@ -343,7 +408,6 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.insuranceCompany}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="insurancePolicy">Número da Apólice</Label>
                                         <Input
@@ -357,7 +421,6 @@ export default function RegisterVehicle() {
                                             <p className="text-sm text-destructive">{errors.insurancePolicy}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="insuranceExpiry">Vencimento do Seguro</Label>
                                         <Input
@@ -372,7 +435,6 @@ export default function RegisterVehicle() {
                                         )}
                                     </div>
                                 </div>
-
                                 <div className="space-y-2">
                                     <Label htmlFor="observations">Observações</Label>
                                     <Textarea
@@ -389,9 +451,31 @@ export default function RegisterVehicle() {
                                 </div>
                             </div>
 
-                            {/* Submit Button */}
+                            {/* Motoristas Autorizados */}
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">
+                                    Motoristas Autorizados
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {motoristas.length > 0 ? (
+                                        motoristas.map((motorista) => (
+                                            <label key={motorista.id} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    checked={selectedMotoristas.includes(motorista.id)}
+                                                    onCheckedChange={(checked) => handleCheckboxChange(motorista.id, checked as boolean)}
+                                                />
+                                                <span>{motorista.nome || motorista.email}</span>
+                                            </label>
+                                        ))
+                                    ) : (
+                                        <p className="text-muted-foreground">Nenhum motorista encontrado.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Botões */}
                             <div className="flex justify-end space-x-4 pt-6 border-t border-border">
-                                <Button type="button" variant="secondary">
+                                <Button type="button" variant="secondary" onClick={() => navigate("/vehicles")}>
                                     Cancelar
                                 </Button>
                                 <Button

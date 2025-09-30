@@ -9,14 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { Save, User } from "lucide-react";
+import { apiFetch } from "@/services/api";
+import { useNavigate } from "react-router-dom";
 
 const driverSchema = z.object({
     name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
     email: z.string().email("Email inválido").max(255, "Email muito longo"),
+    password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
     phone: z.string().min(10, "Telefone deve ter pelo menos 10 dígitos").max(15, "Telefone muito longo"),
     cpf: z.string().length(11, "CPF deve ter 11 dígitos"),
     rg: z.string().min(5, "RG inválido").max(20, "RG muito longo"),
     cnh: z.string().length(11, "CNH deve ter 11 dígitos"),
+    cnhValidity: z.string().min(1, "Validade da CNH é obrigatória"),
     cnhCategory: z.enum(["A", "B", "AB", "C", "D", "E"], {
         required_error: "Selecione uma categoria de CNH"
     }),
@@ -31,6 +35,7 @@ type DriverFormData = z.infer<typeof driverSchema>;
 
 export default function RegisterDriver() {
     const { toast } = useToast();
+    const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState<Partial<DriverFormData>>({});
     const [errors, setErrors] = useState<Partial<Record<keyof DriverFormData, string>>>({});
@@ -59,18 +64,43 @@ export default function RegisterDriver() {
         try {
             const validatedData = driverSchema.parse(formData);
 
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const driverData = {
+                email: validatedData.email,
+                senha: validatedData.password,
+                nome: validatedData.name,
+                cpf: validatedData.cpf,
+                rg: validatedData.rg,
+                cnh: validatedData.cnh,
+                validadeCnh: validatedData.cnhValidity,
+                telefone: validatedData.phone,
+                endereco: validatedData.address,
+                dataContratacao: validatedData.hireDate,
+                salario: parseFloat(validatedData.salary),
+                observacoes: validatedData.observations || "",
+                categoria: validatedData.cnhCategory,
+                dataNascimento: validatedData.birthDate
+            };
 
-            toast({
-                title: "Motorista cadastrado com sucesso!",
-                description: `${validatedData.name} foi adicionado ao sistema.`,
-                variant: "default"
+            const response = await apiFetch("/motoristas/cadastrar", {
+                method: "POST",
+                body: JSON.stringify(driverData),
             });
 
-            // Reset form
-            setFormData({});
-            setErrors({});
+            if (response.ok) {
+                toast({
+                    title: "Motorista cadastrado com sucesso!",
+                    description: `${validatedData.name} foi adicionado ao sistema.`,
+                    variant: "default"
+                });
+                navigate("/motoristas");
+            } else {
+                const errorData = await response.json();
+                toast({
+                    title: "Erro no cadastro",
+                    description: errorData.error || "Erro ao cadastrar motorista.",
+                    variant: "destructive"
+                });
+            }
 
         } catch (error) {
             if (error instanceof z.ZodError) {
@@ -81,10 +111,16 @@ export default function RegisterDriver() {
                     }
                 });
                 setErrors(fieldErrors);
-
                 toast({
                     title: "Erro de validação",
                     description: "Por favor, corrija os campos destacados.",
+                    variant: "destructive"
+                });
+            } else {
+                console.error("Erro inesperado:", error);
+                toast({
+                    title: "Erro inesperado",
+                    description: "Não foi possível cadastrar o motorista.",
                     variant: "destructive"
                 });
             }
@@ -114,7 +150,6 @@ export default function RegisterDriver() {
                                 <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">
                                     Dados Pessoais
                                 </h3>
-
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="name">Nome Completo *</Label>
@@ -129,7 +164,6 @@ export default function RegisterDriver() {
                                             <p className="text-sm text-destructive">{errors.name}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="email">Email *</Label>
                                         <Input
@@ -144,7 +178,20 @@ export default function RegisterDriver() {
                                             <p className="text-sm text-destructive">{errors.email}</p>
                                         )}
                                     </div>
-
+                                    <div className="space-y-2">
+                                        <Label htmlFor="password">Senha *</Label>
+                                        <Input
+                                            id="password"
+                                            type="password"
+                                            value={formData.password || ""}
+                                            onChange={(e) => handleInputChange("password", e.target.value)}
+                                            className={errors.password ? "border-destructive" : ""}
+                                            placeholder="********"
+                                        />
+                                        {errors.password && (
+                                            <p className="text-sm text-destructive">{errors.password}</p>
+                                        )}
+                                    </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="phone">Telefone *</Label>
                                         <Input
@@ -158,7 +205,6 @@ export default function RegisterDriver() {
                                             <p className="text-sm text-destructive">{errors.phone}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="birthDate">Data de Nascimento *</Label>
                                         <Input
@@ -172,7 +218,6 @@ export default function RegisterDriver() {
                                             <p className="text-sm text-destructive">{errors.birthDate}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="cpf">CPF *</Label>
                                         <Input
@@ -187,7 +232,6 @@ export default function RegisterDriver() {
                                             <p className="text-sm text-destructive">{errors.cpf}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="rg">RG *</Label>
                                         <Input
@@ -202,7 +246,6 @@ export default function RegisterDriver() {
                                         )}
                                     </div>
                                 </div>
-
                                 <div className="space-y-2">
                                     <Label htmlFor="address">Endereço Completo *</Label>
                                     <Textarea
@@ -218,13 +261,11 @@ export default function RegisterDriver() {
                                     )}
                                 </div>
                             </div>
-
                             {/* Dados Profissionais */}
                             <div className="space-y-4">
                                 <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">
                                     Dados Profissionais
                                 </h3>
-
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="cnh">CNH *</Label>
@@ -240,7 +281,19 @@ export default function RegisterDriver() {
                                             <p className="text-sm text-destructive">{errors.cnh}</p>
                                         )}
                                     </div>
-
+                                    <div className="space-y-2">
+                                        <Label htmlFor="cnhValidity">Validade CNH *</Label>
+                                        <Input
+                                            id="cnhValidity"
+                                            type="date"
+                                            value={formData.cnhValidity || ""}
+                                            onChange={(e) => handleInputChange("cnhValidity", e.target.value)}
+                                            className={errors.cnhValidity ? "border-destructive" : ""}
+                                        />
+                                        {errors.cnhValidity && (
+                                            <p className="text-sm text-destructive">{errors.cnhValidity}</p>
+                                        )}
+                                    </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="cnhCategory">Categoria CNH *</Label>
                                         <Select
@@ -263,7 +316,6 @@ export default function RegisterDriver() {
                                             <p className="text-sm text-destructive">{errors.cnhCategory}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="hireDate">Data de Contratação *</Label>
                                         <Input
@@ -277,7 +329,6 @@ export default function RegisterDriver() {
                                             <p className="text-sm text-destructive">{errors.hireDate}</p>
                                         )}
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="salary">Salário *</Label>
                                         <Input
@@ -294,7 +345,6 @@ export default function RegisterDriver() {
                                         )}
                                     </div>
                                 </div>
-
                                 <div className="space-y-2">
                                     <Label htmlFor="observations">Observações</Label>
                                     <Textarea
@@ -310,10 +360,9 @@ export default function RegisterDriver() {
                                     )}
                                 </div>
                             </div>
-
                             {/* Submit Button */}
                             <div className="flex justify-end space-x-4 pt-6 border-t border-border">
-                                <Button type="button" variant="secondary">
+                                <Button type="button" variant="secondary" onClick={() => navigate("/drivers")}>
                                     Cancelar
                                 </Button>
                                 <Button

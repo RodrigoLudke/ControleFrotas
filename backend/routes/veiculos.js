@@ -1,64 +1,80 @@
 import express from "express";
-import pkg from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
-import { autenticarToken, autorizarRoles } from "../index.js";
-
-const { PrismaClient } = pkg;
-const prisma = new PrismaClient();
 const router = express.Router();
+const prisma = new PrismaClient();
 
-// Listar veículos do usuário logado
-router.get("/me", autenticarToken, async (req, res) => {
+// Criar veículo
+router.post("/cadastrar", async (req, res) => {
     try {
-        const userId = req.user.id;
+        const {
+            placa,
+            marca,
+            modelo,
+            ano,
+            cor,
+            chassi,
+            renavam,
+            combustivel,
+            capacidade,
+            quilometragem,
+            valorCompra,
+            dataCompra,
+            seguradora,
+            apoliceSeguro,
+            validadeSeguro,
+            observacoes,
+            motoristasIds = []
+        } = req.body;
 
-        const veiculos = await prisma.userVeiculo.findMany({
-            where: { userId: parseInt(userId) },
-            include: { veiculo: true },
+        if (!placa || !modelo || !ano || !combustivel) {
+            return res.status(400).json({ error: "Placa, modelo, ano e combustível são obrigatórios." });
+        }
+
+        const veiculo = await prisma.veiculo.create({
+            data: {
+                placa,
+                marca,
+                modelo,
+                ano: parseInt(ano),
+                cor,
+                chassi,
+                renavam,
+                combustivel, // enum Combustivel: gasolina, alcool, flex, diesel, eletrico, hibrido
+                capacidade: parseInt(capacidade),
+                quilometragem: parseInt(quilometragem) || 0,
+                valorCompra: valorCompra ? parseFloat(valorCompra) : 0,
+                dataCompra: dataCompra ? new Date(dataCompra) : new Date(),
+                seguradora,
+                apoliceSeguro,
+                validadeSeguro: validadeSeguro ? new Date(validadeSeguro) : null,
+                observacoes,
+
+                usuarios: {
+                    create: motoristasIds.map((userId) => ({
+                        user: { connect: { id: userId } }
+                    }))
+                }
+            },
+            include: { usuarios: { include: { user: true } } }
         });
 
-        res.json(veiculos.map(v => v.veiculo));
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Erro ao buscar veículos" });
+        res.status(201).json({ message: "Veículo cadastrado com sucesso!", veiculo });
+    } catch (err) {
+        console.error("Erro ao criar veículo:", err);
+        res.status(500).json({ error: "Erro interno do servidor." });
     }
 });
-// Rota para cadastrar um novo veículo e associá-lo ao usuário logado
-// 🔹 Rota atualizada para criar um novo veículo e associar a múltiplos motoristas
-router.post("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
+
+// Listar veículos
+router.get("/", async (req, res) => {
     try {
-        const { nome, tipo, motoristasIds } = req.body;
-
-        if (!nome || !tipo) {
-            return res.status(400).json({ error: "Nome e tipo do veículo são obrigatórios." });
-        }
-
-        if (!motoristasIds || !Array.isArray(motoristasIds) || motoristasIds.length === 0) {
-            return res.status(400).json({ error: "É necessário fornecer ao menos um motorista para associar ao veículo." });
-        }
-
-        // 1. Cria o novo veículo na tabela `Veiculo`
-        const novoVeiculo = await prisma.veiculo.create({
-            data: {
-                nome,
-                tipo,
-            },
+        const veiculos = await prisma.veiculo.findMany({
+            include: { usuarios: { include: { user: true } } }
         });
-
-        // 2. Associa o veículo aos motoristas
-        const veiculosMotoristas = motoristasIds.map(motoristaId => ({
-            userId: motoristaId,
-            veiculoId: novoVeiculo.id,
-        }));
-
-        await prisma.userVeiculo.createMany({
-            data: veiculosMotoristas,
-            skipDuplicates: true, // Para evitar erros caso um motorista já esteja associado
-        });
-
-        res.status(201).json({ message: "Veículo cadastrado e associado com sucesso!", veiculo: novoVeiculo });
-    } catch (error) {
-        console.error("Erro ao registrar veículo:", error);
+        res.json(veiculos);
+    } catch (err) {
+        console.error("Erro ao listar veículos:", err);
         res.status(500).json({ error: "Erro interno do servidor." });
     }
 });

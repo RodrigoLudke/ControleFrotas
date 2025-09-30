@@ -21,10 +21,10 @@ app.use(cors());
 
 app.use("/veiculos", veiculosRoutes);
 app.use("/viagens", viagensRoutes);
-app.use("users/motoristas", motoristasRoutes);
+app.use("/motoristas", motoristasRoutes);
 app.use("/refresh", refreshRoutes);
 
-// Rota de cadastro (já existe)
+// Rota de cadastro (para testes, idealmente só ADMIN pode criar motoristas)
 app.post("/register", async (req, res) => {
     const { email, senha, role } = req.body;
     if (!email || !senha) return res.status(400).json({ error: "Dados inválidos" });
@@ -56,7 +56,7 @@ app.post("/index", async (req, res) => {
 
 function gerarAccessToken(user) {
     return jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, {
-        expiresIn: "1m", // expira rápido
+        expiresIn: "30m", // expira rápido
     });
 }
 

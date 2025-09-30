@@ -48,8 +48,8 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                     <Button
                         variant="ghost"
                         className="w-full justify-start"
-                        onClick={() => navigate("/drivers")}
-                        data-active={location.pathname === "/drivers"}
+                        onClick={() => navigate("/motoristas")}
+                        data-active={location.pathname === "/Motoristas"}
                     >
                         <Users className="mr-2 h-4 w-4" />
                         Motoristas
@@ -57,8 +57,8 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                     <Button
                         variant="ghost"
                         className="w-full justify-start"
-                        onClick={() => navigate("/vehicles")}
-                        data-active={location.pathname === "/vehicles"}
+                        onClick={() => navigate("/veiculos")}
+                        data-active={location.pathname === "/Veiculos"}
                     >
                         <Car className="mr-2 h-4 w-4" />
                         Veículos

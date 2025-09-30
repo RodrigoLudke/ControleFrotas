@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import RegistrarVeiculos from "./pages/RegistrarVeiculos.tsx";
 import RegistrarMotoristas from "./pages/RegistrarMotoristas.tsx";
+import Veiculos from "./pages/Veiculos.tsx";
+import Motoristas from "./pages/Motoristas.tsx";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +29,9 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
           <Route path="/registrarveiculos" element={<RegistrarVeiculos />} />
           <Route path="/registrarmotoristas" element={<RegistrarMotoristas />} />
+          <Route path="/veiculos" element={<Veiculos />} />
+          <Route path="/motoristas" element={<Motoristas />} />
+
 
         </Routes>
       </BrowserRouter>
