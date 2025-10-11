@@ -1,4 +1,3 @@
-Claro, aqui está uma proposta de `Readme.md` para a raiz do seu projeto, unificando as informações de todas as partes do sistema:
 
 -----
 
