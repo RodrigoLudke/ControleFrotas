@@ -7,6 +7,27 @@ const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 const router = express.Router();
 
+function expandCategories(selected = []) {
+    // para cada categoria selecionada, devolve as categorias de veículos permitidas
+    const map = {
+        A: ["A"],
+        B: ["B"],
+        AB: ["A", "B"],
+        C: ["C"],
+        D: ["D"],
+        E: ["E"],
+    };
+
+    const result = new Set();
+    for (const s of selected) {
+        const arr = map[s];
+        if (arr && Array.isArray(arr)) {
+            arr.forEach(x => result.add(x));
+        }
+    }
+    return Array.from(result);
+}
+
 // 🔹 Nova rota para listar todos os motoristas
 router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
@@ -113,10 +134,35 @@ router.post('/cadastrar', async (req, res) => {
                 dataContratacao: new Date(dataContratacao),
                 salario: salarioNumerico,
                 observacoes: observacoes,
-                categoria: categoria,
+                categoria: Array.isArray(categoria) ? categoria : (categoria ? [categoria] : undefined),
                 dataNascimento: new Date(dataNascimento)
             }
         });
+
+        // Se houver categorias, expande e associa veículos
+        const selectedCategories = Array.isArray(categoria) ? categoria : (categoria ? [categoria] : []);
+        const expanded = expandCategories(selectedCategories);
+
+        if (expanded.length > 0) {
+            // busca veículos cuja categoria esteja em "expanded"
+            const veiculosPermitidos = await prisma.veiculo.findMany({
+                where: { categoria: { in: expanded } },
+                select: { id: true }
+            });
+
+            if (veiculosPermitidos.length > 0) {
+                const createManyData = veiculosPermitidos.map(v => ({
+                    userId: novoMotorista.id,
+                    veiculoId: v.id
+                }));
+
+                // criar associações (skipDuplicates por segurança)
+                await prisma.userVeiculo.createMany({
+                    data: createManyData,
+                    skipDuplicates: true
+                });
+            }
+        }
 
         res.status(201).json(novoMotorista);
     } catch (error) {

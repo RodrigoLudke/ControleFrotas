@@ -5,15 +5,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import { Save, Car } from "lucide-react";
+import { Save, Car, ChevronDown } from "lucide-react";
 import { apiFetch } from "@/services/api";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 
+const VEHICLE_TYPES = [
+    "Carro",
+    "Caminhão",
+    "Moto",
+    "Van",
+    "Ônibus"
+];
+
 const vehicleSchema = z.object({
+    vehicleTypes: z.array(z.string()).min(1, "Selecione pelo menos um tipo de veículo"),
     plate: z.string().min(7, "Placa deve ter 7 caracteres").max(8, "Placa inválida"),
     brand: z.string().min(2, "Marca é obrigatória").max(50, "Marca muito longa"),
     model: z.string().min(2, "Modelo é obrigatório").max(50, "Modelo muito longo"),
@@ -55,10 +65,13 @@ export default function RegisterVehicle() {
     const { toast } = useToast();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
-    const [formData, setFormData] = useState<Partial<VehicleFormData>>({});
+    const [formData, setFormData] = useState<Partial<VehicleFormData>>({
+        vehicleTypes: [],
+    });
     const [errors, setErrors] = useState<Partial<Record<keyof VehicleFormData, string>>>({});
     const [motoristas, setMotoristas] = useState<Driver[]>([]);
     const [selectedMotoristas, setSelectedMotoristas] = useState<number[]>([]);
+    const [popoverOpen, setPopoverOpen] = useState(false);
 
     useEffect(() => {
         const fetchMotoristas = async () => {
@@ -102,6 +115,24 @@ export default function RegisterVehicle() {
     const handleInputChange = (name: keyof VehicleFormData, value: string) => {
         setFormData((prev) => ({ ...prev, [name]: value }));
         validateField(name, value);
+    };
+
+    const handleTypeToggle = (type: string) => {
+        const currentTypes = formData.vehicleTypes || [];
+        const newTypes = currentTypes.includes(type)
+            ? currentTypes.filter((t) => t !== type)
+            : [...currentTypes, type];
+
+        setFormData((prev) => ({ ...prev, vehicleTypes: newTypes }));
+
+        try {
+            vehicleSchema.shape.vehicleTypes.parse(newTypes);
+            setErrors((prev) => ({ ...prev, vehicleTypes: undefined }));
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                setErrors((prev) => ({ ...prev, vehicleTypes: error.errors[0].message }));
+            }
+        }
     };
 
     const handleCheckboxChange = (motoristaId: number, isChecked: boolean) => {
@@ -206,7 +237,55 @@ export default function RegisterVehicle() {
                                 <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">
                                     Dados do Veículo
                                 </h3>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="vehicleTypes">Tipo de Veículo *</Label>
+                                        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={popoverOpen}
+                                                    className={`w-full justify-between ${errors.vehicleTypes ? "border-destructive" : ""}`}
+                                                >
+                          <span className={`truncate ${
+                              formData.vehicleTypes && formData.vehicleTypes.length > 0
+                                  ? ""
+                                  : "text-muted-foreground"
+                          }`}>
+                            {formData.vehicleTypes && formData.vehicleTypes.length > 0
+                                ? formData.vehicleTypes.join(", ")
+                                : "Selecione os tipos"}
+                          </span>
+                                                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-full p-3">
+                                                <div className="space-y-2">
+                                                    {VEHICLE_TYPES.map((type) => (
+                                                        <div key={type} className="flex items-center space-x-2">
+                                                            <Checkbox
+                                                                id={type}
+                                                                checked={formData.vehicleTypes?.includes(type) || false}
+                                                                onCheckedChange={() => handleTypeToggle(type)}
+                                                            />
+                                                            <Label
+                                                                htmlFor={type}
+                                                                className="text-sm font-normal cursor-pointer"
+                                                            >
+                                                                {type}
+                                                            </Label>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
+                                        {errors.vehicleTypes && (
+                                            <p className="text-sm text-destructive">{errors.vehicleTypes}</p>
+                                        )}
+                                    </div>
+
                                     <div className="space-y-2">
                                         <Label htmlFor="plate">Placa *</Label>
                                         <Input

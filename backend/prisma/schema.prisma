@@ -21,7 +21,7 @@ model User {
   dataContratacao DateTime?
   salario         Decimal?  @db.Decimal(10, 2)
   observacoes     String?
-  categoria       String?   // A, B, C, D, E, AB
+  categoria       CNHCategory[] @default([])
   status          String    @default("ativo")
   dataNascimento  DateTime?
 
@@ -52,6 +52,8 @@ model Veiculo {
     validadeSeguro   DateTime?
     observacoes      String?
     status           VeiculoStatus  @default(disponivel)
+
+    categoria        CNHCategory?
 
     usuarios  UserVeiculo[]
     viagens   Viagem[]
@@ -113,4 +115,14 @@ enum Combustivel {
   eletrico
   hibrido
 }
+
+enum CNHCategory {
+  A
+  B
+  AB
+  C
+  D
+  E
+}
+
 

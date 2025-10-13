@@ -4,13 +4,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import { Save, User } from "lucide-react";
+import { Save, User, ChevronDown } from "lucide-react";
 import { apiFetch } from "@/services/api";
 import { useNavigate } from "react-router-dom";
+
+const CNH_CATEGORIES = [
+    { label: "Categoria A", value: "A" },
+    { label: "Categoria B", value: "B" },
+    { label: "Categoria AB", value: "AB" },
+    { label: "Categoria C", value: "C" },
+    { label: "Categoria D", value: "D" },
+    { label: "Categoria E", value: "E" },
+];
 
 const driverSchema = z.object({
     name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
@@ -21,9 +31,7 @@ const driverSchema = z.object({
     rg: z.string().min(5, "RG inválido").max(20, "RG muito longo"),
     cnh: z.string().length(11, "CNH deve ter 11 dígitos"),
     cnhValidity: z.string().min(1, "Validade da CNH é obrigatória"),
-    cnhCategory: z.enum(["A", "B", "AB", "C", "D", "E"], {
-        required_error: "Selecione uma categoria de CNH"
-    }),
+    cnhCategories: z.array(z.string()).min(1, "Selecione pelo menos uma categoria de CNH"),
     address: z.string().min(10, "Endereço deve ter pelo menos 10 caracteres").max(200, "Endereço muito longo"),
     birthDate: z.string().min(1, "Data de nascimento é obrigatória"),
     hireDate: z.string().min(1, "Data de contratação é obrigatória"),
@@ -37,8 +45,11 @@ export default function RegisterDriver() {
     const { toast } = useToast();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
-    const [formData, setFormData] = useState<Partial<DriverFormData>>({});
+    const [formData, setFormData] = useState<Partial<DriverFormData>>({
+        cnhCategories: []
+    });
     const [errors, setErrors] = useState<Partial<Record<keyof DriverFormData, string>>>({});
+    const [popoverOpen, setPopoverOpen] = useState(false);
 
     const validateField = (name: keyof DriverFormData, value: string) => {
         try {
@@ -56,6 +67,25 @@ export default function RegisterDriver() {
         setFormData(prev => ({ ...prev, [name]: value }));
         validateField(name, value);
     };
+
+    const handleCategoryToggle = (category: string) => {
+        const currentCategories = formData.cnhCategories || [];
+        const newCategories = currentCategories.includes(category)
+            ? currentCategories.filter(c => c !== category)
+            : [...currentCategories, category];
+
+        setFormData(prev => ({...prev, cnhCategories: newCategories}));
+
+        try {
+            const fieldSchema = driverSchema.shape.cnhCategories;
+            fieldSchema.parse(newCategories);
+            setErrors(prev => ({...prev, cnhCategories: undefined}));
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                setErrors(prev => ({...prev, cnhCategories: error.errors[0].message}));
+            }
+        }
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -77,7 +107,7 @@ export default function RegisterDriver() {
                 dataContratacao: validatedData.hireDate,
                 salario: parseFloat(validatedData.salary),
                 observacoes: validatedData.observations || "",
-                categoria: validatedData.cnhCategory,
+                categoria: validatedData.cnhCategories,
                 dataNascimento: validatedData.birthDate
             };
 
@@ -295,25 +325,49 @@ export default function RegisterDriver() {
                                         )}
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="cnhCategory">Categoria CNH *</Label>
-                                        <Select
-                                            value={formData.cnhCategory || ""}
-                                            onValueChange={(value) => handleInputChange("cnhCategory", value)}
-                                        >
-                                            <SelectTrigger className={errors.cnhCategory ? "border-destructive" : ""}>
-                                                <SelectValue placeholder="Selecione a categoria" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="A">A - Motocicleta</SelectItem>
-                                                <SelectItem value="B">B - Carro</SelectItem>
-                                                <SelectItem value="AB">AB - Carro e Moto</SelectItem>
-                                                <SelectItem value="C">C - Caminhão</SelectItem>
-                                                <SelectItem value="D">D - Ônibus</SelectItem>
-                                                <SelectItem value="E">E - Carreta</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        {errors.cnhCategory && (
-                                            <p className="text-sm text-destructive">{errors.cnhCategory}</p>
+                                        <Label>Categorias CNH *</Label>
+                                        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={popoverOpen}
+                                                    className={`w-full justify-between ${errors.cnhCategories ? "border-destructive" : ""}`}
+                                                >
+                          <span className={`truncate ${
+                              formData.cnhCategories && formData.cnhCategories.length > 0
+                                  ? ""
+                                  : "text-muted-foreground"
+                          }`}>
+                            {formData.cnhCategories && formData.cnhCategories.length > 0
+                                ? formData.cnhCategories.join(", ")
+                                : "Selecione as categorias"}
+                          </span>
+                                                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-full p-0" align="start">
+                                                <div className="p-4 space-y-3">
+                                                    {CNH_CATEGORIES.map((category) => (
+                                                        <div key={category.value} className="flex items-center space-x-2">
+                                                            <Checkbox
+                                                                id={`category-${category.value}`}
+                                                                checked={formData.cnhCategories?.includes(category.value)}
+                                                                onCheckedChange={() => handleCategoryToggle(category.value)}
+                                                            />
+                                                            <Label
+                                                                htmlFor={`category-${category.value}`}
+                                                                className="text-sm font-normal cursor-pointer"
+                                                            >
+                                                                {category.label}
+                                                            </Label>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
+                                        {errors.cnhCategories && (
+                                            <p className="text-sm text-destructive">{errors.cnhCategories}</p>
                                         )}
                                     </div>
                                     <div className="space-y-2">
