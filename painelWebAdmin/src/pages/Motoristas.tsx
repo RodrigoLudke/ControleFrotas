@@ -24,14 +24,14 @@ interface Driver {
     id: number;
     nome: string;
     cpf: string;
-    cnh: string;
-    validadeCnh: string;
-    telefone: string;
-    email: string;
-    endereco: string;
-    dataContratacao: string;
-    status: string;
-    categoria: string;
+    cnh?: string;
+    validadeCnh?: string;
+    telefone?: string;
+    email?: string;
+    endereco?: string;
+    dataContratacao?: string;
+    status?: string;
+    categoria?: string;
 }
 
 const Motoristas = () => {
@@ -40,36 +40,38 @@ const Motoristas = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [loading, setLoading] = useState(true);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
 
-    useEffect(() => {
-        const fetchDrivers = async () => {
-            try {
-                const response = await apiFetch("/motoristas");
-                if (response.ok) {
-                    const data = await response.json();
-                    setDrivers(data);
-                } else {
-                    const errorData = await response.json();
-                    toast({
-                        title: "Erro ao carregar motoristas",
-                        description: errorData.error || "Não foi possível carregar a lista de motoristas.",
-                        variant: "destructive",
-                    });
-                }
-            } catch (error) {
-                console.error("Falha na busca por motoristas:", error);
+    const fetchDrivers = async () => {
+        setLoading(true);
+        try {
+            const response = await apiFetch("/motoristas");
+            if (response.ok) {
+                const data = await response.json();
+                setDrivers(data);
+            } else {
+                const errorData = await response.json().catch(() => ({ error: "Erro ao buscar motoristas." }));
                 toast({
-                    title: "Erro de conexão",
-                    description: "Não foi possível conectar ao servidor. Verifique sua conexão.",
+                    title: "Erro ao carregar motoristas",
+                    description: errorData.error || "Não foi possível carregar a lista de motoristas.",
                     variant: "destructive",
                 });
-            } finally {
-                setLoading(false);
             }
-        };
+        } catch (error) {
+            console.error("Falha na busca por motoristas:", error);
+            toast({
+                title: "Erro de conexão",
+                description: "Não foi possível conectar ao servidor. Verifique sua conexão.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchDrivers();
-    }, [toast]);
+    }, []); // só no mount
 
     const filteredDrivers = drivers.filter(driver =>
         driver.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -77,7 +79,7 @@ const Motoristas = () => {
         driver.email?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const getStatusBadge = (status: string) => {
+    const getStatusBadge = (status: string | undefined) => {
         return status === "ativo" ? (
             <Badge variant="default" className="bg-success text-success-foreground">Ativo</Badge>
         ) : (
@@ -85,7 +87,7 @@ const Motoristas = () => {
         );
     };
 
-    const getCategoryBadge = (category: string) => {
+    const getCategoryBadge = (category?: string) => {
         const colors = {
             A: "bg-blue-100 text-blue-800",
             B: "bg-green-100 text-green-800",
@@ -93,13 +95,55 @@ const Motoristas = () => {
             D: "bg-purple-100 text-purple-800",
             E: "bg-red-100 text-red-800",
             AB: "bg-cyan-100 text-cyan-800"
-        };
+        } as const;
+
+        if (!category) return null;
 
         return (
             <Badge variant="outline" className={colors[category as keyof typeof colors]}>
                 Categoria {category}
             </Badge>
         );
+    };
+
+    const handleEditDriver = (id: number) => {
+        // padrão: reaproveitar a página de cadastro para edição (ajuste se seu route for outro)
+        navigate(`/registrarmotoristas/${id}`);
+    };
+
+    const handleDeleteDriver = async (id: number) => {
+        const ok = window.confirm("Tem certeza que deseja deletar este motorista? Esta ação é irreversível.");
+        if (!ok) return;
+
+        setDeletingId(id);
+        try {
+            const res = await apiFetch(`/motoristas/${id}`, { method: "DELETE" });
+            if (res.ok) {
+                // backend pode retornar 200/204/JSON
+                toast({
+                    title: "Motorista deletado",
+                    description: "O motorista foi removido com sucesso.",
+                });
+                // remover localmente
+                setDrivers(prev => prev.filter(d => d.id !== id));
+            } else {
+                const err = await res.json().catch(() => ({ error: "Erro ao deletar motorista." }));
+                toast({
+                    title: "Erro ao deletar",
+                    description: err.error || "Não foi possível deletar o motorista.",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            console.error("Erro ao deletar motorista:", error);
+            toast({
+                title: "Erro de conexão",
+                description: "Não foi possível conectar ao servidor para deletar o motorista.",
+                variant: "destructive",
+            });
+        } finally {
+            setDeletingId(null);
+        }
     };
 
     return (
@@ -165,7 +209,7 @@ const Motoristas = () => {
                                                     <div className="font-mono text-sm">{driver.cnh}</div>
                                                     <div className="text-xs text-muted-foreground flex items-center">
                                                         <Calendar className="h-3 w-3 mr-1" />
-                                                        Válida até {new Date(driver.validadeCnh).toLocaleDateString('pt-BR')}
+                                                        {driver.validadeCnh ? `Válida até ${new Date(driver.validadeCnh).toLocaleDateString('pt-BR')}` : 'Sem data'}
                                                     </div>
                                                 </div>
                                             </TableCell>
@@ -182,16 +226,22 @@ const Motoristas = () => {
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{getStatusBadge(driver.status)}</TableCell>
+                                            <TableCell>{getStatusBadge(driver.status || "")}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center space-x-2">
-                                                    <Button variant="ghost" size="sm">
+                                                    <Button variant="ghost" size="sm" onClick={() => navigate(`/motoristas/${driver.id}`)}>
                                                         <Eye className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="sm">
+                                                    <Button variant="ghost" size="sm" onClick={() => handleEditDriver(driver.id)}>
                                                         <Edit className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-destructive hover:text-destructive"
+                                                        onClick={() => handleDeleteDriver(driver.id)}
+                                                        disabled={deletingId === driver.id}
+                                                    >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </div>
@@ -204,7 +254,7 @@ const Motoristas = () => {
                             {filteredDrivers.length === 0 && !loading && (
                                 <div className="text-center py-8 text-muted-foreground">
                                     <div className="mb-2">Nenhum motorista encontrado</div>
-                                    <Button variant="outline" onClick={() => setSearchTerm("")}>
+                                    <Button variant="outline" onClick={() => { setSearchTerm(""); fetchDrivers(); }}>
                                         Limpar filtros
                                     </Button>
                                 </div>

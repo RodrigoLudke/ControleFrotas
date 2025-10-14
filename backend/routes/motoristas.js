@@ -56,6 +56,48 @@ router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     }
 });
 
+// GET /motoristas/:id -> retornar dados de 1 motorista (APENAS ADMIN)
+router.get("/listaredit/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
+    try {
+        // Valida ID
+        const id = parseInt(req.params.id, 10);
+        if (Number.isNaN(id)) {
+            return res.status(400).json({ error: "ID inválido." });
+        }
+
+        // Busca o motorista específico
+        const motorista = await prisma.user.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                nome: true,
+                email: true,
+                cpf: true,
+                rg: true,
+                telefone: true,
+                endereco: true,
+                cnh: true,
+                validadeCnh: true,
+                categoria: true,
+                dataContratacao: true,
+                salario: true,
+                observacoes: true,
+                dataNascimento: true,
+                status: true
+            }
+        });
+
+        if (!motorista) {
+            return res.status(404).json({ error: "Motorista não encontrado." });
+        }
+
+        return res.json(motorista);
+    } catch (error) {
+        console.error("GET /motoristas/:id error:", error);
+        return res.status(500).json({ error: "Erro interno ao buscar motorista." });
+    }
+});
+
 // Rota para registrar um novo motorista (apenas ADMIN pode criar) (POSTMAN) (TESTE)
 router.post("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
@@ -173,5 +215,70 @@ router.post('/cadastrar', async (req, res) => {
         res.status(500).json({ error: 'Erro interno do servidor.' });
     }
 });
+
+// Atualizar motorista (APENAS ADMIN)
+router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const { nome, email, cpf, telefone, endereco, validadeCnh, categoria, status, senha } = req.body;
+
+        const dadosParaAtualizar = {};
+
+        if (nome !== undefined) dadosParaAtualizar.nome = nome;
+        if (email !== undefined) dadosParaAtualizar.email = email;
+        if (cpf !== undefined) dadosParaAtualizar.cpf = cpf;
+        if (telefone !== undefined) dadosParaAtualizar.telefone = telefone;
+        if (endereco !== undefined) dadosParaAtualizar.endereco = endereco;
+        if (validadeCnh !== undefined) dadosParaAtualizar.validadeCnh = new Date(validadeCnh);
+        if (categoria !== undefined) dadosParaAtualizar.categoria = Array.isArray(categoria) ? categoria : [categoria];
+        if (status !== undefined) dadosParaAtualizar.status = status;
+        if (senha !== undefined) {
+            const bcrypt = await import("bcrypt");
+            dadosParaAtualizar.senha = await bcrypt.hash(senha, 10);
+        }
+
+        const motoristaExistente = await prisma.user.findUnique({ where: { id } });
+        if (!motoristaExistente) {
+            return res.status(404).json({ error: "Motorista não encontrado." });
+        }
+
+        const motoristaAtualizado = await prisma.user.update({
+            where: { id },
+            data: dadosParaAtualizar,
+            select: {
+                id: true, nome: true, email: true, cpf: true, telefone: true, endereco: true, categoria: true, status: true, validadeCnh: true
+            }
+        });
+
+        res.json({ message: "Motorista atualizado com sucesso.", motorista: motoristaAtualizado });
+    } catch (error) {
+        console.error("Erro ao atualizar motorista:", error);
+        if (error.code === "P2002") {
+            return res.status(409).json({ error: "Dados duplicados (email/cpf/rg/cnh)." });
+        }
+        res.status(500).json({ error: "Erro interno ao atualizar motorista." });
+    }
+});
+
+// Deletar motorista (APENAS ADMIN)
+router.delete("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+
+        const motoristaExistente = await prisma.user.findUnique({ where: { id } });
+        if (!motoristaExistente) {
+            return res.status(404).json({ error: "Motorista não encontrado." });
+        }
+
+        // se quiser checar dependências (viagens, veiculos), pode-se bloquear a remoção ou remover em cascata
+        await prisma.user.delete({ where: { id } });
+
+        res.json({ message: "Motorista deletado com sucesso." });
+    } catch (error) {
+        console.error("Erro ao deletar motorista:", error);
+        res.status(500).json({ error: "Erro interno ao deletar motorista." });
+    }
+});
+
 
 export default router;
