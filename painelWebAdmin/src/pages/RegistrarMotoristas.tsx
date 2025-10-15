@@ -69,7 +69,7 @@ export default function RegisterDriver() {
         const fetchDriver = async () => {
             setLoadingInit(true);
             try {
-                const res = await apiFetch(`/motoristas/listaredit/${id}`, { method: "GET" });
+                const res = await apiFetch(`/motoristas/${id}`, { method: "GET" });
                 if (res.ok) {
                     const data = await res.json();
                     setFormData({

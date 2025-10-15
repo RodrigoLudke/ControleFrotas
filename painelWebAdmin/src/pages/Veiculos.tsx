@@ -1,3 +1,4 @@
+// src/pages/Veiculos.tsx
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,17 +23,19 @@ import { useToast } from "@/hooks/use-toast";
 
 interface Vehicle {
     id: number;
-    placa: string;
-    modelo: string;
-    ano: number;
-    cor: string;
-    combustivel: string;
-    quilometragem: number;
-    ultimaManutencao: string;
-    proximaManutencao: string;
-    seguro: string;
-    validadeSeguro: string;
-    status: string;
+    placa?: string;
+    modelo?: string;
+    ano?: number | null;
+    cor?: string | null;
+    combustivel?: string | null;
+    quilometragem?: number | null;
+    ultimaManutencao?: string | null;
+    proximaManutencao?: string | null;
+    seguradora?: string | null;      // backend uses 'seguradora'
+    apoliceSeguro?: string | null;   // backend uses 'apoliceSeguro'
+    validadeSeguro?: string | null;  // backend uses 'validadeSeguro'
+    seguro?: string | null;          // keep compatibility if frontend used this
+    status?: string | null;
 }
 
 const Veiculos = () => {
@@ -41,52 +44,55 @@ const Veiculos = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [loading, setLoading] = useState(true);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
 
-    useEffect(() => {
-        const fetchVehicles = async () => {
-            try {
-                const response = await apiFetch("/veiculos");
-                if (response.ok) {
-                    const data = await response.json();
-                    setVehicles(data);
-                } else {
-                    const errorData = await response.json();
-                    toast({
-                        title: "Erro ao carregar veículos",
-                        description: errorData.error || "Não foi possível carregar a lista de veículos.",
-                        variant: "destructive",
-                    });
-                }
-            } catch (error) {
-                console.error("Falha na busca por veículos:", error);
+    const fetchVehicles = async () => {
+        setLoading(true);
+        try {
+            const response = await apiFetch("/veiculos");
+            if (response.ok) {
+                const data = await response.json();
+                setVehicles(Array.isArray(data) ? data : []);
+            } else {
+                const errorData = await response.json().catch(() => ({ error: "Erro ao buscar veículos." }));
                 toast({
-                    title: "Erro de conexão",
-                    description: "Não foi possível conectar ao servidor. Verifique sua conexão.",
+                    title: "Erro ao carregar veículos",
+                    description: errorData.error || "Não foi possível carregar a lista de veículos.",
                     variant: "destructive",
                 });
-            } finally {
-                setLoading(false);
             }
-        };
+        } catch (error) {
+            console.error("Falha na busca por veículos:", error);
+            toast({
+                title: "Erro de conexão",
+                description: "Não foi possível conectar ao servidor. Verifique sua conexão.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchVehicles();
-    }, [toast]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const filteredVehicles = vehicles.filter(vehicle =>
-        vehicle.placa?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.modelo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.cor?.toLowerCase().includes(searchTerm.toLowerCase())
+        (vehicle.placa || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (vehicle.modelo || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (vehicle.cor || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const getStatusBadge = (status: string) => {
-        const statusConfig = {
-            disponivel: { label: "Disponível", variant: "default" as const, className: "bg-success text-success-foreground" },
-            em_uso: { label: "Em Uso", variant: "secondary" as const, className: "bg-blue-100 text-blue-800" },
-            manutencao: { label: "Manutenção", variant: "destructive" as const, className: "" },
-            inativo: { label: "Inativo", variant: "outline" as const, className: "" }
+    const getStatusBadge = (status?: string | null) => {
+        const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
+            disponivel: { label: "Disponível", variant: "default", className: "bg-success text-success-foreground" },
+            em_uso: { label: "Em Uso", variant: "secondary", className: "bg-blue-100 text-blue-800" },
+            manutencao: { label: "Manutenção", variant: "destructive", className: "" },
+            inativo: { label: "Inativo", variant: "outline", className: "" }
         };
-
-        const config = statusConfig[status as keyof typeof statusConfig];
+        const key = status || "disponivel";
+        const config = statusConfig[key] ?? { label: key ?? "Desconhecido", variant: "outline", className: "" };
         return (
             <Badge variant={config.variant} className={config.className}>
                 {config.label}
@@ -94,21 +100,63 @@ const Veiculos = () => {
         );
     };
 
-    const getInsuranceBadge = (status: string) => {
-        return status === "ativo" ? (
-            <Badge variant="default" className="bg-success text-success-foreground">Ativo</Badge>
-        ) : (
-            <Badge variant="destructive">Vencido / Sem Seguro</Badge>
-        );
+    const getInsuranceBadge = (status?: string | null) => {
+        // considera 'seguro' ou 'validadeSeguro' — trate conforme os dados disponíveis
+        if (status === "ativo") {
+            return <Badge variant="default" className="bg-success text-success-foreground">Ativo</Badge>;
+        }
+        return <Badge variant="destructive">Vencido / Sem Seguro</Badge>;
     };
 
-    const formatDate = (dateString: string) => {
+    const formatDate = (dateString?: string | null) => {
         if (!dateString) return 'Data não informada';
         try {
             const date = new Date(dateString);
             return date.toLocaleDateString('pt-BR');
         } catch (e) {
             return 'Data inválida';
+        }
+    };
+
+    const handleView = (id: number) => {
+        // abre a tela de visualização/edição (ajuste caso queira rota diferente)
+        navigate(`/registrarveiculos/${id}`);
+    };
+
+    const handleEdit = (id: number) => {
+        navigate(`/registrarveiculos/${id}`);
+    };
+
+    const handleDelete = async (id: number) => {
+        const ok = window.confirm("Tem certeza que deseja deletar este veículo? Essa ação é irreversível.");
+        if (!ok) return;
+
+        setDeletingId(id);
+        try {
+            const res = await apiFetch(`/veiculos/${id}`, { method: "DELETE" });
+            if (res.ok) {
+                toast({
+                    title: "Veículo deletado",
+                    description: "O veículo foi removido com sucesso.",
+                });
+                setVehicles(prev => prev.filter(v => v.id !== id));
+            } else {
+                const err = await res.json().catch(() => ({ error: "Erro ao deletar veículo." }));
+                toast({
+                    title: "Erro ao deletar",
+                    description: err.error || "Não foi possível deletar o veículo.",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            console.error("Erro ao deletar veículo:", error);
+            toast({
+                title: "Erro de conexão",
+                description: "Não foi possível conectar ao servidor para deletar o veículo.",
+                variant: "destructive",
+            });
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -127,7 +175,7 @@ const Veiculos = () => {
                         />
                     </div>
                     <Button
-                        onClick={() => navigate("/register-vehicle")}
+                        onClick={() => navigate("/registrarveiculos")}
                         className="bg-primary hover:bg-primary/90"
                     >
                         <Plus className="mr-2 h-4 w-4" />
@@ -164,8 +212,9 @@ const Veiculos = () => {
                                             <TableCell>
                                                 <div>
                                                     <div className="font-medium">{vehicle.modelo || 'N/A'}</div>
-                                                    <div className="text-sm text-muted-foreground">
-                                                        {vehicle.ano} • {vehicle.cor || 'N/A'}
+                                                    <div className="text-sm text-muted-foreground flex items-center">
+                                                        <MapPin className="h-3 w-3 mr-1" />
+                                                        {vehicle.ano ?? '—'} • {vehicle.cor || 'N/A'}
                                                     </div>
                                                 </div>
                                             </TableCell>
@@ -184,9 +233,7 @@ const Veiculos = () => {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="space-y-1">
-                                                    <div className="text-sm">
-                                                        Última: {formatDate(vehicle.ultimaManutencao)}
-                                                    </div>
+                                                    <div className="text-sm">Última: {formatDate(vehicle.ultimaManutencao)}</div>
                                                     <div className="text-xs text-muted-foreground flex items-center">
                                                         <Calendar className="h-3 w-3 mr-1" />
                                                         Próxima: {formatDate(vehicle.proximaManutencao)}
@@ -195,7 +242,8 @@ const Veiculos = () => {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="space-y-1">
-                                                    {getInsuranceBadge(vehicle.seguro)}
+                                                    {/* tenta usar campo seguradora/apoliceSeguro ou seguro para compatibilidade */}
+                                                    {getInsuranceBadge(vehicle.seguro ?? (vehicle.validadeSeguro ? "ativo" : undefined))}
                                                     <div className="text-xs text-muted-foreground">
                                                         Válido até {formatDate(vehicle.validadeSeguro)}
                                                     </div>
@@ -204,13 +252,19 @@ const Veiculos = () => {
                                             <TableCell>{getStatusBadge(vehicle.status)}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center space-x-2">
-                                                    <Button variant="ghost" size="sm">
+                                                    <Button variant="ghost" size="sm" onClick={() => handleView(vehicle.id)}>
                                                         <Eye className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="sm">
+                                                    <Button variant="ghost" size="sm" onClick={() => handleEdit(vehicle.id)}>
                                                         <Edit className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-destructive hover:text-destructive"
+                                                        onClick={() => handleDelete(vehicle.id)}
+                                                        disabled={deletingId === vehicle.id}
+                                                    >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </div>
@@ -223,7 +277,7 @@ const Veiculos = () => {
                             {filteredVehicles.length === 0 && !loading && (
                                 <div className="text-center py-8 text-muted-foreground">
                                     <div className="mb-2">Nenhum veículo encontrado</div>
-                                    <Button variant="outline" onClick={() => setSearchTerm("")}>
+                                    <Button variant="outline" onClick={() => { setSearchTerm(""); fetchVehicles(); }}>
                                         Limpar filtros
                                     </Button>
                                 </div>
