@@ -1,5 +1,6 @@
+// VerViagens.tsx
 import React, { useCallback, useState } from "react";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import {
     FlatList,
     StyleSheet,
@@ -8,13 +9,14 @@ import {
     ActivityIndicator,
     Platform,
     Text,
+    Alert,
 } from "react-native";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { apiFetch } from "@/services/api";
-import { MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
+import { MaterialCommunityIcons, FontAwesome5, Feather } from "@expo/vector-icons";
 
 export default function VerViagens() {
     const [viagens, setViagens] = useState<any[]>([]);
@@ -22,136 +24,119 @@ export default function VerViagens() {
     const [loading, setLoading] = useState<boolean>(false);
     const colorScheme = useColorScheme() as "light" | "dark";
     const theme = Colors[colorScheme];
+    const navigation = useNavigation();
 
-    useFocusEffect(
-        useCallback(() => {
-            const fetchAll = async () => {
-                try {
-                    setLoading(true);
+    const fetchAll = async () => {
+        try {
+            setLoading(true);
+            const respV = await apiFetch("/viagens");
+            if (!respV.ok) throw new Error("Erro ao buscar viagens");
+            const dataViagens = await respV.json();
 
-                    // busca viagens
-                    const respV = await apiFetch("/viagens");
-                    if (!respV.ok) throw new Error("Erro ao buscar viagens");
-                    const dataViagens = await respV.json();
-
-                    // tenta buscar veículos para mapear id -> nome/placa
-                    let map: Record<string, string> = {};
-                    try {
-                        const respVeic = await apiFetch("/veiculos");
-                        if (respVeic.ok) {
-                            const listaVeic = await respVeic.json();
-                            if (Array.isArray(listaVeic)) {
-                                map = listaVeic.reduce((acc: Record<string, string>, v: any) => {
-                                    const id = String(v.id ?? v.veiculoId ?? v.vehicleId ?? "");
-                                    const label =
-                                        v.nome ||
-                                        v.placa ||
-                                        v.modelo ||
-                                        v.descricao ||
-                                        (v.id ? `Veículo ${v.id}` : "");
-                                    if (id) acc[id] = label;
-                                    return acc;
-                                }, {});
-                            }
-                        }
-                    } catch (err) {
-                        console.warn("Falha ao carregar veículos (apenas fallback):", err);
+            // buscar veículos para mapear id->placa
+            let map: Record<string, string> = {};
+            try {
+                const respVeic = await apiFetch("/veiculos");
+                if (respVeic.ok) {
+                    const listaVeic = await respVeic.json();
+                    if (Array.isArray(listaVeic)) {
+                        map = listaVeic.reduce((acc: Record<string, string>, v: any) => {
+                            const id = String(v.id ?? v.veiculoId ?? "");
+                            const label = v.placa || v.modelo || `Veículo ${v.id}`;
+                            if (id) acc[id] = label;
+                            return acc;
+                        }, {});
                     }
-
-                    setViagens(Array.isArray(dataViagens) ? dataViagens : []);
-                    setVeiculosMap(map);
-                } catch (err) {
-                    console.error("Erro ao carregar viagens:", err);
-                    setViagens([]);
-                    setVeiculosMap({});
-                } finally {
-                    setLoading(false);
                 }
-            };
+            } catch (err) {
+                // fallback silencioso
+                console.warn("Falha ao carregar veículos:", err);
+            }
 
-            fetchAll();
-        }, [])
-    );
+            setViagens(Array.isArray(dataViagens) ? dataViagens : []);
+            setVeiculosMap(map);
+        } catch (err) {
+            console.error("Erro ao carregar viagens:", err);
+            setViagens([]);
+            setVeiculosMap({});
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    // resumo: total de viagens e km percorridos
+    useFocusEffect(useCallback(() => { fetchAll(); }, []));
+
+    const handleEdit = (id: number) => {
+        // navega para a tela de registrar viagem em modo edição
+        // @ts-expect-error
+        navigation.navigate("registrar" as never, { id } as never);
+    };
+
+    const handleDelete = (id: number) => {
+        Alert.alert("Confirmar", "Deseja realmente deletar esta viagem?", [
+            { text: "Cancelar", style: "cancel" },
+            {
+                text: "Deletar",
+                style: "destructive",
+                onPress: async () => {
+                    try {
+                        const res = await apiFetch(`/viagens/${id}`, { method: "DELETE" });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            Alert.alert("Erro", err.error || "Não foi possível deletar a viagem.");
+                            return;
+                        }
+                        // remover localmente sem recarregar a lista inteira
+                        setViagens(prev => prev.filter(v => v.id !== id));
+                        Alert.alert("Sucesso", "Viagem deletada.");
+                    } catch (err) {
+                        console.error("Erro ao deletar viagem:", err);
+                        Alert.alert("Erro", "Não foi possível deletar a viagem.");
+                    }
+                }
+            }
+        ]);
+    };
+
     const totalViagens = viagens.length;
     const totalKm = viagens.reduce((acc, v) => {
-        if (v.distancia != null) return acc + Number(v.distancia || 0);
-        if (v.kmFinal != null && v.kmInicial != null)
-            return acc + Math.max(0, Number(v.kmFinal) - Number(v.kmInicial));
-        if (v.kmFinal != null) return acc + Number(v.kmFinal || 0); // fallback
+        if (v.kmFinal != null && v.kmInicial != null) return acc + Math.max(0, Number(v.kmFinal) - Number(v.kmInicial));
+        if (v.kmFinal != null) return acc + Number(v.kmFinal || 0);
         return acc;
     }, 0);
 
     const renderViagem = ({ item }: { item: any }) => {
         const saida = item.dataSaida ? new Date(item.dataSaida) : null;
         const chegada = item.dataChegada ? new Date(item.dataChegada) : null;
-
-        // monta label do veículo de forma robusta
-        const veiculoId = item.veiculoId ?? item.veiculo?.id ?? item.vehicleId ?? item.veiculoId;
-        const veiculoFromMap = veiculoId ? veiculosMap[String(veiculoId)] : undefined;
-
-        // propriedades possíveis que o backend pode retornar
-        const possibleName =
-            item.veiculo?.nome ||
-            item.veiculoNome ||
-            item.veiculo_nome ||
-            item.placa ||
-            item.nomeVeiculo ||
-            item.veiculo?.placa ||
-            item.plate;
-
-        const vehicleLabel =
-            (veiculoId ? String(veiculoId) : "") +
-            (veiculoFromMap ? ` - ${veiculoFromMap}` : possibleName ? ` - ${possibleName}` : ` - Veículo`);
+        const veiculoId = item.veiculoId ?? item.veiculo?.id ?? "";
+        const veiculoLabel = veiculoId ? `${veiculoId} - ${veiculosMap[String(veiculoId)] ?? (item.placa ?? item.veiculo?.placa ?? "Veículo")}` : (item.placa ?? "Veículo");
 
         return (
-            <Pressable
-                style={[styles.card, { backgroundColor: theme.card }]}
-                onPress={() => {
-                    /* navegar para detalhes se quiser */
-                }}
-            >
+            <View style={[styles.card, { backgroundColor: theme.card }]}>
                 <View style={styles.cardHeader}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                         <FontAwesome5 name="truck" size={18} color="#2b6cb0" />
-                        <ThemedText style={styles.cardTitle}>{vehicleLabel}</ThemedText>
+                        <ThemedText style={styles.cardTitle}>{veiculoLabel}</ThemedText>
                     </View>
-                    <View
-                        style={[
-                            styles.statusPill,
-                            { backgroundColor: item.status === "andamento" ? "#f6ad55" : "#38a169" },
-                        ]}
-                    >
-                        <ThemedText style={styles.statusText}>
-                            {item.status === "andamento" ? "Em Andamento" : "Concluída"}
-                        </ThemedText>
+
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Pressable onPress={() => handleEdit(item.id)} hitSlop={8} style={{ padding: 6 }}>
+                            <Feather name="edit-3" size={18} color="#0ea5a2" />
+                        </Pressable>
+                        <Pressable onPress={() => handleDelete(item.id)} hitSlop={8} style={{ padding: 6 }}>
+                            <Feather name="trash-2" size={18} color="#ef4444" />
+                        </Pressable>
                     </View>
                 </View>
 
                 <View style={styles.row}>
                     <View style={{ flex: 1 }}>
                         <ThemedText style={styles.label}>Saída</ThemedText>
-                        <ThemedText style={styles.value}>
-                            {saida
-                                ? `${saida.toLocaleDateString("pt-BR")} • ${saida.toLocaleTimeString("pt-BR", {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                })}`
-                                : "-"}
-                        </ThemedText>
+                        <ThemedText style={styles.value}>{saida ? `${saida.toLocaleDateString("pt-BR")} • ${saida.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "-"}</ThemedText>
                     </View>
-
                     <View style={{ flex: 1 }}>
                         <ThemedText style={styles.label}>Chegada</ThemedText>
-                        <ThemedText style={styles.value}>
-                            {chegada
-                                ? `${chegada.toLocaleDateString("pt-BR")} • ${chegada.toLocaleTimeString("pt-BR", {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                })}`
-                                : "-"}
-                        </ThemedText>
+                        <ThemedText style={styles.value}>{chegada ? `${chegada.toLocaleDateString("pt-BR")} • ${chegada.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "-"}</ThemedText>
                     </View>
                 </View>
 
@@ -160,13 +145,12 @@ export default function VerViagens() {
                         <ThemedText style={styles.label}>Finalidade</ThemedText>
                         <ThemedText style={styles.value}>{item.finalidade ?? "-"}</ThemedText>
                     </View>
-
                     <View style={{ flex: 1 }}>
                         <ThemedText style={styles.label}>KM Final</ThemedText>
                         <ThemedText style={styles.value}>{item.kmFinal != null ? String(item.kmFinal) : "-"}</ThemedText>
                     </View>
                 </View>
-            </Pressable>
+            </View>
         );
     };
 
@@ -222,29 +206,13 @@ const styles = StyleSheet.create({
     header: { padding: 20 },
     title: { fontSize: 32, fontWeight: "800" },
     subtitle: { color: "#6b7280" },
-    summaryCard: {
-        marginTop: 8,
-        borderRadius: 12,
-        padding: 14,
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
+    summaryCard: { marginTop: 8, borderRadius: 12, padding: 14, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     summaryItem: { alignItems: "center", flex: 1 },
     summaryNumber: { fontWeight: "700", fontSize: 18, marginTop: 4 },
     summaryLabel: { color: "#6b7280", marginTop: 2 },
-    card: {
-        borderRadius: 12,
-        padding: 16,
-        shadowColor: "#000",
-        shadowOpacity: 0.04,
-        shadowRadius: 6,
-        elevation: 1,
-    },
+    card: { borderRadius: 12, padding: 16, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
     cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
     cardTitle: { fontWeight: "800", fontSize: 16 },
-    statusPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
-    statusText: { color: "#fff", fontWeight: "700" },
     row: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
     label: { color: "#6b7280", fontSize: 13 },
     value: { fontWeight: "700", fontSize: 14, marginTop: 2 },

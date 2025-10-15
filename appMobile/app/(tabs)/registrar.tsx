@@ -1,3 +1,4 @@
+// RegistrarViagem.tsx
 import React, { useCallback, useEffect, useState } from "react";
 import {
     View,
@@ -12,17 +13,22 @@ import {
     Text,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useRoute, useNavigation } from "@react-navigation/native";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
-import { Picker } from "@react-native-picker/picker"; // expo install @react-native-picker/picker
-import { apiFetch } from "@/services/api"; // ajuste o caminho conforme seu projeto
+import { Picker } from "@react-native-picker/picker";
+import { apiFetch } from "@/services/api";
 
 export default function RegistrarViagem() {
-    // estados iniciais que você já tinha
+    const route = useRoute();
+    const navigation = useNavigation();
+    // se navegação mandar { id: 3 } — usamos isso para editar
+    const params: any = (route.params as any) || {};
+    const editingId: number | null = params?.id ? Number(params.id) : null;
+
     const [veiculoId, setVeiculoId] = useState<string>("");
     const [data, setData] = useState<Date>(new Date());
     const [dataChegada, setDataChegada] = useState<Date>(new Date());
@@ -39,41 +45,39 @@ export default function RegistrarViagem() {
     const [showSaidaPicker, setShowSaidaPicker] = useState(false);
     const [showChegadaPicker, setShowChegadaPicker] = useState(false);
 
-    // lista de veículos (para popular o select). Ajuste endpoint se necessário
     const [veiculos, setVeiculos] = useState<Array<any>>([]);
     const [loadingVeiculos, setLoadingVeiculos] = useState<boolean>(false);
     const [saving, setSaving] = useState<boolean>(false);
+    const [loadingInit, setLoadingInit] = useState<boolean>(!!editingId);
 
     useFocusEffect(
         useCallback(() => {
-            // Este código será executado toda vez que a tela entra em foco
-            setVeiculoId("");
-            setData(new Date());
-            setDataChegada(new Date());
-            setHorarioSaida(new Date());
-            setHorarioChegada(new Date());
-            setFinalidade("");
-            setKmFinal("");
-
-            // carregar veículos sempre que entrar na tela
+            // carregar veículos sempre que a tela entra em foco
             carregarVeiculos();
-        }, [])
+            if (!editingId) resetForm();
+            else carregarViagem(editingId);
+        }, [editingId])
     );
+
+    const resetForm = () => {
+        setVeiculoId("");
+        setData(new Date());
+        setDataChegada(new Date());
+        setHorarioSaida(new Date());
+        setHorarioChegada(new Date());
+        setFinalidade("");
+        setKmFinal("");
+    };
 
     const carregarVeiculos = async () => {
         try {
             setLoadingVeiculos(true);
-            const res = await apiFetch("/veiculos"); // ajuste se seu endpoint for diferente
+            const res = await apiFetch("/veiculos");
             if (!res.ok) {
-                // erro ao buscar veículos — tentar ler json para mensagem ou apenas fallback
-                const err = await res.json().catch(() => null);
-                console.warn("Erro ao buscar veículos", err);
                 setVeiculos([]);
-                setLoadingVeiculos(false);
                 return;
             }
             const data = await res.json();
-            // espera-se array de veículos; normalize se necessário
             setVeiculos(Array.isArray(data) ? data : []);
         } catch (err) {
             console.warn("Erro ao carregar veículos:", err);
@@ -83,12 +87,42 @@ export default function RegistrarViagem() {
         }
     };
 
+    const carregarViagem = async (id: number) => {
+        try {
+            setLoadingInit(true);
+            const res = await apiFetch(`/viagens/${id}`);
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                Alert.alert("Erro", err.error || "Não foi possível carregar a viagem para edição.");
+                navigation.goBack();
+                return;
+            }
+            const trip = await res.json();
+            // preenche campos (tolerante a nomes)
+            const ds = trip.dataSaida ? new Date(trip.dataSaida) : new Date();
+            const dc = trip.dataChegada ? new Date(trip.dataChegada) : new Date();
+
+            setVeiculoId(String(trip.veiculoId ?? trip.veiculo?.id ?? ""));
+            setData(ds);
+            setDataChegada(dc);
+            setHorarioSaida(new Date(ds));
+            setHorarioChegada(new Date(dc));
+            setFinalidade(String(trip.finalidade ?? ""));
+            setKmFinal(trip.kmFinal != null ? String(trip.kmFinal) : "");
+        } catch (err) {
+            console.error("Erro ao buscar viagem:", err);
+            Alert.alert("Erro", "Não foi possível carregar os dados da viagem.");
+            navigation.goBack();
+        } finally {
+            setLoadingInit(false);
+        }
+    };
+
     const formatDate = (d?: Date) => (d ? d.toLocaleDateString() : "");
     const formatTime = (d?: Date) => (d ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
 
     const salvarViagem = async () => {
         try {
-            // Validações básicas antes de enviar
             if (!veiculoId) {
                 Alert.alert("Erro", "Selecione o veículo.");
                 return;
@@ -102,14 +136,10 @@ export default function RegistrarViagem() {
                 return;
             }
 
-            // Combina data + hora de saída
             const inicioViagem = new Date(data);
             inicioViagem.setHours(horarioSaida.getHours(), horarioSaida.getMinutes(), 0, 0);
-
-            // Combina data + hora de chegada
             const fimViagem = new Date(dataChegada);
             fimViagem.setHours(horarioChegada.getHours(), horarioChegada.getMinutes(), 0, 0);
-
             if (fimViagem <= inicioViagem) {
                 Alert.alert("Erro", "A data/horário de chegada não pode ser anterior ou igual à saída.");
                 return;
@@ -119,42 +149,42 @@ export default function RegistrarViagem() {
 
             const body = {
                 veiculoId: parseInt(veiculoId, 10),
-                dataSaida: inicioViagem.toISOString(), // datetime completo
+                dataSaida: inicioViagem.toISOString(),
                 dataChegada: fimViagem.toISOString(),
                 finalidade,
                 kmFinal: parseInt(kmFinal, 10),
             };
 
-            const response = await apiFetch("/viagens", {
-                method: "POST",
-                body: JSON.stringify(body),
-            });
+            let response;
+            if (editingId) {
+                response = await apiFetch(`/viagens/${editingId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                });
+            } else {
+                response = await apiFetch("/viagens", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                });
+            }
 
             const result = await response.json().catch(() => ({}));
 
             if (!response.ok) {
                 if (response.status === 400 && result.ultimaKm) {
-                    Alert.alert(
-                        "Quilometragem inválida",
-                        `A quilometragem final não pode ser menor ou igual que a última registrada (${result.ultimaKm}).`
-                    );
+                    Alert.alert("Quilometragem inválida", `A quilometragem final não pode ser menor ou igual que a última registrada (${result.ultimaKm}).`);
                 } else if (response.status === 403) {
                     Alert.alert("Erro de Permissão", result.error || "Você não tem permissão para realizar esta ação.");
                 } else {
-                    Alert.alert("Erro", result.error || "Erro ao registrar viagem.");
+                    Alert.alert("Erro", result.error || "Erro ao salvar viagem.");
                 }
                 return;
             }
 
-            Alert.alert("Sucesso", "Viagem registrada!");
-            // limpa campos
-            setVeiculoId("");
-            setFinalidade("");
-            setKmFinal("");
-            setData(new Date());
-            setDataChegada(new Date());
-            setHorarioSaida(new Date());
-            setHorarioChegada(new Date());
+            Alert.alert("Sucesso", editingId ? "Viagem atualizada!" : "Viagem registrada!");
+            navigation.goBack();
         } catch (error) {
             console.error("Erro ao salvar viagem:", error);
             Alert.alert("Erro", "Não foi possível salvar a viagem.");
@@ -163,67 +193,91 @@ export default function RegistrarViagem() {
         }
     };
 
-    // handlers do DateTimePicker
+    const excluirViagem = async () => {
+        if (!editingId) return;
+        Alert.alert("Confirmar", "Deseja realmente deletar esta viagem?", [
+            { text: "Cancelar", style: "cancel" },
+            {
+                text: "Deletar",
+                style: "destructive",
+                onPress: async () => {
+                    try {
+                        setSaving(true);
+                        const res = await apiFetch(`/viagens/${editingId}`, { method: "DELETE" });
+                        if (res.ok) {
+                            Alert.alert("Sucesso", "Viagem deletada.");
+                            navigation.goBack();
+                        } else {
+                            const err = await res.json().catch(() => ({}));
+                            Alert.alert("Erro", err.error || "Não foi possível deletar a viagem.");
+                        }
+                    } catch (err) {
+                        console.error("Erro ao deletar viagem:", err);
+                        Alert.alert("Erro", "Não foi possível deletar a viagem.");
+                    } finally {
+                        setSaving(false);
+                    }
+                },
+            },
+        ]);
+    };
+
+    // handlers DateTimePickers
     const onChangeData = (_: any, selected?: Date) => {
         setShowDatePicker(false);
         if (selected) setData(selected);
     };
-
     const onChangeDataChegada = (_: any, selected?: Date) => {
         setShowDataChegadaPicker(false);
         if (selected) setDataChegada(selected);
     };
-
     const onChangeHorarioSaida = (_: any, selected?: Date) => {
         setShowSaidaPicker(false);
         if (selected) setHorarioSaida(selected);
     };
-
     const onChangeHorarioChegada = (_: any, selected?: Date) => {
         setShowChegadaPicker(false);
         if (selected) setHorarioChegada(selected);
     };
 
+    if (loadingInit) {
+        return (
+            <ThemedView style={[styles.container, { backgroundColor: theme.background }]}>
+                <View style={{ padding: 20 }}>
+                    <ActivityIndicator />
+                    <Text style={{ marginTop: 8 }}>Carregando viagem...</Text>
+                </View>
+            </ThemedView>
+        );
+    }
+
     return (
         <ThemedView style={[styles.container, { backgroundColor: theme.background }]}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={styles.keyboardAvoidingView}
-            >
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingView}>
                 <ScrollView contentContainerStyle={styles.scrollContainer}>
                     <ThemedText type="title" style={styles.title}>
-                        <MaterialCommunityIcons name="map-marker" size={28} /> Nova Viagem
+                        <MaterialCommunityIcons name="map-marker" size={28} /> {editingId ? "Editar Viagem" : "Nova Viagem"}
                     </ThemedText>
-                    <ThemedText style={styles.subtitle}>Registre uma nova viagem da frota</ThemedText>
 
-                    {/* Seção: Informações do Veículo */}
+                    {/* Veículo */}
                     <View style={[styles.section, { backgroundColor: theme.card }]}>
-                        <ThemedText style={styles.sectionTitle}>
-                            <FontAwesome5 name="truck" size={16} /> Informações do Veículo
-                        </ThemedText>
-                        <ThemedText style={styles.sectionNote}>Selecione o veículo responsável (ID)</ThemedText>
-
+                        <ThemedText style={styles.sectionTitle}><FontAwesome5 name="truck" size={14} /> Informações do Veículo</ThemedText>
                         {loadingVeiculos ? (
-                            <View style={{ paddingVertical: 12 }}>
-                                <ActivityIndicator />
-                            </View>
+                            <ActivityIndicator />
                         ) : (
                             <View style={[styles.pickerWrap, { borderColor: theme.border }]}>
                                 <Picker
                                     selectedValue={veiculoId}
                                     onValueChange={(val) => setVeiculoId(String(val))}
                                     mode="dropdown"
-                                    // Estilo condicional para Android
                                     style={Platform.OS === 'android' ? { color: theme.text } : undefined}
                                     dropdownIconColor={Platform.OS === 'android' ? theme.text : undefined}
-                                    // Estilo condicional para iOS
-                                    itemStyle={Platform.OS === 'ios' && { color: theme.text }}
                                 >
                                     <Picker.Item label="Selecione o veículo" value="" />
                                     {veiculos.map((v: any) => (
                                         <Picker.Item
                                             key={String(v.id)}
-                                            label={v.placa ? `${v.id} - ${v.placa}` : `${v.id} - ${v.nome || "Veículo"}`}
+                                            label={v.placa ? `${v.id} - ${v.placa}` : `${v.id} - Veículo`}
                                             value={String(v.id)}
                                         />
                                     ))}
@@ -232,115 +286,65 @@ export default function RegistrarViagem() {
                         )}
                     </View>
 
-                    {/* Seção: Rota e Data (apenas datas e horários) */}
+                    {/* Datas e horários */}
                     <View style={[styles.section, { backgroundColor: theme.card }]}>
-                        <ThemedText style={styles.sectionTitle}>
-                            <MaterialCommunityIcons name="calendar" size={16} /> Rota e Data
-                        </ThemedText>
-                        <ThemedText style={styles.sectionNote}>Data e horário de saída e chegada</ThemedText>
-
+                        <ThemedText style={styles.sectionTitle}><MaterialCommunityIcons name="calendar" size={14} /> Rota e Data</ThemedText>
                         <View style={styles.row}>
                             <View style={{ flex: 1 }}>
                                 <ThemedText style={styles.label}>Data Saída</ThemedText>
-                                <Pressable
-                                    style={[styles.dateBtn, { borderColor: theme.border }]}
-                                    onPress={() => setShowDatePicker(true)}
-                                >
+                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={() => setShowDatePicker(true)}>
                                     <ThemedText>{formatDate(data)}</ThemedText>
                                 </Pressable>
-                                {showDatePicker && (
-                                    <DateTimePicker value={data} mode="date" display="default" onChange={onChangeData} />
-                                )}
+                                {showDatePicker && <DateTimePicker value={data} mode="date" display="default" onChange={onChangeData} />}
                             </View>
-
                             <View style={{ flex: 1 }}>
                                 <ThemedText style={styles.label}>Horário Saída</ThemedText>
-                                <Pressable
-                                    style={[styles.dateBtn, { borderColor: theme.border }]}
-                                    onPress={() => setShowSaidaPicker(true)}
-                                >
+                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={() => setShowSaidaPicker(true)}>
                                     <ThemedText>{formatTime(horarioSaida)}</ThemedText>
                                 </Pressable>
-                                {showSaidaPicker && (
-                                    <DateTimePicker value={horarioSaida} mode="time" display="spinner" onChange={onChangeHorarioSaida} />
-                                )}
+                                {showSaidaPicker && <DateTimePicker value={horarioSaida} mode="time" display="spinner" onChange={onChangeHorarioSaida} />}
                             </View>
                         </View>
 
                         <View style={styles.row}>
                             <View style={{ flex: 1 }}>
                                 <ThemedText style={styles.label}>Data Chegada</ThemedText>
-                                <Pressable
-                                    style={[styles.dateBtn, { borderColor: theme.border }]}
-                                    onPress={() => setShowDataChegadaPicker(true)}
-                                >
+                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={() => setShowDataChegadaPicker(true)}>
                                     <ThemedText>{formatDate(dataChegada)}</ThemedText>
                                 </Pressable>
-                                {showDataChegadaPicker && (
-                                    <DateTimePicker value={dataChegada} mode="date" display="default" onChange={onChangeDataChegada} />
-                                )}
+                                {showDataChegadaPicker && <DateTimePicker value={dataChegada} mode="date" display="default" onChange={onChangeDataChegada} />}
                             </View>
-
                             <View style={{ flex: 1 }}>
                                 <ThemedText style={styles.label}>Horário Chegada</ThemedText>
-                                <Pressable
-                                    style={[styles.dateBtn, { borderColor: theme.border }]}
-                                    onPress={() => setShowChegadaPicker(true)}
-                                >
+                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={() => setShowChegadaPicker(true)}>
                                     <ThemedText>{formatTime(horarioChegada)}</ThemedText>
                                 </Pressable>
-                                {showChegadaPicker && (
-                                    <DateTimePicker value={horarioChegada} mode="time" display="spinner" onChange={onChangeHorarioChegada} />
-                                )}
+                                {showChegadaPicker && <DateTimePicker value={horarioChegada} mode="time" display="spinner" onChange={onChangeHorarioChegada} />}
                             </View>
                         </View>
                     </View>
 
-                    {/* Seção: Dados da Viagem (finalidade + km final) */}
+                    {/* Dados da viagem */}
                     <View style={[styles.section, { backgroundColor: theme.card }]}>
-                        <ThemedText style={styles.sectionTitle}>
-                            <MaterialCommunityIcons name="file-document" size={16} /> Dados da Viagem
-                        </ThemedText>
-                        <ThemedText style={styles.sectionNote}>Finalidade e quilometragem final</ThemedText>
-
-                        <TextInput
-                            placeholder="Finalidade"
-                            placeholderTextColor="#9aa0a6"
-                            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                            value={finalidade}
-                            onChangeText={setFinalidade}
-                        />
-
-                        <TextInput
-                            placeholder="KM Final"
-                            placeholderTextColor="#9aa0a6"
-                            keyboardType="numeric"
-                            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                            value={kmFinal}
-                            onChangeText={setKmFinal}
-                        />
+                        <ThemedText style={styles.sectionTitle}><MaterialCommunityIcons name="file-document" size={14} /> Dados da Viagem</ThemedText>
+                        <TextInput placeholder="Finalidade" placeholderTextColor="#9aa0a6" style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={finalidade} onChangeText={setFinalidade} />
+                        <TextInput placeholder="KM Final" placeholderTextColor="#9aa0a6" keyboardType="numeric" style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={kmFinal} onChangeText={setKmFinal} />
                     </View>
 
-                    {/* botões */}
+                    {/* Botões */}
                     <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 12 }}>
-                        <Pressable
-                            style={[styles.btnOutline, { borderColor: theme.primary }]}
-                            onPress={() => {
-                                // limpar campos
-                                setVeiculoId("");
-                                setFinalidade("");
-                                setKmFinal("");
-                                setData(new Date());
-                                setDataChegada(new Date());
-                                setHorarioSaida(new Date());
-                                setHorarioChegada(new Date());
-                            }}
-                        >
-                            <ThemedText style={{ color: theme.primary }}>Cancelar</ThemedText>
+                        <Pressable style={[styles.btnOutline, { borderColor: theme.primary }]} onPress={() => navigation.goBack()}>
+                            <ThemedText style={{ color: theme.primary }}>Voltar</ThemedText>
                         </Pressable>
 
+                        {!!editingId && (
+                            <Pressable style={[styles.btnOutline, { borderColor: "#e53e3e" }]} onPress={excluirViagem} disabled={saving}>
+                                {saving ? <ActivityIndicator /> : <ThemedText style={{ color: "#e53e3e" }}>Deletar</ThemedText>}
+                            </Pressable>
+                        )}
+
                         <Pressable style={[styles.btnPrimary, { backgroundColor: theme.primary }]} onPress={salvarViagem} disabled={saving}>
-                            {saving ? <ActivityIndicator color="#fff" /> : <ThemedText style={{ color: theme.textBack }}>Registrar Viagem</ThemedText>}
+                            {saving ? <ActivityIndicator color="#fff" /> : <ThemedText style={{ color: theme.textBack }}>{editingId ? "Atualizar" : "Registrar Viagem"}</ThemedText>}
                         </Pressable>
                     </View>
                 </ScrollView>
@@ -353,16 +357,14 @@ const styles = StyleSheet.create({
     container: { paddingTop: 36, flex: 1 },
     keyboardAvoidingView: { flex: 1 },
     scrollContainer: { padding: 20, paddingBottom: 40 },
-    title: { fontSize: 34, fontWeight: "800", marginBottom: 6 },
-    subtitle: { color: "#6b7280", marginBottom: 12 },
+    title: { fontSize: 28, fontWeight: "800", marginBottom: 6 },
     section: { borderRadius: 12, padding: 14, marginTop: 12 },
-    sectionTitle: { fontSize: 16, fontWeight: "800" },
-    sectionNote: { color: "#6b7280", marginBottom: 8 },
+    sectionTitle: { fontSize: 15, fontWeight: "700", marginBottom: 6 },
     input: { padding: 12, borderWidth: 1, borderRadius: 10, marginTop: 8 },
     dateBtn: { padding: 12, borderWidth: 1, borderRadius: 10, marginTop: 8 },
     pickerWrap: { borderWidth: 1, borderRadius: 10, overflow: "hidden", marginTop: 8 },
     row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
     btnPrimary: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, minWidth: 140, alignItems: "center" },
-    btnOutline: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, minWidth: 140, alignItems: "center", borderWidth: 1 },
+    btnOutline: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, minWidth: 100, alignItems: "center", borderWidth: 1 },
     label: { color: "#6b7280", fontSize: 13 },
 });
