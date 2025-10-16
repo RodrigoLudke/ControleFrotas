@@ -182,7 +182,7 @@ export default function Trips() {
                                         <TableHead>Horário Chegada</TableHead>
                                         <TableHead>Finalidade</TableHead>
                                         <TableHead>Km Final</TableHead>
-                                        <TableHead className="text-center">Ações</TableHead>
+                                        <TableHead>Ações</TableHead>
                                     </TableRow>
                                 </TableHeader>
 
@@ -234,8 +234,8 @@ export default function Trips() {
                                                         )}
                                                     </TableCell>
 
-                                                    <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
+                                                    <TableCell>
+                                                        <div className="flex items-center space-x-2">
                                                             <Button variant="ghost" size="sm" title="Ver">
                                                                 <Eye className="h-4 w-4" />
                                                             </Button>
