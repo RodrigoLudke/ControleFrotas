@@ -11,6 +11,7 @@ import RegistrarVeiculos from "./pages/RegistrarVeiculos.tsx";
 import RegistrarMotoristas from "./pages/RegistrarMotoristas.tsx";
 import Veiculos from "./pages/Veiculos.tsx";
 import Motoristas from "./pages/Motoristas.tsx";
+import Viagens from "./pages/Viagens.tsx";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/registrarmotoristas/:id" element={<RegistrarMotoristas />} />
           <Route path="/veiculos" element={<Veiculos />} />
           <Route path="/motoristas" element={<Motoristas />} />
+          <Route path="/viagens" element={<Viagens />} />
 
 
         </Routes>

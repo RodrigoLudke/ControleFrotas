@@ -84,6 +84,15 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                     <Button
                         variant="ghost"
                         className="w-full justify-start"
+                        onClick={() => navigate("/viagens")}
+                        data-active={location.pathname === "/Viagens"}
+                    >
+                        <MapPin className="mr-2 h-4 w-4" />
+                        Viagens
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start"
                         onClick={() => navigate("/settings")}
                         data-active={location.pathname === "/settings"}
                     >
