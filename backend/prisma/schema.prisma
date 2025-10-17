@@ -8,27 +8,29 @@ generator client {
 }
 
 model User {
-  id              Int       @id @default(autoincrement())
-  email           String    @unique
-  senha           String
-  nome            String?
-  cpf             String?   @unique
-  rg              String?   @unique
-  cnh             String?   @unique
-  validadeCnh     DateTime?
-  telefone        String?
-  endereco        String?
-  dataContratacao DateTime?
-  salario         Decimal?  @db.Decimal(10, 2)
-  observacoes     String?
-  categoria       CNHCategory[] @default([])
-  status          String    @default("ativo")
-  dataNascimento  DateTime?
+    id              Int       @id @default(autoincrement())
+    email           String    @unique
+    senha           String
+    nome            String?
+    cpf             String?   @unique
+    rg              String?   @unique
+    cnh             String?   @unique
+    validadeCnh     DateTime?
+    telefone        String?
+    endereco        String?
+    dataContratacao DateTime?
+    salario         Decimal?  @db.Decimal(10, 2)
+    observacoes     String?
+    categoria       CNHCategory[] @default([])
+    status          String    @default("ativo")
+    dataNascimento  DateTime?
 
-  veiculos      UserVeiculo[]
-  viagens       Viagem[]
-  refreshTokens RefreshToken[]
-  role          Role          @default(USER)
+    veiculos      UserVeiculo[]
+    viagens       Viagem[]
+    manutencoes   Manutencao[]
+    abastecimentos Abastecimento[]
+    refreshTokens RefreshToken[]
+    role          Role          @default(USER)
 }
 
 model Veiculo {
@@ -42,8 +44,6 @@ model Veiculo {
     renavam          String         @unique
     capacidade       Int
     quilometragem    Int
-    ultimaManutencao DateTime?
-    proximaManutencao DateTime?
     combustivel      Combustivel
     valorCompra      Decimal        @db.Decimal(10, 2)
     dataCompra       DateTime
@@ -57,6 +57,8 @@ model Veiculo {
 
     usuarios  UserVeiculo[]
     viagens   Viagem[]
+    manutencoes   Manutencao[]
+    abastecimentos Abastecimento[]
 }
 
 model UserVeiculo {
@@ -84,6 +86,49 @@ model Viagem {
 
   user     User    @relation(fields: [userId], references: [id])
   veiculo  Veiculo @relation(fields: [veiculoId], references: [id])
+}
+
+model Abastecimento {
+  id            Int         @id @default(autoincrement())
+  veiculoId     Int
+  veiculo       Veiculo     @relation(fields: [veiculoId], references: [id])
+  userId   Int
+  user     User        @relation(fields: [userId], references: [id])
+  data          DateTime
+  quilometragem Int
+  litros        Decimal     @db.Decimal(10, 3)
+  valorPorLitro Decimal     @db.Decimal(10, 3)
+  custoTotal    Decimal     @db.Decimal(10, 2)
+  combustivel   Combustivel // Reutilizando o enum que você já tem
+  posto         String?     // Nome do posto de combustível
+}
+
+model Manutencao {
+  id            Int                @id @default(autoincrement())
+  veiculoId     Int
+  veiculo       Veiculo            @relation(fields: [veiculoId], references: [id])
+  userId   Int? // Motorista que solicitou ou realizou
+  user     User?              @relation(fields: [userId], references: [id])
+  data          DateTime
+  quilometragem Int
+  tipo          TipoManutencao     // Preventiva, Corretiva
+  descricao     String             @db.Text
+  custo         Decimal?           @db.Decimal(10, 2)
+  local         String?            // Nome da oficina
+  observacoes   String?            @db.Text
+  status        StatusManutencao   // Agendada, Em Andamento, Concluída
+}
+
+enum TipoManutencao {
+  PREVENTIVA
+  CORRETIVA
+}
+
+enum StatusManutencao {
+  AGENDADA
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
 }
 
 model RefreshToken {

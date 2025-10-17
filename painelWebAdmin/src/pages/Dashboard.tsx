@@ -1,137 +1,213 @@
+// src/pages/Dashboard.tsx
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
     Truck,
     Users,
     MapPin,
     AlertTriangle,
     TrendingUp,
-    Calendar,
-    Bell,
     Settings,
-    LogOut,
-    Menu,
-    Fuel,
-    Clock,
-    Shield
+    Clock
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "@/services/api";
-import {AdminLayout} from "@/components/layout/AdminLayout.tsx";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 
 interface Viagem {
     id: number;
     userId: number;
     veiculoId: number;
-    dataSaida: string;
-    dataChegada: string;
-    finalidade: string;
-    kmFinal: number;
-    createdAt: string;
-    updatedAt: string;
+    dataSaida?: string | null;
+    dataChegada?: string | null;
+    finalidade?: string | null;
+    kmFinal?: number | null;
 }
 
-const Dashboard = () => {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+interface Manutencao {
+    id: number;
+    veiculoId: number;
+    userId?: number | null;
+    data: string;
+    quilometragem: number;
+    tipo: "PREVENTIVA" | "CORRETIVA";
+    descricao?: string;
+    custo?: number | null;
+    local?: string | null;
+    status: "AGENDADA" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA";
+}
+
+export default function Dashboard() {
     const navigate = useNavigate();
 
     const [viagens, setViagens] = useState<Viagem[]>([]);
+    const [vehiclesMap, setVehiclesMap] = useState<Record<number, string>>({});
+    const [driversMap, setDriversMap] = useState<Record<number, string>>({});
+    const [loading, setLoading] = useState<boolean>(true);
+
+    const [countVehiclesActive, setCountVehiclesActive] = useState<number>(0);
+    const [countDrivers, setCountDrivers] = useState<number>(0);
+
+    // próximas manutenções agendadas
+    const [manutencoesUpcoming, setManutencoesUpcoming] = useState<Manutencao[]>([]);
+    const [loadingManutencoes, setLoadingManutencoes] = useState<boolean>(true);
 
     useEffect(() => {
-        const fetchViagens = async () => {
+        const fetchAll = async () => {
+            setLoading(true);
             try {
-                const response = await apiFetch("/viagens/admin");
-                if (response.ok) {
-                    const data: Viagem[] = await response.json();
-                    setViagens(data);
+                // Viagens admin (limit handled later)
+                const resTrips = await apiFetch("/viagens/admin");
+                const tripsData: Viagem[] = resTrips.ok ? await resTrips.json() : [];
+
+                // Veículos e Motoristas em paralelo
+                const [resVeic, resMotor] = await Promise.allSettled([apiFetch("/veiculos"), apiFetch("/motoristas")]);
+
+                const vMap: Record<number, string> = {};
+                //eslint-disable-next-line @typescript-eslint/no-explicit-any
+                let vehiclesList: any[] = [];
+                if (resVeic.status === "fulfilled" && resVeic.value.ok) {
+                    try {
+                        const veics = await resVeic.value.json();
+                        vehiclesList = Array.isArray(veics) ? veics : [];
+                        //eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        vehiclesList.forEach((v: any) => {
+                            if (v && v.id !== undefined) vMap[Number(v.id)] = v.placa ?? v.modelo ?? `Veículo ${v.id}`;
+                        });
+                    } catch (e) {
+                        console.warn("Erro ao parsear /veiculos", e);
+                    }
                 } else {
-                    console.error("Falha ao buscar viagens:", await response.json());
+                    console.warn("Falha fetch /veiculos", resVeic);
                 }
-            } catch (err) {
-                console.error("Erro ao carregar viagens:", err);
+
+                const dMap: Record<number, string> = {};
+                //eslint-disable-next-line @typescript-eslint/no-explicit-any
+                let driversList: any[] = [];
+                if (resMotor.status === "fulfilled" && resMotor.value.ok) {
+                    try {
+                        const motors = await resMotor.value.json();
+                        driversList = Array.isArray(motors) ? motors : [];
+                        //eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        driversList.forEach((m: any) => {
+                            if (m && m.id !== undefined) dMap[Number(m.id)] = m.nome ?? m.email ?? `Motorista ${m.id}`;
+                        });
+                    } catch (e) {
+                        console.warn("Erro ao parsear /motoristas", e);
+                    }
+                } else {
+                    console.warn("Falha fetch /motoristas", resMotor);
+                }
+
+                setVehiclesMap(vMap);
+                setDriversMap(dMap);
+
+                // organiza viagens: ordenar por dataSaida desc e manter (por ex) 5 para o card
+                const sortedTrips = Array.isArray(tripsData)
+                    ? tripsData.slice().sort((a, b) => {
+                        const da = a.dataSaida ? new Date(a.dataSaida).getTime() : 0;
+                        const db = b.dataSaida ? new Date(b.dataSaida).getTime() : 0;
+                        return db - da;
+                    }).slice(0, 5)
+                    : [];
+                setViagens(sortedTrips);
+
+                // contadores
+                //eslint-disable-next-line @typescript-eslint/no-explicit-any
+                setCountVehiclesActive(vehiclesList.filter((v: any) => (v.status ?? "").toString() === "disponivel").length);
+                setCountDrivers(driversList.length);
+            } catch (error) {
+                console.error("Erro ao carregar dados do dashboard:", error);
+            } finally {
+                setLoading(false);
             }
         };
-        fetchViagens();
+
+        const fetchManutencoes = async () => {
+            setLoadingManutencoes(true);
+            try {
+                const res = await apiFetch("/manutencoes");
+                if (!res.ok) {
+                    // backend pode não ter rota — trata silenciosamente
+                    console.warn("manutencoes fetch falhou:", await res.text().catch(() => "no body"));
+                    setManutencoesUpcoming([]);
+                    return;
+                }
+                const all: Manutencao[] = await res.json();
+                if (!Array.isArray(all)) {
+                    setManutencoesUpcoming([]);
+                    return;
+                }
+                const now = Date.now();
+                const upcoming = all
+                    .filter(m => m && m.status === "AGENDADA")
+                    .filter(m => {
+                        const dt = m.data ? new Date(m.data).getTime() : 0;
+                        return dt >= now;
+                    })
+                    .sort((a, b) => {
+                        const da = a.data ? new Date(a.data).getTime() : 0;
+                        const db = b.data ? new Date(b.data).getTime() : 0;
+                        return da - db;
+                    })
+                    .slice(0, 5);
+                setManutencoesUpcoming(upcoming);
+            } catch (error) {
+                console.error("Erro ao buscar manutenções:", error);
+                setManutencoesUpcoming([]);
+            } finally {
+                setLoadingManutencoes(false);
+            }
+        };
+
+        fetchAll();
+        fetchManutencoes();
     }, []);
 
     const fleetStats = [
         {
             title: "Veículos Ativos",
-            value: "127",
-            change: "+12%",
+            value: String(countVehiclesActive),
+            change: "--",
             trend: "up",
             icon: Truck,
             color: "fleet-success"
         },
         {
             title: "Motoristas",
-            value: "89",
-            change: "+5%",
+            value: String(countDrivers),
+            change: "--",
             trend: "up",
             icon: Users,
             color: "fleet-primary"
         },
         {
             title: "Rotas Ativas",
-            value: "23",
-            change: "-2%",
-            trend: "down",
+            value: "--",
+            change: "--",
+            trend: "none",
             icon: MapPin,
             color: "fleet-warning"
         },
         {
             title: "Alertas",
-            value: "7",
-            change: "+3",
-            trend: "up",
+            value: "--",
+            change: "--",
+            trend: "none",
             icon: AlertTriangle,
             color: "fleet-danger"
         }
     ];
 
-    const recentActivities = [
-        {
-            id: 1,
-            type: "maintenance",
-            message: "Manutenção programada para veículo ABC-1234",
-            time: "15 min atrás",
-            priority: "medium"
-        },
-        {
-            id: 2,
-            type: "route",
-            message: "Nova rota São Paulo - Campinas criada",
-            time: "32 min atrás",
-            priority: "low"
-        },
-        {
-            id: 3,
-            type: "alert",
-            message: "Combustível baixo no veículo XYZ-5678",
-            time: "1h atrás",
-            priority: "high"
-        },
-        {
-            id: 4,
-            type: "driver",
-            message: "Novo motorista João Silva cadastrado",
-            time: "2h atrás",
-            priority: "low"
-        }
-    ];
-
     const quickActions = [
-        { label: "Adicionar Veículo", icon: Truck, variant: "fleet" as const },
-        { label: "Nova Rota", icon: MapPin, variant: "secondary" as const },
-        { label: "Relatórios", icon: TrendingUp, variant: "secondary" as const },
-        { label: "Configurações", icon: Settings, variant: "secondary" as const }
+        { label: "Adicionar Veículo", icon: Truck, variant: "default" as const, to: "/registrarveiculos" },
+        { label: "Adicionar Motorista", icon: Users, variant: "secondary" as const, to: "/registrarmotoristas" },
+        { label: "Relatórios", icon: TrendingUp, variant: "secondary" as const, to: "/" },
+        { label: "Configurações", icon: Settings, variant: "secondary" as const, to: "/" }
     ];
 
     return (
@@ -149,7 +225,7 @@ const Dashboard = () => {
                                         </p>
                                         <p className="text-2xl font-bold">{stat.value}</p>
                                         <p className={`text-xs flex items-center ${
-                                            stat.trend === 'up' ? 'text-success' : 'text-destructive'
+                                            stat.trend === 'up' ? 'text-success' : stat.trend === 'down' ? 'text-destructive' : 'text-muted-foreground'
                                         }`}>
                                             <TrendingUp className="h-3 w-3 mr-1" />
                                             {stat.change}
@@ -164,19 +240,19 @@ const Dashboard = () => {
                     ))}
                 </div>
 
-                {/* Novo: Seção de Últimas Viagens */}
+                {/* Últimas Viagens */}
                 <Card className="shadow-card">
                     <CardHeader>
                         <CardTitle>Últimas Viagens</CardTitle>
-                        <CardDescription>Visão geral das últimas viagens registradas</CardDescription>
+                        <CardDescription>Visão geral das últimas viagens registradas (limitado a 5)</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
                                 <thead className="text-xs text-foreground uppercase bg-muted/50">
                                 <tr>
-                                    <th scope="col" className="px-6 py-3">ID</th>
-                                    <th scope="col" className="px-6 py-3">Veículo</th>
+                                    <th scope="col" className="px-6 py-3">Motorista</th>
+                                    <th scope="col" className="px-6 py-3">Veículo (placa)</th>
                                     <th scope="col" className="px-6 py-3">Saída</th>
                                     <th scope="col" className="px-6 py-3">Chegada</th>
                                     <th scope="col" className="px-6 py-3">Finalidade</th>
@@ -184,17 +260,25 @@ const Dashboard = () => {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {viagens.length > 0 ? (
-                                    viagens.map((item) => (
-                                        <tr key={item.id} className="border-b bg-card hover:bg-muted/30">
-                                            <td className="px-6 py-4 font-medium">{item.id}</td>
-                                            <td className="px-6 py-4">{item.veiculoId}</td>
-                                            <td className="px-6 py-4">{new Date(item.dataSaida).toLocaleString("pt-BR")}</td>
-                                            <td className="px-6 py-4">{new Date(item.dataChegada).toLocaleString("pt-BR")}</td>
-                                            <td className="px-6 py-4">{item.finalidade}</td>
-                                            <td className="px-6 py-4">{item.kmFinal}</td>
-                                        </tr>
-                                    ))
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={6} className="text-center py-6 text-muted-foreground">Carregando...</td>
+                                    </tr>
+                                ) : viagens.length > 0 ? (
+                                    viagens.map((item) => {
+                                        const driver = (item.userId && driversMap[item.userId]) || "—";
+                                        const plate = (item.veiculoId && vehiclesMap[item.veiculoId]) || "—";
+                                        return (
+                                            <tr key={item.id} className="border-b bg-card hover:bg-muted/30">
+                                                <td className="px-6 py-4 font-medium">{driver}</td>
+                                                <td className="px-6 py-4">{plate}</td>
+                                                <td className="px-6 py-4">{item.dataSaida ? new Date(item.dataSaida).toLocaleString("pt-BR") : "—"}</td>
+                                                <td className="px-6 py-4">{item.dataChegada ? new Date(item.dataChegada).toLocaleString("pt-BR") : "—"}</td>
+                                                <td className="px-6 py-4">{item.finalidade ?? "—"}</td>
+                                                <td className="px-6 py-4">{item.kmFinal ?? "—"}</td>
+                                            </tr>
+                                        );
+                                    })
                                 ) : (
                                     <tr className="bg-card">
                                         <td colSpan={6} className="text-center py-4 text-muted-foreground">Nenhuma viagem encontrada.</td>
@@ -219,7 +303,7 @@ const Dashboard = () => {
                                     key={index}
                                     variant={action.variant}
                                     className="w-full justify-start"
-                                    onClick={() => navigate(action.label === "Adicionar Veículo" ? "/veiculos" : "/")}
+                                    onClick={() => navigate(action.to)}
                                 >
                                     <action.icon className="mr-2 h-4 w-4" />
                                     {action.label}
@@ -228,35 +312,47 @@ const Dashboard = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Recent Activities */}
+                    {/* Próximas Manutenções Agendadas */}
                     <Card className="lg:col-span-2 shadow-card">
                         <CardHeader>
-                            <CardTitle>Atividades Recentes</CardTitle>
-                            <CardDescription>Últimas atualizações do sistema</CardDescription>
+                            <CardTitle>Próximas Manutenções Agendadas</CardTitle>
+                            <CardDescription>Próximas manutenções com status <strong>AGENDADA</strong></CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {recentActivities.map((activity) => (
-                                    <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
-                                        <div className="flex-shrink-0">
-                                            <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium">{activity.message}</p>
-                                            <p className="text-xs text-muted-foreground">{activity.time}</p>
-                                        </div>
-                                        <Badge
-                                            variant={
-                                                activity.priority === 'high' ? 'destructive' :
-                                                    activity.priority === 'medium' ? 'default' : 'secondary'
-                                            }
-                                            className="ml-auto"
-                                        >
-                                            {activity.priority === 'high' ? 'Alta' :
-                                                activity.priority === 'medium' ? 'Média' : 'Baixa'}
-                                        </Badge>
-                                    </div>
-                                ))}
+                                {loadingManutencoes ? (
+                                    <div className="text-center py-6 text-muted-foreground">Carregando manutenções...</div>
+                                ) : manutencoesUpcoming.length === 0 ? (
+                                    <div className="text-center py-6 text-muted-foreground">Nenhuma manutenção agendada nos próximos dias.</div>
+                                ) : (
+                                    manutencoesUpcoming.map((m) => {
+                                        const vehicleLabel = (m.veiculoId && vehiclesMap[m.veiculoId]) || `Veículo ${m.veiculoId}`;
+                                        const userLabel = (m.userId && driversMap[m.userId]) || "—";
+                                        return (
+                                            <div key={m.id} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
+                                                <div className="flex-shrink-0">
+                                                    <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium">
+                                                        {m.tipo === "PREVENTIVA" ? "Preventiva" : "Corretiva"} — {vehicleLabel}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {m.local ? `${m.local} • ` : ""}{new Date(m.data).toLocaleString("pt-BR")}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">{m.descricao ? `${m.descricao}` : ""}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    {m.custo !== undefined && m.custo !== null ? (
+                                                        <Badge variant="default" className="ml-auto">{Number(m.custo).toFixed(2)}</Badge>
+                                                    ) : (
+                                                        <Badge variant="secondary" className="ml-auto">Sem custo</Badge>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -280,6 +376,4 @@ const Dashboard = () => {
             </div>
         </AdminLayout>
     );
-};
-
-export default Dashboard;
+}

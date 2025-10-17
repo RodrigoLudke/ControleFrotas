@@ -10,6 +10,8 @@ import veiculosRoutes from "./routes/veiculos.js";
 import viagensRoutes from "./routes/viagens.js";
 import motoristasRoutes from "./routes/motoristas.js";
 import refreshRoutes from "./routes/refresh.js";
+import manutencoesRoutes from "./routes/manutencoes.js";
+import abastecimentosRoutes from "./routes/abastecimentos.js";
 
 import cors from "cors";
 
@@ -23,6 +25,8 @@ app.use("/veiculos", veiculosRoutes);
 app.use("/viagens", viagensRoutes);
 app.use("/motoristas", motoristasRoutes);
 app.use("/refresh", refreshRoutes);
+app.use("/manutencoes", manutencoesRoutes);
+app.use("/abastecimentos", abastecimentosRoutes);
 
 // Rota de cadastro (para testes, idealmente só ADMIN pode criar motoristas)
 app.post("/register", async (req, res) => {

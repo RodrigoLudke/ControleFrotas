@@ -1,7 +1,6 @@
 // backend/routes/veiculos.js
 import express from "express";
 import pkg from "@prisma/client";
-import bcrypt from "bcrypt"; // pode ser usado em outras rotas, mantive a importação
 import { autenticarToken, autorizarRoles } from "../index.js";
 
 const { PrismaClient } = pkg;
@@ -26,10 +25,8 @@ router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
                 chassi: true,
                 renavam: true,
                 capacidade: true,
-                combustivel: true,
                 quilometragem: true,
-                ultimaManutencao: true,
-                proximaManutencao: true,
+                combustivel: true,
                 valorCompra: true,
                 dataCompra: true,
                 seguradora: true,
@@ -49,59 +46,75 @@ router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     }
 });
 
-// Criar novo veículo (ADMIN) -> POST /veiculos
+// Handler reutilizável para criação (POST / e POST /cadastrar)
 async function createVehicleHandler(req, res) {
     try {
         const {
-            placa, marca, modelo, ano, cor, combustivel, quilometragem,
-            ultimaManutencao, proximaManutencao, seguradora,
-            apoliceSeguro, validadeSeguro, status,
-            chassi, renavam, capacidade, dataCompra, valorCompra,
-            observacoes, categoria
+            placa,
+            marca,
+            modelo,
+            ano,
+            cor,
+            chassi,
+            renavam,
+            capacidade,
+            quilometragem,
+            combustivel,
+            valorCompra,
+            dataCompra,
+            seguradora,
+            apoliceSeguro,
+            validadeSeguro,
+            observacoes,
+            status,
+            categoria
         } = req.body;
 
         // validações básicas
-        if (!placa || !modelo) {
-            return res.status(400).json({ error: "Campos obrigatórios: placa e modelo." });
+        if (!placa || !modelo || !ano) {
+            return res.status(400).json({ error: "Campos obrigatórios: placa, modelo e ano." });
         }
 
-        // Criação convertendo tipos corretamente
         const novo = await prisma.veiculo.create({
             data: {
                 placa,
-                marca: marca || null,
+                marca: marca ?? null,
                 modelo,
-                ano: (ano !== undefined && ano !== null) ? Number(ano) : null,
-                cor: cor || null,
-                chassi: chassi || null,
-                renavam: renavam || null,
-                capacidade: (capacidade !== undefined && capacidade !== null) ? Number(capacidade) : null,
-                combustivel: combustivel || null,
-                quilometragem: (quilometragem !== undefined && quilometragem !== null) ? Number(quilometragem) : null,
-                ultimaManutencao: ultimaManutencao ? new Date(ultimaManutencao) : null,
-                proximaManutencao: proximaManutencao ? new Date(proximaManutencao) : null,
-                valorCompra: valorCompra !== undefined && valorCompra !== null ? Number(String(valorCompra)) : null,
-                dataCompra: dataCompra ? new Date(dataCompra) : null,
-                seguradora: seguradora || null,
-                apoliceSeguro: apoliceSeguro || null,
+                ano: Number(ano),
+                cor: cor ?? null,
+                chassi: chassi ?? null,
+                renavam: renavam ?? null,
+                capacidade: capacidade !== undefined && capacidade !== null ? Number(capacidade) : null,
+                quilometragem: quilometragem !== undefined && quilometragem !== null ? Number(quilometragem) : 0,
+                combustivel: combustivel ?? undefined, // deve corresponder ao enum
+                valorCompra:
+                    valorCompra !== undefined && valorCompra !== null
+                        ? typeof valorCompra === "string"
+                            ? parseFloat(valorCompra)
+                            : Number(valorCompra)
+                        : null,
+                dataCompra: dataCompra ? new Date(dataCompra) : new Date(),
+                seguradora: seguradora ?? null,
+                apoliceSeguro: apoliceSeguro ?? null,
                 validadeSeguro: validadeSeguro ? new Date(validadeSeguro) : null,
-                observacoes: observacoes || null,
-                status: status || "disponivel",
-                categoria: categoria || null
+                observacoes: observacoes ?? null,
+                status: status ?? "disponivel",
+                categoria: categoria ?? null
             }
         });
 
         res.status(201).json(novo);
     } catch (error) {
         console.error("Erro ao cadastrar veículo:", error);
-        if (error?.code === "P2002") return res.status(409).json({ error: "Dados duplicados (ex.: placa, chassi, renavam)." });
+        if (error?.code === "P2002") {
+            return res.status(409).json({ error: "Dados duplicados (placa, chassi ou renavam)." });
+        }
         res.status(500).json({ error: "Erro interno ao cadastrar veículo." });
     }
 }
 
 router.post("/", autenticarToken, autorizarRoles("ADMIN"), createVehicleHandler);
-
-// compatibilidade: POST /veiculos/cadastrar -> chama o handler de criação
+// compatibilidade
 router.post("/cadastrar", autenticarToken, autorizarRoles("ADMIN"), createVehicleHandler);
 
 /* -------------------------
@@ -114,6 +127,7 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
         return res.status(400).json({ error: "ID inválido. Deve ser um número inteiro." });
     }
     const id = parseInt(req.params.id, 10);
+
     try {
         const veiculo = await prisma.veiculo.findUnique({
             where: { id },
@@ -127,10 +141,8 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
                 chassi: true,
                 renavam: true,
                 capacidade: true,
-                combustivel: true,
                 quilometragem: true,
-                ultimaManutencao: true,
-                proximaManutencao: true,
+                combustivel: true,
                 valorCompra: true,
                 dataCompra: true,
                 seguradora: true,
@@ -138,7 +150,8 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
                 validadeSeguro: true,
                 observacoes: true,
                 status: true,
-                categoria: true
+                categoria: true,
+                // relations podem ser incluídas se quiser: manutencoes, abastecimentos, usuarios, viagens...
             }
         });
 
@@ -159,26 +172,37 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
 
     try {
         const {
-            placa, marca, modelo, ano, cor, combustivel, quilometragem,
-            ultimaManutencao, proximaManutencao, seguradora,
-            apoliceSeguro, validadeSeguro, status,
-            chassi, renavam, capacidade, dataCompra, valorCompra,
-            observacoes, categoria
+            placa,
+            marca,
+            modelo,
+            ano,
+            cor,
+            chassi,
+            renavam,
+            capacidade,
+            quilometragem,
+            combustivel,
+            valorCompra,
+            dataCompra,
+            seguradora,
+            apoliceSeguro,
+            validadeSeguro,
+            observacoes,
+            status,
+            categoria
         } = req.body;
 
         const updates = {};
         if (placa !== undefined) updates.placa = placa;
         if (marca !== undefined) updates.marca = marca;
         if (modelo !== undefined) updates.modelo = modelo;
-        if (ano !== undefined) updates.ano = (ano !== null ? Number(ano) : null);
+        if (ano !== undefined) updates.ano = ano !== null ? Number(ano) : null;
         if (cor !== undefined) updates.cor = cor;
         if (chassi !== undefined) updates.chassi = chassi;
         if (renavam !== undefined) updates.renavam = renavam;
-        if (capacidade !== undefined) updates.capacidade = (capacidade !== null ? Number(capacidade) : null);
+        if (capacidade !== undefined) updates.capacidade = capacidade !== null ? Number(capacidade) : null;
+        if (quilometragem !== undefined) updates.quilometragem = quilometragem !== null ? Number(quilometragem) : null;
         if (combustivel !== undefined) updates.combustivel = combustivel;
-        if (quilometragem !== undefined) updates.quilometragem = (quilometragem !== null ? Number(quilometragem) : null);
-        if (ultimaManutencao !== undefined) updates.ultimaManutencao = ultimaManutencao ? new Date(ultimaManutencao) : null;
-        if (proximaManutencao !== undefined) updates.proximaManutencao = proximaManutencao ? new Date(proximaManutencao) : null;
         if (valorCompra !== undefined) updates.valorCompra = valorCompra !== null ? Number(String(valorCompra)) : null;
         if (dataCompra !== undefined) updates.dataCompra = dataCompra ? new Date(dataCompra) : null;
         if (seguradora !== undefined) updates.seguradora = seguradora;
@@ -195,10 +219,25 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
             where: { id },
             data: updates,
             select: {
-                id: true, placa: true, marca: true, modelo: true, ano: true, cor: true, chassi: true, renavam: true,
-                capacidade: true, combustivel: true, quilometragem: true, ultimaManutencao: true, proximaManutencao: true,
-                valorCompra: true, dataCompra: true, seguradora: true, apoliceSeguro: true, validadeSeguro: true, observacoes: true,
-                status: true, categoria: true
+                id: true,
+                placa: true,
+                marca: true,
+                modelo: true,
+                ano: true,
+                cor: true,
+                chassi: true,
+                renavam: true,
+                capacidade: true,
+                quilometragem: true,
+                combustivel: true,
+                valorCompra: true,
+                dataCompra: true,
+                seguradora: true,
+                apoliceSeguro: true,
+                validadeSeguro: true,
+                observacoes: true,
+                status: true,
+                categoria: true
             }
         });
 
@@ -216,6 +255,7 @@ router.delete("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res)
         return res.status(400).json({ error: "ID inválido. Deve ser um número inteiro." });
     }
     const id = parseInt(req.params.id, 10);
+
     try {
         const existing = await prisma.veiculo.findUnique({ where: { id } });
         if (!existing) return res.status(404).json({ error: "Veículo não encontrado." });
