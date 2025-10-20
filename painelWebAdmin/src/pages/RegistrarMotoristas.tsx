@@ -407,7 +407,7 @@ export default function RegisterDriver() {
                                                     aria-expanded={popoverOpen}
                                                     className={`w-full justify-between ${errors.cnhCategories ? "border-destructive" : ""}`}
                                                 >
-                          <span className={`truncate ${formData.cnhCategories && formData.cnhCategories.length > 0 ? "" : "text-muted-foreground"}`}>
+                          <span className={`truncate ${formData.cnhCategories && formData.cnhCategories.length > 0 ? "" : "text-muted-foreground font-normal"}`}>
                             {formData.cnhCategories && formData.cnhCategories.length > 0 ? formData.cnhCategories.join(", ") : "Selecione as categorias"}
                           </span>
                                                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />

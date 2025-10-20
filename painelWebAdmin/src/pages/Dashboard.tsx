@@ -204,7 +204,7 @@ export default function Dashboard() {
     ];
 
     const quickActions = [
-        { label: "Adicionar Veículo", icon: Truck, variant: "default" as const, to: "/registrarveiculos" },
+        { label: "Adicionar Veículo", icon: Truck, variant: "secondary" as const, to: "/registrarveiculos" },
         { label: "Adicionar Motorista", icon: Users, variant: "secondary" as const, to: "/registrarmotoristas" },
         { label: "Relatórios", icon: TrendingUp, variant: "secondary" as const, to: "/" },
         { label: "Configurações", icon: Settings, variant: "secondary" as const, to: "/" }

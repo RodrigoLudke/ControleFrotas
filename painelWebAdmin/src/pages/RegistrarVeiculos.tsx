@@ -280,13 +280,13 @@ export default function RegisterVehicle() {
                                         <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                                             <PopoverTrigger asChild>
                                                 <Button variant="outline" role="combobox" aria-expanded={popoverOpen} className={`w-full justify-between ${errors.vehicleTypes ? "border-destructive" : ""}`}>
-                          <span className={`truncate ${formData.vehicleTypes && formData.vehicleTypes.length > 0 ? "" : "text-muted-foreground"}`}>
+                          <span className={`truncate ${formData.vehicleTypes && formData.vehicleTypes.length > 0 ? "" : "text-muted-foreground font-normal"}`}>
                             {formData.vehicleTypes && formData.vehicleTypes.length > 0 ? formData.vehicleTypes.join(", ") : "Selecione os tipos"}
                           </span>
                                                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-full p-3">
+                                            <PopoverContent className="w-full p-3" align="start">
                                                 <div className="space-y-2">
                                                     {VEHICLE_TYPES.map((type) => (
                                                         <div key={type} className="flex items-center space-x-2">

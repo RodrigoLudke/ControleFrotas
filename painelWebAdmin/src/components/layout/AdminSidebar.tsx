@@ -10,6 +10,8 @@ import {
     LogOut,
     Truck,
     MapPin,
+    TriangleAlert,
+    Wrench,
     Fuel,
     Shield
 } from "lucide-react";
@@ -89,6 +91,24 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                     >
                         <MapPin className="mr-2 h-4 w-4" />
                         Viagens
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => navigate("/alertas")}
+                        data-active={location.pathname === "/Alertas"}
+                    >
+                        <TriangleAlert className="mr-2 h-4 w-4" />
+                        Alertas
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => navigate("/registrarmanutencoes")}
+                        data-active={location.pathname === "/RegistrarManutencoes"}
+                    >
+                        <Wrench className="mr-2 h-4 w-4" />
+                        Registrar Manutenções
                     </Button>
                     <Button
                         variant="ghost"

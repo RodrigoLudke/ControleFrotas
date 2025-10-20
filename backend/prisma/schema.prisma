@@ -29,6 +29,7 @@ model User {
     viagens       Viagem[]
     manutencoes   Manutencao[]
     abastecimentos Abastecimento[]
+    alertas       Alerta[]
     refreshTokens RefreshToken[]
     role          Role          @default(USER)
 }
@@ -59,6 +60,7 @@ model Veiculo {
     viagens   Viagem[]
     manutencoes   Manutencao[]
     abastecimentos Abastecimento[]
+    alertas   Alerta[]
 }
 
 model UserVeiculo {
@@ -119,6 +121,39 @@ model Manutencao {
   status        StatusManutencao   // Agendada, Em Andamento, Concluída
 }
 
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model Alerta {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  veiculoId  Int
+  mensagem   String    @db.Text
+  tipo       AlertaTipo @default(SOLICITACAO) // SOLICITACAO | REGISTRO_RAPIDO
+  status     AlertaStatus @default(PENDENTE)  // PENDENTE | APROVADO | REPROVADO
+  createdAt  DateTime  @default(now())
+
+  user     User    @relation(fields: [userId], references: [id])
+  veiculo  Veiculo @relation(fields: [veiculoId], references: [id])
+}
+
+enum AlertaTipo {
+  SOLICITACAO
+  REGISTRO_RAPIDO
+}
+
+enum AlertaStatus {
+  PENDENTE
+  APROVADO
+  REPROVADO
+}
+
 enum TipoManutencao {
   PREVENTIVA
   CORRETIVA
@@ -131,14 +166,6 @@ enum StatusManutencao {
   CANCELADA
 }
 
-model RefreshToken {
-  id        Int      @id @default(autoincrement())
-  token     String   @unique
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-}
 
 enum Role {
   ADMIN
