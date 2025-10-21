@@ -81,12 +81,12 @@ export default function Alertas() {
                     // se backend retornar o alerta atualizado no response, usamos; senão, buscamos o alerta
                     const payload = alertData?.alert || null;
                     if (payload) {
-                        navigate("/registrarmanutencao", { state: { alert: payload } });
+                        navigate("/registrarmanutencoes", { state: { alert: payload } });
                     } else {
                         // fallback: buscar alerta detalhe
                         const det = await apiFetch(`/alertas/${alertId}`);
                         const detJson = det.ok ? await det.json() : null;
-                        navigate("/registrarmanutencao", { state: { alert: detJson } });
+                        navigate("/registrarmanutencoes", { state: { alert: detJson } });
                     }
                 } else {
                     // remover localmente

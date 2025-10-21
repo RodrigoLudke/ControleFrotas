@@ -270,7 +270,7 @@ export default function RegistrarViagem() {
                                     selectedValue={veiculoId}
                                     onValueChange={(val) => setVeiculoId(String(val))}
                                     mode="dropdown"
-                                    style={Platform.OS === 'android' ? { color: theme.text } : undefined}
+                                    style={Platform.OS === 'android' ? { color: veiculoId ? theme.text : "#9aa0a6" } : undefined}
                                     dropdownIconColor={Platform.OS === 'android' ? theme.text : undefined}
                                 >
                                     <Picker.Item label="Selecione o veículo" value="" />

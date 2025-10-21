@@ -1,5 +1,5 @@
 // src/screens/RegistrarAlertaManutencao.tsx
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
     View,
     StyleSheet,
@@ -30,11 +30,14 @@ export default function RegistrarAlertaManutencao() {
     const [veiculoId, setVeiculoId] = useState<string>("");
     const [descricao, setDescricao] = useState<string>("");
     const [quilometragem, setQuilometragem] = useState<string>("");
-    const [tipo, setTipo] = useState<"SOLICITACAO" | "REGISTRO_RAPIDO">("SOLICITACAO");
+    const [tipo, setTipo] = useState<"SOLICITACAO" | "REGISTRO_RAPIDO" | "">("");
     const [urgente, setUrgente] = useState<boolean>(false);
     const [data, setData] = useState<Date>(new Date());
 
-    const [showDatePicker, setShowDatePicker] = useState(false);
+    // pickers control
+    const [showDatePicker, setShowDatePicker] = useState<boolean>(false); // for iOS: datetime; for Android: date step
+    const [showTimePicker, setShowTimePicker] = useState<boolean>(false); // Android: time step
+
     const [veiculos, setVeiculos] = useState<Array<any>>([]);
     const [loadingVeiculos, setLoadingVeiculos] = useState<boolean>(false);
     const [saving, setSaving] = useState<boolean>(false);
@@ -47,7 +50,7 @@ export default function RegistrarAlertaManutencao() {
             setDescricao("");
             setQuilometragem("");
             setVeiculoId("");
-            setTipo("SOLICITACAO");
+            setTipo("");
             setUrgente(false);
             setData(new Date());
         }, [])
@@ -75,9 +78,57 @@ export default function RegistrarAlertaManutencao() {
     const formatDate = (d?: Date) => (d ? d.toLocaleDateString() : "");
     const formatTime = (d?: Date) => (d ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
 
-    const onChangeData = (_: any, selected?: Date) => {
-        setShowDatePicker(false);
-        if (selected) setData(selected);
+    // Abre o fluxo de seleção de data/hora:
+    // - iOS: abre um único picker em modo "datetime"
+    // - Android: abre date -> depois time
+    const openDateTimePicker = () => {
+        if (Platform.OS === "android") {
+            setShowDatePicker(true); // abre date primeiro
+        } else {
+            setShowDatePicker(true); // iOS: we'll render mode="datetime"
+        }
+    };
+
+    // onChange para Date picker
+    const onChangeDate = (event: any, selected?: Date) => {
+        if (Platform.OS === "android") {
+            // Android: event.type pode ser 'dismissed' ou 'set'
+            setShowDatePicker(false);
+            if (event?.type === "dismissed") {
+                // usuário cancelou
+                return;
+            }
+            const picked = selected ?? data;
+            // guardamos a data (com horas atuais por enquanto) e abrimos o time picker
+            const newDate = new Date(picked);
+            setData(prev => {
+                // mantém horas/minutos atuais no state se tiver
+                const copy = new Date(newDate);
+                copy.setHours(prev.getHours(), prev.getMinutes(), 0, 0);
+                return copy;
+            });
+            // abrir seleção de hora em seguida
+            setShowTimePicker(true);
+        } else {
+            // iOS: single datetime picker (event fired on change)
+            setShowDatePicker(false);
+            if (selected) setData(selected);
+        }
+    };
+
+    // onChange para Time picker (Android)
+    const onChangeTime = (event: any, selected?: Date) => {
+        setShowTimePicker(false);
+        if (event?.type === "dismissed") {
+            return;
+        }
+        if (!selected) return;
+        // ajusta horas/minutos na data atual do estado
+        setData(prev => {
+            const newDate = new Date(prev);
+            newDate.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+            return newDate;
+        });
     };
 
     const validar = () => {
@@ -85,6 +136,12 @@ export default function RegistrarAlertaManutencao() {
             Alert.alert("Erro", "Selecione o veículo.");
             return false;
         }
+
+        if (!tipo) {
+            Alert.alert("Erro", "Selecione o tipo de alerta.");
+            return false;
+        }
+
         if (!descricao || descricao.trim().length < 6) {
             Alert.alert("Erro", "Descreva o problema com pelo menos 6 caracteres.");
             return false;
@@ -101,7 +158,7 @@ export default function RegistrarAlertaManutencao() {
             const payload: any = {
                 veiculoId: parseInt(veiculoId, 10),
                 data: new Date(data).toISOString(),
-                descricao: descricao.trim(),
+                mensagem: descricao.trim(),
                 tipo, // SOLICITACAO | REGISTRO_RAPIDO
                 urgente,
             };
@@ -122,7 +179,9 @@ export default function RegistrarAlertaManutencao() {
             }
 
             Alert.alert("Sucesso", "Alerta enviado. A equipe de manutenção será notificada.");
-            navigation.goBack();
+            // volta para trás
+            // @ts-ignore navigation typing
+            navigation.goBack?.();
         } catch (err) {
             console.error("Erro ao enviar alerta:", err);
             Alert.alert("Erro", "Não foi possível enviar o alerta.");
@@ -188,10 +247,39 @@ export default function RegistrarAlertaManutencao() {
                         <View style={styles.row}>
                             <View style={{ flex: 1 }}>
                                 <ThemedText style={styles.label}>Data / Hora</ThemedText>
-                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={() => setShowDatePicker(true)}>
+                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={openDateTimePicker}>
                                     <ThemedText>{`${formatDate(data)} ${formatTime(data)}`}</ThemedText>
                                 </Pressable>
-                                {showDatePicker && <DateTimePicker value={data} mode="datetime" display="default" onChange={onChangeData} />}
+
+                                {/* iOS: datetime picker (single) */}
+                                {showDatePicker && Platform.OS === "ios" && (
+                                    <DateTimePicker
+                                        value={data}
+                                        mode="datetime"
+                                        display="default"
+                                        onChange={onChangeDate}
+                                    />
+                                )}
+
+                                {/* Android: date picker (when showDatePicker true) */}
+                                {showDatePicker && Platform.OS === "android" && (
+                                    <DateTimePicker
+                                        value={data}
+                                        mode="date"
+                                        display="calendar"
+                                        onChange={onChangeDate}
+                                    />
+                                )}
+
+                                {/* Android: time picker (when showTimePicker true) */}
+                                {showTimePicker && Platform.OS === "android" && (
+                                    <DateTimePicker
+                                        value={data}
+                                        mode="time"
+                                        display="spinner"
+                                        onChange={onChangeTime}
+                                    />
+                                )}
                             </View>
 
                             <View style={{ flex: 1 }}>
@@ -212,8 +300,9 @@ export default function RegistrarAlertaManutencao() {
                                     selectedValue={tipo}
                                     onValueChange={(val) => setTipo(val as any)}
                                     mode="dropdown"
-                                    style={Platform.OS === "android" ? { color: "#111" } : undefined}
+                                    style={Platform.OS === "android" ? { color: tipo ? theme.text : "#9aa0a6" } : undefined}
                                 >
+                                    <Picker.Item label="Selecione o tipo" value="" />
                                     <Picker.Item label="Solicitação de manutenção (motorista solicita reparo)" value="SOLICITACAO" />
                                     <Picker.Item label="Registro rápido (manutenção pequena já realizada)" value="REGISTRO_RAPIDO" />
                                 </Picker>

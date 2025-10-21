@@ -136,7 +136,7 @@ export default function Home() {
                             <View style={styles.actionInner}>
                                 <FontAwesome5 name="list" size={20} color="#f6ad55" />
                                 <ThemedText style={styles.actionText}>Minhas Viagens</ThemedText>
-                                <ThemedText style={styles.actionNote}>Ver histórico</ThemedText>
+                                <ThemedText style={styles.actionNote}>Ver histórico de viagens</ThemedText>
                             </View>
                         </Pressable>
 
