@@ -202,7 +202,7 @@ export default function VerViagens() {
 }
 
 const styles = StyleSheet.create({
-    container: { paddingTop: 36, flex: 1 },
+    container: { flex: 1 },
     header: { padding: 20 },
     title: { fontSize: 32, fontWeight: "800" },
     subtitle: { color: "#6b7280" },

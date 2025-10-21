@@ -354,7 +354,7 @@ export default function RegistrarViagem() {
 }
 
 const styles = StyleSheet.create({
-    container: { paddingTop: 36, flex: 1 },
+    container: { flex: 1 },
     keyboardAvoidingView: { flex: 1 },
     scrollContainer: { padding: 20, paddingBottom: 40 },
     title: { fontSize: 28, fontWeight: "800", marginBottom: 6 },

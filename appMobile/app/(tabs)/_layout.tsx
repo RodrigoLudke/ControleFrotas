@@ -1,56 +1,43 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
+// app/_layout.tsx  (ou onde estiver seu layout de tabs atual)
+import { Stack } from "expo-router";
+import React from "react";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+export default function AppStackLayout() {
+    const colorScheme = useColorScheme();
+    const theme = Colors[colorScheme ?? "light"];
 
-import {File, FolderOpen} from "lucide-react-native";
+    // @ts-ignore
+    return (
+        <Stack
+            screenOptions={{
+                headerTintColor: theme.tint,
+                headerTitleAlign: "center",
+                headerBackTitleVisible: false,
+                headerStyle: {
+                    backgroundColor: theme.background, // ajusta cor do header ao tema
+                    // remove sombra no Android, deixamos visual limpo:
+                    // @ts-ignore
+                    elevation: 0,
+                    shadowOpacity: 0,
+                },
+                headerTitleStyle: { fontWeight: "700" },
+            }}
+        >
+            {/* Home (index) => é a tela principal, não precisa de header com voltar */}
+            <Stack.Screen
+                name="index"
+                options={{
+                    headerShown: false, // oculta header na Home (como você tem um dashboard)
+                }}
+            />
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+            {/* Outras telas — terão automaticamente botão "voltar" no header */}
+            <Stack.Screen name="registrar" options={{ title: "Registrar" }} />
+            <Stack.Screen name="ver-viagens" options={{ title: "Relatório" }} />
+            <Stack.Screen name="criar-alertas" options={{ title: "Alertas" }} />
 
-  return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Menu',
-          tabBarIcon: ({ color }) =>
-              <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="registrar"
-        options={{
-          title: 'Registrar',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-          name="ver-viagens"
-          options={{
-              title: 'Relatório',
-              tabBarIcon: ({ color }) =>
-                  <FolderOpen size={28} color={color} />,
-          }}
-      />
-    </Tabs>
-  );
+        </Stack>
+    );
 }

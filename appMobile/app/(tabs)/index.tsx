@@ -139,6 +139,14 @@ export default function Home() {
                                 <ThemedText style={styles.actionNote}>Ver histórico</ThemedText>
                             </View>
                         </Pressable>
+
+                        <Pressable style={[styles.actionBtn, { borderColor: theme.border }]} onPress={() => router.push("/(tabs)/criar-alertas")}>
+                            <View style={styles.actionInner}>
+                                <MaterialCommunityIcons name="wrench" size={20} color="#ed8936" />
+                                <ThemedText style={styles.actionText}>Solicitar Manutenção</ThemedText>
+                                <ThemedText style={styles.actionNote}>Reportar problema no veículo</ThemedText>
+                            </View>
+                        </Pressable>
                     </View>
                 </View>
             </ScrollView>
