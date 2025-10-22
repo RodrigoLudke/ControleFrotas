@@ -1,4 +1,3 @@
-// src/pages/Dashboard.tsx
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +16,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "@/services/api";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+
+// --- NOVOS IMPORTS ---
+import { useQuery } from "@tanstack/react-query";
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+// Lembre-se de importar 'leaflet/dist/leaflet.css' no seu main.tsx!
+// --- FIM DOS NOVOS IMPORTS ---
+
 
 interface Viagem {
     id: number;
@@ -41,6 +47,18 @@ interface Manutencao {
     status: "AGENDADA" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA";
 }
 
+// --- NOVA INTERFACE ---
+// Interface para os dados do motorista com localização
+// (Baseada na sua rota /motoristas que modificamos no passo anterior)
+interface DriverLocation {
+    id: number;
+    nome: string;
+    latitude: number | null;
+    longitude: number | null;
+    lastLocationUpdate: string | null;
+}
+// --- FIM DA NOVA INTERFACE ---
+
 export default function Dashboard() {
     const navigate = useNavigate();
 
@@ -56,6 +74,35 @@ export default function Dashboard() {
     const [manutencoesUpcoming, setManutencoesUpcoming] = useState<Manutencao[]>([]);
     const [loadingManutencoes, setLoadingManutencoes] = useState<boolean>(true);
 
+
+    // --- NOVO HOOK useQuery para o MAPA ---
+    // Busca os motoristas e suas localizações
+    // Note que isso agora busca os motoristas *separadamente* do useEffect principal
+    // para poder ter seu próprio polling (refetchInterval)
+    const { data: motoristasComLocalizacao, isLoading: isLoadingMotoristasLocalizacao } = useQuery<DriverLocation[]>({
+        queryKey: ['motoristasLocalizacao'], // Chave única para esta query
+        queryFn: async () => {
+            // Assume que sua rota /motoristas agora retorna os campos de localização
+            const res = await apiFetch("/motoristas");
+            if (!res.ok) {
+                console.error("Falha ao buscar localização dos motoristas");
+                // Lança um erro para o react-query tratar
+                throw new Error("Erro ao buscar motoristas para o mapa");
+            }
+            const data = await res.json();
+            return Array.isArray(data) ? data : [];
+        },
+        refetchInterval: 10000, // Atualiza os dados do mapa a cada 10 segundos
+        staleTime: 5000, // Considera os dados "velhos" após 5 segundos
+    });
+
+    // Filtra motoristas que têm localização válida
+    const motoristasNoMapa = motoristasComLocalizacao?.filter(
+        m => m.latitude != null && m.longitude != null
+    ) ?? [];
+    // --- FIM DO NOVO HOOK ---
+
+
     useEffect(() => {
         const fetchAll = async () => {
             setLoading(true);
@@ -65,6 +112,7 @@ export default function Dashboard() {
                 const tripsData: Viagem[] = resTrips.ok ? await resTrips.json() : [];
 
                 // Veículos e Motoristas em paralelo
+                // (Mantemos essa busca para popular os contadores e os maps existentes)
                 const [resVeic, resMotor] = await Promise.allSettled([apiFetch("/veiculos"), apiFetch("/motoristas")]);
 
                 const vMap: Record<number, string> = {};
@@ -166,7 +214,7 @@ export default function Dashboard() {
 
         fetchAll();
         fetchManutencoes();
-    }, []);
+    }, []); // O hook do mapa (useQuery) é independente deste useEffect
 
     const fleetStats = [
         {
@@ -187,7 +235,7 @@ export default function Dashboard() {
         },
         {
             title: "Rotas Ativas",
-            value: "--",
+            value: "--", // Você pode atualizar isso se tiver a info
             change: "--",
             trend: "none",
             icon: MapPin,
@@ -327,7 +375,7 @@ export default function Dashboard() {
                                 ) : (
                                     manutencoesUpcoming.map((m) => {
                                         const vehicleLabel = (m.veiculoId && vehiclesMap[m.veiculoId]) || `Veículo ${m.veiculoId}`;
-                                        const userLabel = (m.userId && driversMap[m.userId]) || "—";
+                                        // const userLabel = (m.userId && driversMap[m.userId]) || "—"; // userLabel não estava sendo usado
                                         return (
                                             <div key={m.id} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
                                                 <div className="flex-shrink-0">
@@ -358,21 +406,59 @@ export default function Dashboard() {
                     </Card>
                 </div>
 
-                {/* Fleet Overview Map Placeholder */}
+                {/* --- MAPA DA FROTA (SUBSTITUÍDO) --- */}
                 <Card className="shadow-card">
                     <CardHeader>
                         <CardTitle>Localização da Frota</CardTitle>
-                        <CardDescription>Posição atual dos veículos em tempo real</CardDescription>
+                        <CardDescription>
+                            {isLoadingMotoristasLocalizacao
+                                ? "Buscando localização..."
+                                : `${motoristasNoMapa.length} veículos rastreados em tempo real (atualiza a cada 10s)`
+                            }
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-64 bg-gradient-to-br from-muted/20 to-muted/40 rounded-lg flex items-center justify-center">
-                            <div className="text-center">
-                                <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                                <p className="text-muted-foreground">Mapa interativo será carregado aqui</p>
-                            </div>
+                        {/* Aumentei a altura do mapa para h-96 (384px) */}
+                        <div className="h-96 w-full rounded-lg overflow-hidden">
+                            {isLoadingMotoristasLocalizacao && !motoristasComLocalizacao ? (
+                                <div className="h-full w-full bg-muted flex items-center justify-center">
+                                    <div className="text-center">
+                                        <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-2 animate-pulse" />
+                                        <p className="text-muted-foreground">Carregando mapa...</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <MapContainer
+                                    // Centraliza no Brasil continental
+                                    center={[-14.2350, -51.9253]}
+                                    zoom={4}
+                                    style={{ height: '100%', width: '100%' }}
+                                    scrollWheelZoom={true}
+                                >
+                                    <TileLayer
+                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                    />
+                                    {motoristasNoMapa.map(motorista => (
+                                        <Marker
+                                            key={motorista.id}
+                                            // position precisa ser [latitude, longitude]
+                                            position={[motorista.latitude!, motorista.longitude!]}
+                                        >
+                                            <Popup>
+                                                <strong>{motorista.nome}</strong><br />
+                                                Última atualização: {motorista.lastLocationUpdate
+                                                ? new Date(motorista.lastLocationUpdate).toLocaleString('pt-BR')
+                                                : 'N/A'}
+                                            </Popup>
+                                        </Marker>
+                                    ))}
+                                </MapContainer>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
+                {/* --- FIM DO MAPA --- */}
             </div>
         </AdminLayout>
     );

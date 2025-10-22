@@ -30,7 +30,7 @@ router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
             select: {
                 id: true, nome: true, cpf: true, cnh: true, validadeCnh: true,
                 telefone: true, email: true, endereco: true, dataContratacao: true,
-                status: true, categoria: true
+                status: true, categoria: true, latitude: true, longitude: true, lastLocationUpdate: true
             },
             orderBy: { nome: "asc" }
         });
@@ -107,6 +107,32 @@ router.post("/cadastrar", async (req, res) => {
         if (error?.code === 'P2002') return res.status(409).json({ error: 'Dados duplicados.' });
         console.error("Erro ao cadastrar motorista:", error);
         res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+});
+
+// Rota para atualizar localização do motorista em tempo real
+router.post("/localizacao", autenticarToken, async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        const { latitude, longitude } = req.body;
+
+        if (latitude == null || longitude == null) {
+            return res.status(400).json({ error: "Localização inválida." });
+        }
+
+        await prisma.user.update({
+            where: { id: Number(userId) },
+            data: {
+                latitude: parseFloat(latitude),
+                longitude: parseFloat(longitude),
+                lastLocationUpdate: new Date(),
+            },
+        });
+
+        res.status(200).json({ message: "Localização atualizada." });
+    } catch (error) {
+        console.error("Erro ao atualizar localização:", error);
+        res.status(500).json({ error: "Erro interno." });
     }
 });
 

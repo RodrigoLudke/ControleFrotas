@@ -25,6 +25,10 @@ model User {
     status          String    @default("ativo")
     dataNascimento  DateTime?
 
+    latitude        Float?
+    longitude       Float?
+    lastLocationUpdate DateTime?
+
     veiculos      UserVeiculo[]
     viagens       Viagem[]
     manutencoes   Manutencao[]

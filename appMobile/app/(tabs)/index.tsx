@@ -1,7 +1,6 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { View, ScrollView, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
-// Importe useFocusEffect para resolver o problema
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedView } from "@/components/ThemedView";
@@ -9,6 +8,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { MaterialCommunityIcons, FontAwesome5, Ionicons } from "@expo/vector-icons";
+import { startTracking} from "@/services/locationService";
 
 export default function Home() {
     const router = useRouter();
@@ -20,6 +20,17 @@ export default function Home() {
         emAndamento: 0,
         concluidas: 0,
     });
+
+    useEffect(() => {
+        console.log("Iniciando serviço de localização na Home...");
+        startTracking();
+
+        // Opcional: retornar uma função de limpeza para parar o rastreamento
+        // se o app for completamente fechado (depende da sua lógica de logout)
+        // return () => {
+        //   stopTracking();
+        // };
+    }, []);
 
     // Envolva a lógica de carregamento em um useCallback
     const loadStats = useCallback(async () => {
