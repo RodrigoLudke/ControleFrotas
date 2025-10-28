@@ -122,6 +122,15 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                     <Button
                         variant="ghost"
                         className="w-full justify-start"
+                        onClick={() => navigate("/abastecimentos")}
+                        data-active={location.pathname === "/Abastecimentos"}
+                    >
+                        <Fuel className="mr-2 h-4 w-4" />
+                        Abastecimentos
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start"
                         onClick={() => navigate("/settings")}
                         data-active={location.pathname === "/settings"}
                     >

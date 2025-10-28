@@ -145,7 +145,7 @@ export default function Home() {
 
                         <Pressable style={[styles.actionBtn, { borderColor: theme.border }]} onPress={() => router.push("/(tabs)/ver-viagens")}>
                             <View style={styles.actionInner}>
-                                <FontAwesome5 name="list" size={20} color="#f6ad55" />
+                                <FontAwesome5 name="list" size={22} color="#f6ad55" />
                                 <ThemedText style={styles.actionText}>Minhas Viagens</ThemedText>
                                 <ThemedText style={styles.actionNote}>Ver histórico de viagens</ThemedText>
                             </View>
@@ -153,9 +153,17 @@ export default function Home() {
 
                         <Pressable style={[styles.actionBtn, { borderColor: theme.border }]} onPress={() => router.push("/(tabs)/criar-alertas")}>
                             <View style={styles.actionInner}>
-                                <MaterialCommunityIcons name="wrench" size={20} color="#ed8936" />
+                                <MaterialCommunityIcons name="wrench" size={22} color="#ed8936" />
                                 <ThemedText style={styles.actionText}>Solicitar Manutenção</ThemedText>
                                 <ThemedText style={styles.actionNote}>Reportar problema no veículo</ThemedText>
+                            </View>
+                        </Pressable>
+
+                        <Pressable style={[styles.actionBtn, { borderColor: theme.border }]} onPress={() => router.push("/(tabs)/registrar-abastecimento")}>
+                            <View style={styles.actionInner}>
+                                <FontAwesome5 name="gas-pump" size={22} color="#38a169" />
+                                <ThemedText style={styles.actionText}>Novo Abastecimento</ThemedText>
+                                <ThemedText style={styles.actionNote}>Registrar novo abastecimento</ThemedText>
                             </View>
                         </Pressable>
                     </View>
@@ -180,8 +188,8 @@ const styles = StyleSheet.create({
     actionsCard: { borderRadius: 12, padding: 16, marginTop: 10 },
     actionsTitle: { fontSize: 16, fontWeight: "bold" },
     actionsSubtitle: { fontSize: 13, color: "#6b7280", marginBottom: 10 },
-    actionsRow: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
-    actionBtn: { flex: 1, padding: 12, borderWidth: 1, borderRadius: 10 },
+    actionsRow: { flexDirection: "row", justifyContent: "space-between", gap: 10, flexWrap: "wrap" },
+    actionBtn: { padding: 12, borderWidth: 1, borderRadius: 10, width: "48%" },
     actionInner: { alignItems: "center" },
     actionText: { fontWeight: "bold", marginTop: 8 },
     actionNote: { fontSize: 12, color: "#9aa0a6" },

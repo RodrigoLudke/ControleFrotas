@@ -37,6 +37,7 @@ export default function AppStackLayout() {
             <Stack.Screen name="registrar" options={{ title: "Registrar" }} />
             <Stack.Screen name="ver-viagens" options={{ title: "Relatório" }} />
             <Stack.Screen name="criar-alertas" options={{ title: "Alertas" }} />
+            <Stack.Screen name="registrar-abastecimento" options={{ title: "Abastecimento" }} />
 
         </Stack>
     );
