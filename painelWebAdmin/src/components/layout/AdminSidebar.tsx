@@ -13,7 +13,7 @@ import {
     TriangleAlert,
     Wrench,
     Fuel,
-    Shield
+    ShieldCheck
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -109,6 +109,15 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                     >
                         <Wrench className="mr-2 h-4 w-4" />
                         Registrar Manutenções
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => navigate("/manutencoes")}
+                        data-active={location.pathname === "/Manutencoes"}
+                    >
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        Manutenções
                     </Button>
                     <Button
                         variant="ghost"

@@ -13,7 +13,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Search, Plus, Eye, Edit, Trash2, CarFront, Calendar, MapPin } from "lucide-react";
+import { Search, Plus, Eye, Edit, Trash2, CarFront, Calendar, Gauge } from "lucide-react";
 import { apiFetch } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -28,11 +28,8 @@ interface TripBackend {
     dataChegada?: string | null;
     finalidade?: string | null;
     kmFinal?: number | null;
-    // possíveis relações incluídas pelo backend
-    //eslint-disable-next-line @typescript-eslint/no-explicit-any
-    veiculo?: any;
-    //eslint-disable-next-line @typescript-eslint/no-explicit-any
-    user?: any;
+    veiculo?: any; //eslint-disable-line @typescript-eslint/no-explicit-any
+    user?: any; //eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 export default function Trips() {
@@ -40,9 +37,13 @@ export default function Trips() {
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const [trips, setTrips] = useState<TripBackend[]>([]);
-    const [vehiclesMap, setVehiclesMap] = useState<Record<number, string>>({});
-    const [driversMap, setDriversMap] = useState<Record<number, string>>({});
+    // agora maps com plate/model e name/email separados
+    const [vehiclesPlateMap, setVehiclesPlateMap] = useState<Record<number, string>>({});
+    const [vehiclesModelMap, setVehiclesModelMap] = useState<Record<number, string>>({});
+    const [driversNameMap, setDriversNameMap] = useState<Record<number, string>>({});
+    const [driversEmailMap, setDriversEmailMap] = useState<Record<number, string>>({});
     const [loading, setLoading] = useState(true);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
 
     const fetchTrips = async () => {
         setLoading(true);
@@ -63,14 +64,18 @@ export default function Trips() {
             // buscar veículos e motoristas para montar maps (para mostrar placa / nome)
             const [veicRes, motorRes] = await Promise.allSettled([apiFetch("/veiculos"), apiFetch("/motoristas")]);
 
-            const vMap: Record<number, string> = {};
+            const vPlateMap: Record<number, string> = {};
+            const vModelMap: Record<number, string> = {};
             if (veicRes.status === "fulfilled" && veicRes.value.ok) {
                 try {
                     const veics = await veicRes.value.json();
                     if (Array.isArray(veics)) {
                         //eslint-disable-next-line @typescript-eslint/no-explicit-any
                         veics.forEach((v: any) => {
-                            if (v && v.id !== undefined) vMap[Number(v.id)] = v.placa ?? v.modelo ?? `Veículo ${v.id}`;
+                            if (v && v.id !== undefined) {
+                                vPlateMap[Number(v.id)] = v.placa ?? v.modelo ?? `Veículo ${v.id}`;
+                                vModelMap[Number(v.id)] = v.modelo ?? "";
+                            }
                         });
                     }
                 } catch (e) {
@@ -78,14 +83,18 @@ export default function Trips() {
                 }
             }
 
-            const dMap: Record<number, string> = {};
+            const dNameMap: Record<number, string> = {};
+            const dEmailMap: Record<number, string> = {};
             if (motorRes.status === "fulfilled" && motorRes.value.ok) {
                 try {
                     const motors = await motorRes.value.json();
                     if (Array.isArray(motors)) {
                         //eslint-disable-next-line @typescript-eslint/no-explicit-any
                         motors.forEach((m: any) => {
-                            if (m && m.id !== undefined) dMap[Number(m.id)] = m.nome ?? m.email ?? `Motorista ${m.id}`;
+                            if (m && m.id !== undefined) {
+                                dNameMap[Number(m.id)] = m.nome ?? m.email ?? `Motorista ${m.id}`;
+                                dEmailMap[Number(m.id)] = m.email ?? "";
+                            }
                         });
                     }
                 } catch (e) {
@@ -93,8 +102,26 @@ export default function Trips() {
                 }
             }
 
-            setVehiclesMap(vMap);
-            setDriversMap(dMap);
+            // complementar maps com dados embutidos nas viagens (se houver)
+            if (Array.isArray(tripsData)) {
+                tripsData.forEach(t => {
+                    const vid = t.veiculo?.id ?? t.veiculoId;
+                    if (vid !== undefined && vid !== null) {
+                        if (t.veiculo?.placa && !vPlateMap[Number(vid)]) vPlateMap[Number(vid)] = t.veiculo.placa;
+                        if (t.veiculo?.modelo && !vModelMap[Number(vid)]) vModelMap[Number(vid)] = t.veiculo.modelo;
+                    }
+                    const uid = t.user?.id ?? t.userId;
+                    if (uid !== undefined && uid !== null) {
+                        if (t.user?.nome && !dNameMap[Number(uid)]) dNameMap[Number(uid)] = t.user.nome;
+                        if (t.user?.email && !dEmailMap[Number(uid)]) dEmailMap[Number(uid)] = t.user.email;
+                    }
+                });
+            }
+
+            setVehiclesPlateMap(vPlateMap);
+            setVehiclesModelMap(vModelMap);
+            setDriversNameMap(dNameMap);
+            setDriversEmailMap(dEmailMap);
             setTrips(Array.isArray(tripsData) ? tripsData : []);
         } catch (err) {
             console.error("Erro ao carregar viagens:", err);
@@ -123,14 +150,13 @@ export default function Trips() {
         }
     };
 
-    // filtro: placa, motorista, finalidade
     const filteredTrips = trips.filter((t) => {
         const plate =
-            (t.veiculoId && vehiclesMap[Number(t.veiculoId)]) ||
+            (t.veiculoId !== undefined && t.veiculoId !== null && vehiclesPlateMap[Number(t.veiculoId)]) ||
             (t.veiculo && (t.veiculo.placa || t.veiculo.modelo)) ||
             "";
         const driver =
-            (t.userId && driversMap[Number(t.userId)]) ||
+            (t.userId !== undefined && t.userId !== null && driversNameMap[Number(t.userId)]) ||
             (t.user && (t.user.nome || t.user.email)) ||
             "";
         const finalidade = t.finalidade ?? "";
@@ -143,10 +169,49 @@ export default function Trips() {
         );
     });
 
+    // ações: ver, editar, deletar
+    const handleView = (id: number) => {
+        navigate(`/registrarviagens/${id}`);
+    };
+
+    const handleEdit = (id: number) => {
+        navigate(`/registrarviagens/${id}`);
+    };
+
+    const handleDelete = async (id: number) => {
+        const ok = window.confirm("Tem certeza que deseja deletar esta viagem? A ação é irreversível.");
+        if (!ok) return;
+
+        setDeletingId(id);
+        try {
+            const res = await apiFetch(`/viagens/${id}`, { method: "DELETE" });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ error: "Erro ao deletar viagem." }));
+                toast({
+                    title: "Erro ao deletar",
+                    description: err.error || "Não foi possível deletar a viagem.",
+                    variant: "destructive",
+                });
+                return;
+            }
+            // remover localmente (sem recarregar tudo)
+            setTrips(prev => prev.filter(t => t.id !== id));
+            toast({ title: "Viagem deletada", description: "A viagem foi removida com sucesso." });
+        } catch (err) {
+            console.error("Erro ao deletar viagem:", err);
+            toast({
+                title: "Erro de conexão",
+                description: "Não foi possível conectar ao servidor para deletar a viagem.",
+                variant: "destructive",
+            });
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
     return (
         <AdminLayout title="Viagens">
             <div className="space-y-6">
-                {/* Header Actions - estilo igual ao Motoristas */}
                 <div className="flex flex-col sm:flex-row gap-4 justify-between">
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -162,7 +227,6 @@ export default function Trips() {
                     </Button>
                 </div>
 
-                {/* Tabela dentro do card com header e description idem padrão */}
                 <Card className="shadow-card">
                     <CardHeader>
                         <CardTitle>Lista de Viagens</CardTitle>
@@ -176,7 +240,7 @@ export default function Trips() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Veículo (placa)</TableHead>
+                                        <TableHead>Veículo</TableHead>
                                         <TableHead>Motorista</TableHead>
                                         <TableHead>Horário Saída</TableHead>
                                         <TableHead>Horário Chegada</TableHead>
@@ -195,25 +259,43 @@ export default function Trips() {
                                         </TableRow>
                                     ) : filteredTrips.length > 0 ? (
                                         filteredTrips.map((trip) => {
+                                            const vid = trip.veiculoId ?? trip.veiculo?.id;
                                             const plate =
-                                                (trip.veiculoId && vehiclesMap[Number(trip.veiculoId)]) ||
-                                                (trip.veiculo && (trip.veiculo.placa || trip.veiculo.modelo)) ||
+                                                (vid !== undefined && vid !== null && vehiclesPlateMap[Number(vid)]) ||
+                                                (trip.veiculo && (trip.veiculo.placa ?? trip.veiculo.modelo)) ||
                                                 "—";
-                                            const driver =
-                                                (trip.userId && driversMap[Number(trip.userId)]) ||
-                                                (trip.user && (trip.user.nome || trip.user.email)) ||
+                                            const model =
+                                                (vid !== undefined && vid !== null && vehiclesModelMap[Number(vid)]) ||
+                                                (trip.veiculo && trip.veiculo.modelo) ||
+                                                "";
+
+                                            const uid = trip.userId ?? trip.user?.id;
+                                            const driverName =
+                                                (uid !== undefined && uid !== null && driversNameMap[Number(uid)]) ||
+                                                (trip.user && (trip.user.nome ?? trip.user.email)) ||
                                                 "—";
+                                            const driverEmail =
+                                                (uid !== undefined && uid !== null && driversEmailMap[Number(uid)]) ||
+                                                (trip.user && trip.user.email) ||
+                                                "";
 
                                             return (
                                                 <TableRow key={String(trip.id)} className="hover:bg-muted/50">
                                                     <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            <CarFront className="h-4 w-4 text-primary" />
-                                                            <span className="font-medium">{plate}</span>
+                                                        <div>
+                                                            <div className="font-medium flex items-center gap-2">
+                                                                <span>{plate}</span>
+                                                            </div>
+                                                            <div className="text-sm text-muted-foreground mt-1">{model || "—"}</div>
                                                         </div>
                                                     </TableCell>
 
-                                                    <TableCell>{driver}</TableCell>
+                                                    <TableCell>
+                                                        <div>
+                                                            <div className="font-medium">{driverName}</div>
+                                                            <div className="text-sm text-muted-foreground mt-1">{driverEmail || "—"}</div>
+                                                        </div>
+                                                    </TableCell>
 
                                                     <TableCell>
                                                         <div className="flex items-center gap-2">
@@ -222,27 +304,37 @@ export default function Trips() {
                                                         </div>
                                                     </TableCell>
 
-                                                    <TableCell>{formatDateTime(trip.dataChegada)}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                                                            {formatDateTime(trip.dataChegada)}
+                                                        </div>
+                                                    </TableCell>
 
                                                     <TableCell className="max-w-sm truncate">{trip.finalidade ?? "—"}</TableCell>
 
                                                     <TableCell>
-                                                        {trip.kmFinal !== null && trip.kmFinal !== undefined ? (
-                                                            <Badge variant="secondary">{trip.kmFinal} km</Badge>
-                                                        ) : (
-                                                            <Badge variant="outline">Não informado</Badge>
-                                                        )}
+                                                        <div className="flex items-center">
+                                                            <Gauge className="h-4 w-4 mr-2 text-muted-foreground" />
+                                                            {trip.kmFinal ? `${trip.kmFinal.toLocaleString()} km` : 'N/A'}
+                                                        </div>
                                                     </TableCell>
 
                                                     <TableCell>
                                                         <div className="flex items-center space-x-2">
-                                                            <Button variant="ghost" size="sm" title="Ver">
+                                                            <Button variant="ghost" size="sm" onClick={() => handleView(trip.id)}>
                                                                 <Eye className="h-4 w-4" />
                                                             </Button>
-                                                            <Button variant="ghost" size="sm" title="Editar">
+                                                            <Button variant="ghost" size="sm" onClick={() => handleEdit(trip.id)}>
                                                                 <Edit className="h-4 w-4" />
                                                             </Button>
-                                                            <Button variant="ghost" size="sm" title="Deletar">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-destructive hover:text-destructive"
+                                                                onClick={() => handleDelete(trip.id)}
+                                                                disabled={deletingId === trip.id}
+                                                            >
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </div>

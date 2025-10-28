@@ -1,4 +1,4 @@
-// src/pages/RegisterMaintenance.tsx
+// src/pages/RegistrarManutencoes.tsx
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { Save, Wrench } from "lucide-react";
 import { apiFetch } from "@/services/api";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 
 const manutencaoSchema = z.object({
     veiculoId: z.number().int().positive("Selecione um veículo"),
@@ -36,6 +36,10 @@ export default function RegisterMaintenance() {
     const isEdit = Boolean(id);
     const { toast } = useToast();
     const navigate = useNavigate();
+    const location = useLocation();
+    // incoming alert (se vier de navigate('/registrarmanutencoes', { state: { alert } }))
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const incomingAlert: any = (location && (location as any).state && (location as any).state.alert) || null;
 
     const [loadingInit, setLoadingInit] = useState<boolean>(!!id);
     const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -46,9 +50,9 @@ export default function RegisterMaintenance() {
     const [form, setForm] = useState<Partial<ManutencaoForm>>({
         veiculoId: undefined,
         userId: undefined,
-        data: "",
+        data: "", // NÃO vamos pré-preencher data/hora a partir do alerta
         quilometragem: undefined,
-        // **sem valor padrão** para tipo/status — assim aparece placeholder em cinza
+        // sem valor padrão para exibir placeholder em cinza
         //eslint-disable-next-line @typescript-eslint/no-explicit-any
         tipo: undefined as any,
         descricao: "",
@@ -61,6 +65,7 @@ export default function RegisterMaintenance() {
 
     const [errors, setErrors] = useState<Partial<Record<keyof ManutencaoForm, string>>>({});
 
+    // load vehicles and drivers
     useEffect(() => {
         const loadLists = async () => {
             try {
@@ -91,6 +96,7 @@ export default function RegisterMaintenance() {
         loadLists();
     }, []);
 
+    // fetch maintenance when editing
     useEffect(() => {
         if (!id) return;
 
@@ -140,6 +146,88 @@ export default function RegisterMaintenance() {
 
         fetchManutencao();
     }, [id, navigate, toast]);
+
+    // --- Preencher a partir do alert (se houver) ---
+    useEffect(() => {
+        // preenche apenas se veio alert e não estamos em modo edição
+        if (!incomingAlert || isEdit) return;
+
+        // Espera a lista de veículos carregada para garantir que o Select tenha o SelectItem correspondente
+        if (veiculos.length === 0) {
+            // ainda não temos os veículos — aguardamos o carregamento
+            return;
+        }
+
+        try {
+            const alert = incomingAlert;
+
+            // possíveis campos no alerta (tolerância a formatos diferentes)
+            const rawVeiculoId = alert.veiculoId ?? alert.veiculo?.id ?? alert.veiculo?.veiculoId;
+            const rawVeiculoPlaca = alert.veiculo?.placa ?? alert.placa ?? alert.veiculoPlaca;
+
+            // tentar encontrar veículo na lista por id ou placa (case-insensitive)
+            let veiculoMatch = undefined;
+            if (rawVeiculoId !== undefined && rawVeiculoId !== null) {
+                veiculoMatch = veiculos.find(v => String(v.id) === String(rawVeiculoId));
+            }
+            if (!veiculoMatch && rawVeiculoPlaca) {
+                const placaNormalized = String(rawVeiculoPlaca).toLowerCase();
+                veiculoMatch = veiculos.find(v => v.placa && String(v.placa).toLowerCase() === placaNormalized);
+            }
+            const veiculoIdFromAlert = veiculoMatch ? Number(veiculoMatch.id) : (rawVeiculoId !== undefined ? Number(rawVeiculoId) : undefined);
+
+            // motorista: tentar por id, email ou nome
+            const rawUserId = alert.userId ?? alert.user?.id ?? alert.user?.userId;
+            const rawUserEmail = alert.user?.email ?? alert.userEmail;
+            const rawUserName = alert.user?.nome ?? alert.user?.name ?? alert.user?.nomeCompleto;
+
+            let motoristaMatch = undefined;
+            if (rawUserId !== undefined && rawUserId !== null && motoristas.length > 0) {
+                motoristaMatch = motoristas.find(m => String(m.id) === String(rawUserId));
+            }
+            if (!motoristaMatch && rawUserEmail && motoristas.length > 0) {
+                const emailNorm = String(rawUserEmail).toLowerCase();
+                motoristaMatch = motoristas.find(m => m.email && String(m.email).toLowerCase() === emailNorm);
+            }
+            if (!motoristaMatch && rawUserName && motoristas.length > 0) {
+                const nameNorm = String(rawUserName).toLowerCase();
+                motoristaMatch = motoristas.find(m => m.nome && String(m.nome).toLowerCase() === nameNorm);
+            }
+            const userIdFromAlert = motoristaMatch ? Number(motoristaMatch.id) : (rawUserId !== undefined ? Number(rawUserId) : undefined);
+
+            const descricaoFromAlert = alert.mensagem ?? alert.descricao ?? "";
+            const quilometragemFromAlert = alert.quilometragem ?? undefined;
+            const tipoAlert = alert.tipo ?? undefined; // SOLICITACAO | REGISTRO_RAPIDO
+
+            // mapear tipo/status do alerta para manutenção
+            let mappedTipo: "PREVENTIVA" | "CORRETIVA" = "CORRETIVA";
+            let mappedStatus: "AGENDADA" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA" = "AGENDADA";
+
+            if (tipoAlert === "REGISTRO_RAPIDO") {
+                mappedTipo = "CORRETIVA";
+                mappedStatus = "CONCLUIDA";
+            } else {
+                // SOLICITACAO ou outros -> manter como corretiva/agendada por padrão
+                mappedTipo = "CORRETIVA";
+                mappedStatus = "AGENDADA";
+            }
+
+            // atualiza o form (NÃO sobrescreve data/hora — o usuário quer preencher isso)
+            setForm(prev => ({
+                ...prev,
+                veiculoId: veiculoIdFromAlert !== undefined ? veiculoIdFromAlert : prev.veiculoId,
+                userId: userIdFromAlert !== undefined ? userIdFromAlert : prev.userId,
+                // data: NÃO alterar; deixamos para o usuário selecionar
+                quilometragem: quilometragemFromAlert !== undefined ? Number(quilometragemFromAlert) : prev.quilometragem,
+                tipo: mappedTipo,
+                descricao: descricaoFromAlert ? `${descricaoFromAlert}` : prev.descricao,
+                status: mappedStatus
+            }));
+        } catch (err) {
+            console.warn("Falha ao aplicar alert state no formulário:", err);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [incomingAlert, isEdit, veiculos, motoristas]);
 
     // valida um campo isolado usando zod (criamos um schema parcial)
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -351,6 +439,7 @@ export default function RegisterMaintenance() {
                                         <Label htmlFor="tipo">Tipo *</Label>
                                         <Select
                                             value={form.tipo ?? ""}
+                                            //eslint-disable-next-line @typescript-eslint/no-explicit-any
                                             onValueChange={(v) => handleChange("tipo", v as any)}
                                         >
                                             <SelectTrigger id="tipo" className={`${!form.tipo ? "text-muted-foreground" : ""}`}>
@@ -368,6 +457,7 @@ export default function RegisterMaintenance() {
                                         <Label htmlFor="status">Status</Label>
                                         <Select
                                             value={form.status ?? ""}
+                                            //eslint-disable-next-line @typescript-eslint/no-explicit-any
                                             onValueChange={(v) => handleChange("status", v as any)}
                                         >
                                             <SelectTrigger id="status" className={`${!form.status ? "text-muted-foreground" : ""}`}>

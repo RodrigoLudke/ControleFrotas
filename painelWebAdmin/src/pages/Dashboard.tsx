@@ -391,10 +391,10 @@ export default function Dashboard() {
                                                     <p className="text-xs text-muted-foreground">{m.descricao ? `${m.descricao}` : ""}</p>
                                                 </div>
                                                 <div className="text-right">
-                                                    {m.custo !== undefined && m.custo !== null ? (
-                                                        <Badge variant="default" className="ml-auto">{Number(m.custo).toFixed(2)}</Badge>
+                                                    {m.status !== undefined && m.status !== null ? (
+                                                        <Badge variant="default" className="ml-auto">{m.status}</Badge>
                                                     ) : (
-                                                        <Badge variant="secondary" className="ml-auto">Sem custo</Badge>
+                                                        <Badge variant="secondary" className="ml-auto">Sem Status</Badge>
                                                     )}
                                                 </div>
                                             </div>
