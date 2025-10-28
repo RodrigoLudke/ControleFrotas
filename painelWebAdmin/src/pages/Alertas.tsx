@@ -42,7 +42,7 @@ export default function Alertas() {
     const fetchAlerts = async () => {
         setLoading(true);
         try {
-            const res = await apiFetch("/alertas");
+            const res = await apiFetch("/alertas?status=PENDENTE");
             if (!res.ok) {
                 const e = await res.json().catch(() => ({ error: "Erro ao buscar alertas" }));
                 toast({ title: "Erro", description: e.error || "Não foi possível carregar alertas", variant: "destructive" });
