@@ -13,12 +13,18 @@ import { z } from "zod";
 import { Save, Car, ChevronDown } from "lucide-react";
 import { apiFetch } from "@/services/api";
 import { useNavigate, useParams } from "react-router-dom";
-import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
-const VEHICLE_TYPES = ["Carro", "Caminhão", "Moto", "Van", "Ônibus"];
+const VEHICLE_TYPES = [
+    { value: "B", label: "Carro" },
+    { value: "A", label: "Moto" },
+    { value: "C", label: "Caminhão" },
+    { value: "D", label: "Ônibus" },
+    { value: "E", label: "Caminhão Acoplado" },
+];
 
 const vehicleCreateSchema = z.object({
-    vehicleTypes: z.array(z.string()).min(1, "Selecione pelo menos um tipo de veículo"),
+    vehicleTypes: z.string({ required_error: "Selecione a categoria" }).min(1, "Selecione a categoria"),
     plate: z.string().min(7, "Placa deve ter pelo menos 7 caracteres").max(8, "Placa inválida"),
     brand: z.string().min(2, "Marca é obrigatória").max(50, "Marca muito longa"),
     model: z.string().min(2, "Modelo é obrigatório").max(50, "Modelo muito longo"),
@@ -61,7 +67,7 @@ export default function RegisterVehicle() {
     const [isLoading, setIsLoading] = useState(false);
     const [loadingInit, setLoadingInit] = useState<boolean>(!!id);
     const [formData, setFormData] = useState<Partial<VehicleFormData>>({
-        vehicleTypes: [],
+        vehicleTypes: undefined,
     });
     const [errors, setErrors] = useState<Partial<Record<keyof VehicleFormData, string>>>({});
     const [popoverOpen, setPopoverOpen] = useState(false);
@@ -84,7 +90,7 @@ export default function RegisterVehicle() {
 
                     // mapear campos do backend para formData (sem motoristas)
                     setFormData({
-                        vehicleTypes: Array.isArray(data.vehicleTypes) ? data.vehicleTypes : [],
+                        vehicleTypes: data.vehicleTypes ?? undefined,
                         plate: data.placa ?? "",
                         brand: data.marca ?? "",
                         model: data.modelo ?? "",
@@ -148,21 +154,6 @@ export default function RegisterVehicle() {
         validateField(name, value);
     };
 
-    const handleTypeToggle = (type: string) => {
-        const currentTypes = formData.vehicleTypes || [];
-        const newTypes = currentTypes.includes(type) ? currentTypes.filter((t) => t !== type) : [...currentTypes, type];
-        setFormData((prev) => ({ ...prev, vehicleTypes: newTypes }));
-
-        try {
-            vehicleCreateSchema.shape.vehicleTypes.parse(newTypes);
-            setErrors((prev) => ({ ...prev, vehicleTypes: undefined }));
-        } catch (error) {
-            if (error instanceof z.ZodError) {
-                setErrors((prev) => ({ ...prev, vehicleTypes: error.errors[0].message }));
-            }
-        }
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -188,7 +179,7 @@ export default function RegisterVehicle() {
                 apoliceSeguro: validatedData.insurancePolicy || "",
                 validadeSeguro: validatedData.insuranceExpiry || "",
                 observacoes: validatedData.observations || "",
-                vehicleTypes: validatedData.vehicleTypes // caso queira persistir tipos
+                categoria: validatedData.vehicleTypes // caso queira persistir tipos
             };
 
             let response;
@@ -276,27 +267,24 @@ export default function RegisterVehicle() {
                                 <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">Dados do Veículo</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="vehicleTypes">Tipo de Veículo *</Label>
-                                        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                                            <PopoverTrigger asChild>
-                                                <Button variant="outline" role="combobox" aria-expanded={popoverOpen} className={`w-full justify-between ${errors.vehicleTypes ? "border-destructive" : ""}`}>
-                          <span className={`truncate ${formData.vehicleTypes && formData.vehicleTypes.length > 0 ? "" : "text-muted-foreground font-normal"}`}>
-                            {formData.vehicleTypes && formData.vehicleTypes.length > 0 ? formData.vehicleTypes.join(", ") : "Selecione os tipos"}
-                          </span>
-                                                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-full p-3" align="start">
-                                                <div className="space-y-2">
-                                                    {VEHICLE_TYPES.map((type) => (
-                                                        <div key={type} className="flex items-center space-x-2">
-                                                            <Checkbox id={type} checked={formData.vehicleTypes?.includes(type) || false} onCheckedChange={() => handleTypeToggle(type)} />
-                                                            <Label htmlFor={type} className="text-sm font-normal cursor-pointer">{type}</Label>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </PopoverContent>
-                                        </Popover>
+                                        <Label htmlFor="categoria">Categoria (Tipo) *</Label>
+                                        <Select value={formData.vehicleTypes || ""} onValueChange={(value) => handleInputChange("vehicleTypes", value)}>
+                                            <SelectTrigger
+                                                className={cn(
+                                                    errors.vehicleTypes ? "border-destructive" : "",
+                                                    !formData.vehicleTypes && "text-muted-foreground",
+                                                )}
+                                            >
+                                                <SelectValue placeholder="Selecione a categoria" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {VEHICLE_TYPES.map((option) => (
+                                                    <SelectItem key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                         {errors.vehicleTypes && <p className="text-sm text-destructive">{errors.vehicleTypes}</p>}
                                     </div>
 

@@ -8,8 +8,62 @@ const prisma = new PrismaClient();
 const router = express.Router();
 
 /* -------------------------
+  Retorna quais categorias de CNH um motorista precisa ter
+  para dirigir um veículo de uma determinada categoria.
+  Ex: Veículo "A" -> Motorista precisa ter CNH "A" ou "AB".
+  -------------------------- */
+
+function getRequiredDriverCategories(vehicleCategory) {
+    const map = {
+        A: ["A", "AB"],
+        B: ["B", "AB"],
+        C: ["C"],
+        D: ["D"],
+        E: ["E"],
+    };
+    // Retorna o array correspondente ou um array com a própria categoria
+    return map[vehicleCategory] || (vehicleCategory ? [vehicleCategory] : []);
+}
+
+/* -------------------------
    ROTAS ESPECÍFICAS (SEM :id)
    ------------------------- */
+
+// Listar veiculos disponíveis para motoristas (USER)
+router.get("/disponiveis", autenticarToken, autorizarRoles("USER"), async (req, res) => {
+    try {
+        const veiculos = await prisma.veiculo.findMany({
+            where: { status: "disponivel" },
+            select: {
+                id: true,
+                placa: true,
+                marca: true,
+                modelo: true,
+                ano: true,
+                cor: true,
+                chassi: true,
+                renavam: true,
+                capacidade: true,
+                quilometragem: true,
+                combustivel: true,
+                valorCompra: true,
+                dataCompra: true,
+                seguradora: true,
+                apoliceSeguro: true,
+                validadeSeguro: true,
+                observacoes: true,
+                status: true,
+                categoria: true
+            },
+            orderBy: { modelo: "asc" }
+        });
+
+        res.json(veiculos);
+    } catch (error) {
+        console.error("Erro ao listar veículos disponíveis:", error);
+        res.status(500).json({ error: "Erro interno do servidor." });
+    }
+});
 
 // Listar todos os veículos (ADMIN)
 router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
@@ -103,6 +157,39 @@ async function createVehicleHandler(req, res) {
             }
         });
 
+        // LÓGICA DE ASSOCIAÇÃO
+        const newVehicleCategory = novo.categoria; // Categoria do veículo recém-criado
+
+        if (newVehicleCategory) {
+            // Descobre quais CNHs (incluindo "AB") podem dirigir este veículo
+            const requiredDriverCats = getRequiredDriverCategories(newVehicleCategory);
+
+            if (requiredDriverCats.length > 0) {
+                // Encontra motoristas (Users) que tenham PELO MENOS UMA das categorias necessárias
+                const motoristasPermitidos = await prisma.user.findMany({
+                    where: {
+                        role: "USER",
+                        categoria: {
+                            hasSome: requiredDriverCats // 'hasSome' verifica se o array contém algum dos itens
+                        }
+                    },
+                    select: { id: true }
+                });
+
+                // Se encontrou motoristas, cria a associação
+                if (motoristasPermitidos.length > 0) {
+                    const createManyData = motoristasPermitidos.map(motorista => ({
+                        userId: motorista.id,
+                        veiculoId: novo.id
+                    }));
+
+                    await prisma.userVeiculo.createMany({
+                        data: createManyData,
+                        skipDuplicates: true // Não dá erro se a associação já existir
+                    });
+                }
+            }
+        }
         res.status(201).json(novo);
     } catch (error) {
         console.error("Erro ao cadastrar veículo:", error);

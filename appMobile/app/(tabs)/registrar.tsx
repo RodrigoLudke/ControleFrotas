@@ -72,7 +72,7 @@ export default function RegistrarViagem() {
     const carregarVeiculos = async () => {
         try {
             setLoadingVeiculos(true);
-            const res = await apiFetch("/veiculos");
+            const res = await apiFetch("/veiculos/disponiveis");
             if (!res.ok) {
                 setVeiculos([]);
                 return;
@@ -277,7 +277,7 @@ export default function RegistrarViagem() {
                                     {veiculos.map((v: any) => (
                                         <Picker.Item
                                             key={String(v.id)}
-                                            label={v.placa ? `${v.id} - ${v.placa}` : `${v.id} - Veículo`}
+                                            label={v.placa ? `${v.modelo} - ${v.placa}` : `${v.modelo} - Veículo`}
                                             value={String(v.id)}
                                         />
                                     ))}
