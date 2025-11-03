@@ -96,12 +96,43 @@ export default function Dashboard() {
         staleTime: 5000, // Considera os dados "velhos" após 5 segundos
     });
 
-    // Filtra motoristas que têm localização válida
-    const motoristasNoMapa = motoristasComLocalizacao?.filter(
-        m => m.latitude != null && m.longitude != null
-    ) ?? [];
-    // --- FIM DO NOVO HOOK ---
+    // --- LÓGICA DE FILTRO ATUALIZADA ---
 
+    // Defina o tempo máximo (em milissegundos) que uma localização é considerada "válida"
+    // 60 * 1000 = 1 minuto. (Ajuste conforme necessário)
+    const LOCATION_TIMEOUT_MS = 60 * 1000;
+    const now = Date.now();
+
+    // Filtra motoristas que têm localização válida E recente
+    const motoristasNoMapa = motoristasComLocalizacao?.filter(
+        m => {
+            // 1. Precisa ter coordenadas
+            if (m.latitude == null || m.longitude == null) {
+                return false;
+            }
+
+            // 2. Precisa ter uma data de atualização
+            if (!m.lastLocationUpdate) {
+                return false; // Se nunca atualizou, não mostra
+            }
+
+            try {
+                // 3. Verifica se a atualização é recente
+                const updateTime = new Date(m.lastLocationUpdate).getTime();
+                const age = now - updateTime; // Idade da coordenada em MS
+
+                // Se a atualização for mais antiga que o tempo limite,
+                // (age > TIMEOUT), o filtro retorna 'false' e o motorista some.
+                return age < LOCATION_TIMEOUT_MS;
+
+            } catch (error) {
+                // Caso a data esteja em formato inválido
+                console.warn(`Data de localização inválida para motorista ${m.id}`);
+                return false;
+            }
+        }
+    ) ?? [];
+    // --- FIM DA LÓGICA DE FILTRO ---
 
     useEffect(() => {
         const fetchAll = async () => {
