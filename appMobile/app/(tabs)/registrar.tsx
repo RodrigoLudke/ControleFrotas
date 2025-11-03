@@ -277,7 +277,7 @@ export default function RegistrarViagem() {
                                     {veiculos.map((v: any) => (
                                         <Picker.Item
                                             key={String(v.id)}
-                                            label={v.placa ? `${v.modelo} - ${v.placa}` : `${v.modelo} - Veículo`}
+                                            label={v.placa ? `${v.placa} - ${v.modelo}` : `${v.id} - Veículo`}
                                             value={String(v.id)}
                                         />
                                     ))}

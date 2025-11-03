@@ -61,7 +61,7 @@ export default function RegistrarAbastecimento() {
     const carregarVeiculos = async () => {
         try {
             setLoadingVeiculos(true);
-            const res = await apiFetch("/veiculos");
+            const res = await apiFetch("/veiculos/disponiveis");
             if (!res.ok) {
                 setVeiculos([]);
                 return;
