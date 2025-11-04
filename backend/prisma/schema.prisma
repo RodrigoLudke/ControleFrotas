@@ -85,6 +85,7 @@ model Viagem {
   dataChegada    DateTime
 
   finalidade     String
+  kmInicial      Int
   kmFinal        Int
 
   createdAt    DateTime @default(now())

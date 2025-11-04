@@ -16,6 +16,8 @@ import Alertas from "./pages/Alertas.tsx";
 import RegistrarManutencoes from "./pages/RegistrarManutencoes.tsx";
 import Manutencoes from "./pages/Manutencoes.tsx";
 import Abastecimentos from "./pages/Abastecimentos.tsx";
+import MotoristasDetalhes from "./pages/MotoristasDetalhes.tsx";
+import VeiculosDetalhes from "./pages/VeiculosDetalhes.tsx";
 
 const queryClient = new QueryClient();
 
@@ -39,11 +41,14 @@ const App = () => (
           <Route path="/registrarmanutencoes" element={<RegistrarManutencoes />} />
           <Route path="/registrarmanutencoes/:id" element={<RegistrarManutencoes />} />
           <Route path="/manutencoes" element={<Manutencoes />} />
+          <Route path="/manutencoes/:id" element={<Manutencoes />} />
           <Route path="/alertas" element={<Alertas />} />
           <Route path="/veiculos" element={<Veiculos />} />
           <Route path="/motoristas" element={<Motoristas />} />
           <Route path="/viagens" element={<Viagens />} />
           <Route path="/abastecimentos" element={<Abastecimentos />} />
+          <Route path="/motoristas/:id" element={<MotoristasDetalhes />} />
+          <Route path="/veiculos/:id" element={<VeiculosDetalhes />} />
 
 
         </Routes>

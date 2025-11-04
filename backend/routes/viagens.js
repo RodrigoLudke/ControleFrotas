@@ -30,66 +30,116 @@ const parseIntSafe = (v) => {
    CRIAR VIAGEM (motorista que tem permissão para o veículo)
    ------------------------- */
 router.post("/", autenticarToken, async (req, res) => {
+    // <-- 'kmInicial' foi REMOVIDO daqui. Ele será calculado.
+    const { veiculoId, dataSaida, dataChegada, finalidade, kmFinal } = req.body;
+    const userId = parseIntSafe(req.user?.id);
+
+    // --- Validações Iniciais (Mantidas) ---
+    if (!isValidInteger(veiculoId)) return res.status(400).json({ error: "veiculoId inválido." });
+    if (!dataSaida || !dataChegada) return res.status(400).json({ error: "dataSaida e dataChegada são obrigatórios." });
+    if (finalidade === undefined) return res.status(400).json({ error: "finalidade é obrigatória." });
+    if (!isValidInteger(kmFinal)) return res.status(400).json({ error: "kmFinal inválido." });
+
+    const inicioViagem = parseDateSafe(dataSaida);
+    const fimViagem = parseDateSafe(dataChegada);
+    if (!inicioViagem || !fimViagem) return res.status(400).json({ error: "Datas inválidas." });
+    if (fimViagem <= inicioViagem) return res.status(400).json({ error: "Data/Horário de chegada não pode ser anterior ou igual à saída." });
+
+    const veiculoIdNum = Number(veiculoId);
+    const kmFinalNum = Number(kmFinal);
+
+    // --- Início da Lógica de Transação ---
     try {
-        const { veiculoId, dataSaida, dataChegada, finalidade, kmFinal } = req.body;
-        const userId = parseIntSafe(req.user?.id);
+        // <-- Usa $transaction para garantir consistência
+        const novaViagem = await prisma.$transaction(async (tx) => {
 
-        if (!isValidInteger(veiculoId)) return res.status(400).json({ error: "veiculoId inválido." });
-        if (!dataSaida || !dataChegada) return res.status(400).json({ error: "dataSaida e dataChegada são obrigatórios." });
-        if (finalidade === undefined) return res.status(400).json({ error: "finalidade é obrigatória." });
-        if (!isValidInteger(kmFinal)) return res.status(400).json({ error: "kmFinal inválido." });
-
-        const inicioViagem = parseDateSafe(dataSaida);
-        const fimViagem = parseDateSafe(dataChegada);
-        if (!inicioViagem || !fimViagem) return res.status(400).json({ error: "Datas inválidas." });
-        if (fimViagem <= inicioViagem) return res.status(400).json({ error: "Data/Horário de chegada não pode ser anterior ou igual à saída." });
-
-        // garante que o veículo exista
-        const veiculo = await prisma.veiculo.findUnique({ where: { id: Number(veiculoId) } });
-        if (!veiculo) return res.status(404).json({ error: "Veículo não encontrado." });
-
-        // valida se o usuário pode dirigir o veículo (userVeiculo)
-        const permitido = await prisma.userVeiculo.findFirst({
-            where: { userId: userId, veiculoId: Number(veiculoId) },
-        });
-
-        if (!permitido) return res.status(403).json({ error: "Você não tem permissão para dirigir este veículo." });
-
-        // busca a maior quilometragem registrada para o veículo (última viagem)
-        const ultimaViagem = await prisma.viagem.findFirst({
-            where: { veiculoId: Number(veiculoId) },
-            orderBy: { kmFinal: "desc" },
-        });
-
-        if (ultimaViagem) {
-            if (inicioViagem <= new Date(ultimaViagem.dataSaida)) {
-                return res.status(400).json({
-                    error: "A data/hora de saída não pode ser anterior ou igual à última viagem registrada para este veículo.",
-                    ultimaData: ultimaViagem.dataSaida,
-                });
+            // 1. garante que o veículo exista
+            const veiculo = await tx.veiculo.findUnique({ where: { id: veiculoIdNum } });
+            if (!veiculo) {
+                // <-- Lança erro para causar rollback
+                throw new Error("Veículo não encontrado.");
             }
-            if (Number(kmFinal) <= ultimaViagem.kmFinal) {
-                return res.status(400).json({
-                    error: "A quilometragem final não pode ser menor ou igual à última registrada para este veículo.",
-                    ultimaKm: ultimaViagem.kmFinal,
-                });
-            }
-        }
 
-        const viagem = await prisma.viagem.create({
-            data: {
-                userId: userId,
-                veiculoId: Number(veiculoId),
-                dataSaida: inicioViagem,
-                dataChegada: fimViagem,
-                finalidade: String(finalidade),
-                kmFinal: Number(kmFinal),
-            },
+            // 2. valida se o usuário pode dirigir o veículo
+            const permitido = await tx.userVeiculo.findFirst({
+                where: { userId: userId, veiculoId: veiculoIdNum },
+            });
+            if (!permitido) {
+                // <-- Lança erro para causar rollback
+                throw new Error("Você não tem permissão para dirigir este veículo.");
+            }
+
+            // 3. busca a última viagem (cronologicamente)
+            const ultimaViagem = await tx.viagem.findFirst({
+                where: { veiculoId: veiculoIdNum },
+                // <-- CORRIGIDO: Ordenar por dataChegada para achar a última real
+                orderBy: { dataChegada: "desc" },
+            });
+
+            let kmInicialCalculado;
+
+            if (ultimaViagem) {
+                // 4a. Valida se a nova viagem começa DEPOIS da última
+                if (inicioViagem <= new Date(ultimaViagem.dataChegada)) {
+                    // <-- CORRIGIDO: Compara com dataChegada
+                    throw new Error(`A data/hora de saída não pode ser anterior ou igual à chegada da última viagem (${ultimaViagem.dataChegada.toISOString()}).`);
+                }
+
+                // 5a. O kmInicial é o kmFinal da última viagem
+                kmInicialCalculado = ultimaViagem.kmFinal;
+
+            } else {
+                // 5b. Se for a primeira viagem, usa a quilometragem base do veículo
+                kmInicialCalculado = veiculo.quilometragem;
+            }
+
+            // 6. Validação de coerência do Hodômetro
+            if (kmFinalNum <= kmInicialCalculado) {
+                throw new Error(`A quilometragem final (${kmFinalNum}) não pode ser menor ou igual à quilometragem inicial (${kmInicialCalculado}).`);
+            }
+
+            // 7. Criar a nova viagem
+            const viagemCriada = await tx.viagem.create({
+                data: {
+                    userId: userId,
+                    veiculoId: veiculoIdNum,
+                    dataSaida: inicioViagem,
+                    dataChegada: fimViagem,
+                    finalidade: String(finalidade),
+                    kmInicial: kmInicialCalculado, // <-- ADICIONADO: O valor que calculamos
+                    kmFinal: kmFinalNum,
+                },
+            });
+
+            // 8. ATUALIZAR O HODÔMETRO PRINCIPAL DO VEÍCULO
+            await tx.veiculo.update({
+                where: { id: veiculoIdNum },
+                data: { quilometragem: kmFinalNum },
+            });
+
+            // 9. Retorna a viagem (isso "commita" a transação)
+            return viagemCriada;
         });
 
-        return res.status(201).json(viagem);
+        // --- Fim da Transação ---
+
+        return res.status(201).json(novaViagem);
+
     } catch (error) {
         console.error("POST /viagens error:", error);
+
+        // <-- Trata os erros que lançamos dentro da transação
+        if (error.message.includes("Veículo não encontrado")) {
+            return res.status(404).json({ error: error.message });
+        }
+        if (error.message.includes("Você não tem permissão")) {
+            return res.status(403).json({ error: error.message });
+        }
+        if (error.message.includes("data/hora de saída") || error.message.includes("quilometragem final")) {
+            return res.status(400).json({ error: error.message });
+        }
+
+        // Erro genérico
         return res.status(500).json({ error: "Erro ao registrar viagem." });
     }
 });

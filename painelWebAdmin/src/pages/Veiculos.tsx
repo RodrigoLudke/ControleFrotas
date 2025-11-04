@@ -120,7 +120,7 @@ const Veiculos = () => {
 
     const handleView = (id: number) => {
         // abre a tela de visualização/edição (ajuste caso queira rota diferente)
-        navigate(`/registrarveiculos/${id}`);
+        navigate(`/veiculos/${id}`);
     };
 
     const handleEdit = (id: number) => {
