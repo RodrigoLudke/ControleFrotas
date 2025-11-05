@@ -49,8 +49,6 @@ type Veiculo = {
     cor?: string | null;
     combustivel?: string | null;
     quilometragem?: number | null;
-    ultimaManutencao?: string | null;
-    proximaManutencao?: string | null;
     seguradora?: string | null;
     apoliceSeguro?: string | null;
     validadeSeguro?: string | null;
@@ -96,6 +94,7 @@ type Manutencao = {
     descricao?: string;
     tipo?: string;
     status?: string;
+    local?: string;
 };
 
 type Motorista = { id: number; nome?: string; email?: string };
@@ -209,6 +208,7 @@ export default function VehicleDetails() {
                 custo: m.custo !== undefined && m.custo !== null ? Number(m.custo) : undefined,
                 descricao: m.descricao,
                 tipo: m.tipo,
+                local: m.local,
                 status: m.status,
             };
         };
@@ -368,6 +368,22 @@ export default function VehicleDetails() {
     }, [drivers]);
 
     /* KPIs */
+    const proxima = useMemo(() => {
+        if (!Array.isArray(manuts) || manuts.length === 0) return null;
+
+        const list = manuts
+            .map((m) => ({ ...m, __data: m?.data ? new Date(m.data) : null }))
+            .filter((m) => m.__data instanceof Date && !isNaN(m.__data.getTime()))
+            .sort((a, b) => a.__data.getTime() - b.__data.getTime());
+
+        const now = new Date();
+        const futura = list.find((m) => m.__data.getTime() > now.getTime());
+        if (futura) return futura;
+
+        const agendada = list.find((m) => (m.status || "").toLowerCase() === "agendada");
+        return agendada || null;
+    }, [manuts]);
+
     const stats = useMemo(() => {
         const totalViagens = Array.isArray(trips) ? trips.length : 0;
         const kmRodados = (trips || []).reduce((acc, t) => {
@@ -589,8 +605,8 @@ export default function VehicleDetails() {
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground">Manutenção</p>
-                                        <p className="font-medium">Última: {vehicle.ultimaManutencao ? format(new Date(vehicle.ultimaManutencao), "dd/MM/yyyy", { locale: ptBR }) : "—"}</p>
-                                        <p className="text-xs text-muted-foreground">Próxima: {vehicle.proximaManutencao ? format(new Date(vehicle.proximaManutencao), "dd/MM/yyyy", { locale: ptBR }) : "—"}</p>
+                                        <p className="font-medium">Próxima: {proxima ? format(new Date(proxima.data), "dd/MM/yyyy", { locale: ptBR }) : "—"}</p>
+                                        <p className="text-xs text-muted-foreground">Local: {proxima?.local ?? "—"}</p>
                                     </div>
                                 </div>
                             </div>

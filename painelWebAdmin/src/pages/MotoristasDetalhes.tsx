@@ -201,21 +201,6 @@ export default function DriverDetails() {
         const fuelCost = fuels.reduce((acc, f) => acc + (f.custoTotal ? Number(f.custoTotal) : 0), 0);
         const custoTotal = manutCost + fuelCost;
 
-        // media combustivel
-        let mediaCombustivel = 0;
-        try {
-            const sortedFuel = [...fuels].sort((a, b) => b.quilometragem - a.quilometragem);
-            let totalKm = 0, totalLitros = 0;
-            for (let i = 0; i < sortedFuel.length - 1; i++) {
-                const cur = sortedFuel[i], next = sortedFuel[i + 1];
-                if (typeof cur.quilometragem === "number" && typeof next.quilometragem === "number" && typeof next.litros === "number") {
-                    const kmDiff = cur.quilometragem - next.quilometragem;
-                    if (kmDiff > 0) { totalKm += kmDiff; totalLitros += next.litros; }
-                }
-            }
-            mediaCombustivel = totalLitros > 0 ? +(totalKm / totalLitros).toFixed(2) : 0;
-        } catch (e) { mediaCombustivel = 0; }
-
         const viagensCompletadas = trips.filter(t => !!t.dataChegada).length;
         const viagensCanceladas = totalViagens - viagensCompletadas;
 
@@ -237,7 +222,7 @@ export default function DriverDetails() {
             }
         } catch (e) { tempoMedio = "—"; }
 
-        return { totalViagens, kmRodados, custoTotal, mediaCombustivel, viagensCompletadas, viagensCanceladas, tempoMedio, avaliacaoMedia: 0 };
+        return { totalViagens, kmRodados, custoTotal, viagensCompletadas, viagensCanceladas, tempoMedio, avaliacaoMedia: 0 };
     }, [trips, manuts, fuels]);
 
     // cost over time
@@ -353,7 +338,7 @@ export default function DriverDetails() {
                 </Card>
 
                 {/* KPIs Principais */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="shadow-card">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total de Viagens</CardTitle>
@@ -397,19 +382,6 @@ export default function DriverDetails() {
                         </CardContent>
                     </Card>
 
-                    <Card className="shadow-card">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Média km/L</CardTitle>
-                            <Fuel className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.mediaCombustivel || "—"}</div>
-                            <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingDown className="h-3 w-3 mr-1 text-success" />
-                                -{Math.round(Math.random() * 5)}% vs mês anterior
-                            </p>
-                        </CardContent>
-                    </Card>
                 </div>
 
                 {/* Performance & Distribution */}
