@@ -47,6 +47,15 @@ interface Manutencao {
     status: "AGENDADA" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA";
 }
 
+interface Alerta {
+    id: number;
+    veiculoId: number;
+    tipo: string;
+    mensagem: string;
+    dataCriacao: string;
+    lido: boolean;
+}
+
 // --- NOVA INTERFACE ---
 // Interface para os dados do motorista com localização
 // (Baseada na sua rota /motoristas que modificamos no passo anterior)
@@ -66,6 +75,7 @@ export default function Dashboard() {
     const [vehiclesMap, setVehiclesMap] = useState<Record<number, string>>({});
     const [driversMap, setDriversMap] = useState<Record<number, string>>({});
     const [loading, setLoading] = useState<boolean>(true);
+    const [alertas, setAlertas] = useState<Alerta[]>([]);
 
     const [countVehiclesActive, setCountVehiclesActive] = useState<number>(0);
     const [countDrivers, setCountDrivers] = useState<number>(0);
@@ -142,6 +152,10 @@ export default function Dashboard() {
                 const resTrips = await apiFetch("/viagens/admin");
                 const tripsData: Viagem[] = resTrips.ok ? await resTrips.json() : [];
 
+                // Alertas
+                const resAlerts = await apiFetch("/alertas/admin");
+                const alertsData: Alerta[] = resAlerts.ok ? await resAlerts.json() : [];
+
                 // Veículos e Motoristas em paralelo
                 // (Mantemos essa busca para popular os contadores e os maps existentes)
                 const [resVeic, resMotor] = await Promise.allSettled([apiFetch("/veiculos"), apiFetch("/motoristas")]);
@@ -194,6 +208,15 @@ export default function Dashboard() {
                     }).slice(0, 5)
                     : [];
                 setViagens(sortedTrips);
+
+                const sortedAlerts = Array.isArray(alertsData)
+                    ? alertsData.slice().sort((a, b) => {
+                        const da = a.dataCriacao ? new Date(a.dataCriacao).getTime() : 0;
+                        const db = b.dataCriacao ? new Date(b.dataCriacao).getTime() : 0;
+                        return db - da;
+                    })
+                    : [];
+                setAlertas(sortedAlerts);
 
                 // contadores
                 //eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -265,18 +288,18 @@ export default function Dashboard() {
             color: "fleet-primary"
         },
         {
-            title: "Rotas Ativas",
-            value: "--", // Você pode atualizar isso se tiver a info
+            title: "Viagens Recentes",
+            value: String(viagens.length),
             change: "--",
-            trend: "none",
+            trend: "up",
             icon: MapPin,
             color: "fleet-warning"
         },
         {
             title: "Alertas",
-            value: "--",
+            value: String(alertas.length),
             change: "--",
-            trend: "none",
+            trend: "up",
             icon: AlertTriangle,
             color: "fleet-danger"
         }

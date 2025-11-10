@@ -68,7 +68,7 @@ router.get("/", autenticarToken, async (req, res) => {
    GET /alertas
    Admin: lista alertas (padrão: pendentes). Pode passar ?status=APROVADO|PENDENTE|REPROVADO
  */
-router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
+router.get("/admin", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
         const { status } = req.query;
         const where = status ? { status: String(status) } : undefined;
