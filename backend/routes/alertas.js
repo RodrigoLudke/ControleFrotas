@@ -41,6 +41,29 @@ router.post("/", autenticarToken, async (req, res) => {
     }
 });
 
+/* GET / Alertas
+    Motorista autenticado lista seus próprios alertas
+ */
+
+router.get("/", autenticarToken, async (req, res) => {
+    try {
+        const userId = req.user?.id;
+
+        const alertas = await prisma.alerta.findMany({
+            where: { userId },
+            orderBy: { createdAt: "desc" },
+            include: {
+                veiculo: { select: { id: true, placa: true, modelo: true } },
+            },
+        });
+
+        res.json(alertas);
+    } catch (err) {
+        console.error("Erro GET /alertas/meus:", err);
+        res.status(500).json({ error: "Erro ao buscar seus alertas." });
+    }
+});
+
 /*
    GET /alertas
    Admin: lista alertas (padrão: pendentes). Pode passar ?status=APROVADO|PENDENTE|REPROVADO
