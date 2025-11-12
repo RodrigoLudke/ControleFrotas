@@ -35,11 +35,26 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
           <Route path="/registrarveiculos" element={<RegistrarVeiculos />} />
-          <Route path="/registrarveiculos/:id" element={<RegistrarVeiculos />} />
-          <Route path="/registrarmotoristas" element={<RegistrarMotoristas />} />
-          <Route path="/registrarmotoristas/:id" element={<RegistrarMotoristas />} />
-          <Route path="/registrarmanutencoes" element={<RegistrarManutencoes />} />
-          <Route path="/registrarmanutencoes/:id" element={<RegistrarManutencoes />} />
+          <Route
+            path="/registrarveiculos/:id"
+            element={<RegistrarVeiculos />}
+          />
+          <Route
+            path="/registrarmotoristas"
+            element={<RegistrarMotoristas />}
+          />
+          <Route
+            path="/registrarmotoristas/:id"
+            element={<RegistrarMotoristas />}
+          />
+          <Route
+            path="/registrarmanutencoes"
+            element={<RegistrarManutencoes />}
+          />
+          <Route
+            path="/registrarmanutencoes/:id"
+            element={<RegistrarManutencoes />}
+          />
           <Route path="/manutencoes" element={<Manutencoes />} />
           <Route path="/manutencoes/:id" element={<Manutencoes />} />
           <Route path="/alertas" element={<Alertas />} />
@@ -49,8 +64,6 @@ const App = () => (
           <Route path="/abastecimentos" element={<Abastecimentos />} />
           <Route path="/motoristas/:id" element={<MotoristasDetalhes />} />
           <Route path="/veiculos/:id" element={<VeiculosDetalhes />} />
-
-
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
