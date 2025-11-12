@@ -6,6 +6,7 @@ interface QueuedRequest {
     path: string;
     options: RequestInit;
     resolve: (value: Response) => void;
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
     reject: (reason?: any) => void;
 }
 
@@ -89,7 +90,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
                 await processQueue(new Error("Sessão expirada. Faça login novamente."));
                 localStorage.removeItem("token");
                 localStorage.removeItem("refreshToken");
-                window.location.href = '/login';
+                globalThis.location.href = '/login';
                 throw new Error("Sessão expirada. Faça login novamente.");
             }
         }
@@ -104,7 +105,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     } catch (err) {
         localStorage.removeItem("token");
         localStorage.removeItem("refreshToken");
-        window.location.href = '/login';
+        globalThis.location.href = '/login';
         throw err;
     }
 }

@@ -5,9 +5,9 @@
  * You can remove the `reset-project` script from package.json and safely delete this file after running it.
  */
 
-const fs = require("fs");
-const path = require("path");
-const readline = require("readline");
+const fs = require("node.fs");
+const path = require("node.path");
+const readline = require("node.readline");
 
 const root = process.cwd();
 const oldDirs = ["app", "components", "hooks", "constants", "scripts"];
@@ -74,6 +74,7 @@ const moveDirectories = async (userInput) => {
     await fs.promises.mkdir(newAppDirPath, { recursive: true });
     console.log("\n📁 New /app directory created.");
 
+    // eslint-disable-next-line no-undef
     await fs.promises.writeFile(indexPath, indexContent);
 
     // Create _layout.tsx
