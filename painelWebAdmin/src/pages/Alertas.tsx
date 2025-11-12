@@ -160,24 +160,24 @@ export default function Alertas() {
         if (!q) return true;
 
         const veiculoLabel =
-            (a.veiculo && a.veiculo.placa) ||
+            (a.veiculo?.placa) ||
             veiculosPlateMap[String(a.veiculoId ?? "")] ||
             (a.veiculo && (a.veiculo.modelo ?? String(a.veiculo.id))) ||
             String(a.veiculoId ?? "");
 
         const veiculoModel =
-            (a.veiculo && a.veiculo.modelo) ||
+            (a.veiculo?.modelo) ||
             veiculosModelMap[String(a.veiculoId ?? "")] ||
             "";
 
         const motoristaLabel =
-            (a.user && a.user.nome) ||
+            (a.user?.nome) ||
             motoristasNameMap[String(a.userId ?? "")] ||
             (a.user && (a.user.email ?? String(a.user.id))) ||
             String(a.userId ?? "");
 
         const motoristaEmail =
-            (a.user && a.user.email) ||
+            (a.user?.email) ||
             motoristasEmailMap[String(a.userId ?? "")] ||
             "";
 
@@ -231,23 +231,23 @@ export default function Alertas() {
                                         filtered.map(alert => {
                                             const vid = String(alert.veiculo?.id ?? alert.veiculoId ?? "");
                                             const veiculoPlate =
-                                                (alert.veiculo && alert.veiculo.placa) ||
+                                                (alert.veiculo?.placa) ||
                                                 veiculosPlateMap[vid] ||
                                                 (alert.veiculo && (alert.veiculo.modelo || String(alert.veiculo.id))) ||
                                                 String(alert.veiculoId ?? "—");
                                             const veiculoModel =
-                                                (alert.veiculo && alert.veiculo.modelo) ||
+                                                (alert.veiculo?.modelo) ||
                                                 veiculosModelMap[vid] ||
                                                 "";
 
                                             const uid = String(alert.user?.id ?? alert.userId ?? "");
                                             const motoristaName =
-                                                (alert.user && alert.user.nome) ||
+                                                (alert.user?.nome) ||
                                                 motoristasNameMap[uid] ||
                                                 (alert.user && (alert.user.email || String(alert.user.id))) ||
                                                 String(alert.userId ?? "—");
                                             const motoristaEmail =
-                                                (alert.user && alert.user.email) ||
+                                                (alert.user?.email) ||
                                                 motoristasEmailMap[uid] ||
                                                 "";
 

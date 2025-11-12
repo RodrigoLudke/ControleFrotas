@@ -266,7 +266,7 @@ export default function Trips() {
                                                 "—";
                                             const model =
                                                 (vid !== undefined && vid !== null && vehiclesModelMap[Number(vid)]) ||
-                                                (trip.veiculo && trip.veiculo.modelo) ||
+                                                (trip.veiculo?.modelo) ||
                                                 "";
 
                                             const uid = trip.userId ?? trip.user?.id;
@@ -276,7 +276,7 @@ export default function Trips() {
                                                 "—";
                                             const driverEmail =
                                                 (uid !== undefined && uid !== null && driversEmailMap[Number(uid)]) ||
-                                                (trip.user && trip.user.email) ||
+                                                (trip.user?.email) ||
                                                 "";
 
                                             return (

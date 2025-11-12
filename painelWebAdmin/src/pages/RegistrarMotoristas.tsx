@@ -215,7 +215,7 @@ export default function RegisterDriver() {
             if (error instanceof z.ZodError) {
                 const fieldErrors: Partial<Record<keyof DriverFormData, string>> = {};
                 error.errors.forEach(err => {
-                    if (err.path && err.path[0]) {
+                    if (err.path?.[0]) {
                         fieldErrors[err.path[0] as keyof DriverFormData] = err.message;
                     }
                 });

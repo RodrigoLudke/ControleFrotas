@@ -259,7 +259,7 @@ export default function VehicleDetails() {
             // 3) segunda tentativa: /viagens/admin (requer token ADMIN). Se ok, filtra por veiculoId
             try {
                 const resAdmin = await apiFetch("/viagens/admin");
-                if (resAdmin && resAdmin.ok) {
+                if (resAdmin?.ok) {
                     const all = await safeJsonList(resAdmin);
                     const filtered = (all || []).map(normalizeTrip).filter((t) => Number(t.veiculoId) === vehicleId);
                     console.debug("VehicleDetails: /viagens/admin -> total:", (all || []).length, "filtradas:", filtered.length);
@@ -392,8 +392,8 @@ export default function VehicleDetails() {
             if (ki !== null && kf !== null && kf >= ki) return acc + (kf - ki);
             return acc;
         }, 0);
-        const fuelCost = (fuels || []).reduce((acc, f) => acc + (f && f.custoTotal ? Number(f.custoTotal) : 0), 0);
-        const manutCost = (manuts || []).reduce((acc, m) => acc + (m && m.custo ? Number(m.custo) : 0), 0);
+        const fuelCost = (fuels || []).reduce((acc, f) => acc + (f?.custoTotal ? Number(f.custoTotal) : 0), 0);
+        const manutCost = (manuts || []).reduce((acc, m) => acc + (m?.custo ? Number(m.custo) : 0), 0);
         const custoTotal = fuelCost + manutCost;
 
         // média estimada de consumo (baseado em intervalos entre abastecimentos)
@@ -461,7 +461,7 @@ export default function VehicleDetails() {
     const driversUsage = useMemo(() => {
         const count: Record<number, number> = {};
         (trips || []).forEach((t) => {
-            const uid = t.userId ?? (t.user && t.user.id);
+            const uid = t.userId ?? (t.user?.id);
             const uidNum = uid !== undefined && uid !== null ? Number(uid) : NaN;
             if (!Number.isNaN(uidNum)) count[uidNum] = (count[uidNum] || 0) + 1;
         });

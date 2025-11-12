@@ -312,7 +312,7 @@ export default function RegisterMaintenance() {
             if (err instanceof z.ZodError) {
                 const fieldErrs: Partial<Record<keyof ManutencaoForm, string>> = {};
                 err.errors.forEach(e => {
-                    if (e.path && e.path[0]) fieldErrs[e.path[0] as keyof ManutencaoForm] = e.message;
+                    if (e.path?.[0]) fieldErrs[e.path[0] as keyof ManutencaoForm] = e.message;
                 });
                 setErrors(fieldErrs);
                 toast({

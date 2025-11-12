@@ -208,7 +208,7 @@ export default function Abastecimentos() {
 
         const model =
             (a.veiculoId !== undefined && vehiclesModelMap[Number(a.veiculoId)]) ||
-            (a.veiculo && a.veiculo.modelo) ||
+            (a.veiculo?.modelo) ||
             "";
 
         const driver =
@@ -282,7 +282,7 @@ export default function Abastecimentos() {
                                                 "—";
                                             const model =
                                                 (vid !== undefined && vid !== null && vehiclesModelMap[Number(vid)]) ||
-                                                (a.veiculo && a.veiculo.modelo) ||
+                                                (a.veiculo?.modelo) ||
                                                 "—";
                                             const uid = a.userId ?? a.user?.id;
                                             const driverName =
@@ -291,7 +291,7 @@ export default function Abastecimentos() {
                                                 "—";
                                             const driverEmail =
                                                 (uid !== undefined && uid !== null && driversEmailMap[Number(uid)]) ||
-                                                (a.user && a.user.email) ||
+                                                (a.user?.email) ||
                                                 "—";
 
                                             return (

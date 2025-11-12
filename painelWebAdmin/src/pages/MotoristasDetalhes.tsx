@@ -106,7 +106,7 @@ export default function DriverDetails() {
                 // Disparar as requisições necessárias em paralelo (motorista + viagens/fuels/manuts/veiculos)
                 // Separo a chamada do motorista para tratar primeiro
                 const dRes = await tryEndpoints[0];
-                if (dRes && dRes.ok) {
+                if (dRes?.ok) {
                     const dJson = await dRes.json().catch(() => null);
                     if (mounted) setDriver(dJson);
                 } else {
@@ -136,7 +136,7 @@ export default function DriverDetails() {
                             const all = await safeJson(r3) as any;
                             if (Array.isArray(all)) {
                                 tripsArr = all.filter((t: Viagem) => {
-                                    const uid = t.userId ?? (t.user && t.user.id);
+                                    const uid = t.userId ?? (t.user?.id);
                                     return Number(uid) === driverId;
                                 });
                             } else {
@@ -262,7 +262,7 @@ export default function DriverDetails() {
     const vehiclesUsed = useMemo(() => {
         const count: Record<number, number> = {};
         trips.forEach(t => {
-            const vid = t.veiculoId ?? (t.veiculo && t.veiculo.id);
+            const vid = t.veiculoId ?? (t.veiculo?.id);
             if (typeof vid === "number") count[vid] = (count[vid] || 0) + 1;
         });
         const arr = Object.entries(count).map(([vid, qtd]) => {
