@@ -1,24 +1,16 @@
 // src/pages/Trips.tsx
-import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Search, Plus, Eye, Edit, Trash2, CarFront, Calendar, Gauge } from "lucide-react";
-import { apiFetch } from "@/services/api";
-import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale/pt-BR";
+import {useEffect, useState} from "react";
+import {AdminLayout} from "@/components/layout/AdminLayout";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Input} from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from "@/components/ui/table";
+import {Calendar, Edit, Eye, Gauge, Plus, Search, Trash2} from "lucide-react";
+import {apiFetch} from "@/services/api";
+import {useToast} from "@/hooks/use-toast";
+import {useNavigate} from "react-router-dom";
+import {format} from "date-fns";
+import {ptBR} from "date-fns/locale/pt-BR";
 
 interface TripBackend {
     id: number;
@@ -34,7 +26,7 @@ interface TripBackend {
 
 export default function Trips() {
     const navigate = useNavigate();
-    const { toast } = useToast();
+    const {toast} = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const [trips, setTrips] = useState<TripBackend[]>([]);
     // agora maps com plate/model e name/email separados
@@ -50,7 +42,7 @@ export default function Trips() {
         try {
             const resTrips = await apiFetch("/viagens/admin");
             if (!resTrips.ok) {
-                const err = await resTrips.json().catch(() => ({ error: "Erro ao buscar viagens" }));
+                const err = await resTrips.json().catch(() => ({error: "Erro ao buscar viagens"}));
                 toast({
                     title: "Erro ao carregar viagens",
                     description: err.error || "Não foi possível carregar as viagens.",
@@ -144,7 +136,7 @@ export default function Trips() {
     const formatDateTime = (iso?: string | null) => {
         if (!iso) return "—";
         try {
-            return format(new Date(iso), "dd/MM/yyyy HH:mm", { locale: ptBR });
+            return format(new Date(iso), "dd/MM/yyyy HH:mm", {locale: ptBR});
         } catch {
             return iso;
         }
@@ -184,9 +176,9 @@ export default function Trips() {
 
         setDeletingId(id);
         try {
-            const res = await apiFetch(`/viagens/${id}`, { method: "DELETE" });
+            const res = await apiFetch(`/viagens/${id}`, {method: "DELETE"});
             if (!res.ok) {
-                const err = await res.json().catch(() => ({ error: "Erro ao deletar viagem." }));
+                const err = await res.json().catch(() => ({error: "Erro ao deletar viagem."}));
                 toast({
                     title: "Erro ao deletar",
                     description: err.error || "Não foi possível deletar a viagem.",
@@ -196,7 +188,7 @@ export default function Trips() {
             }
             // remover localmente (sem recarregar tudo)
             setTrips(prev => prev.filter(t => t.id !== id));
-            toast({ title: "Viagem deletada", description: "A viagem foi removida com sucesso." });
+            toast({title: "Viagem deletada", description: "A viagem foi removida com sucesso."});
         } catch (err) {
             console.error("Erro ao deletar viagem:", err);
             toast({
@@ -214,7 +206,8 @@ export default function Trips() {
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row gap-4 justify-between">
                     <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Search
+                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"/>
                         <Input
                             placeholder="Buscar por veículo (placa), motorista ou finalidade..."
                             value={searchTerm}
@@ -223,7 +216,7 @@ export default function Trips() {
                         />
                     </div>
                     <Button onClick={() => navigate("/registrarviagens")} className="bg-primary hover:bg-primary/90">
-                        <Plus className="mr-2 h-4 w-4" /> Nova Viagem
+                        <Plus className="mr-2 h-4 w-4"/> Nova Viagem
                     </Button>
                 </div>
 
@@ -286,47 +279,52 @@ export default function Trips() {
                                                             <div className="font-medium flex items-center gap-2">
                                                                 <span>{plate}</span>
                                                             </div>
-                                                            <div className="text-sm text-muted-foreground mt-1">{model || "—"}</div>
+                                                            <div
+                                                                className="text-sm text-muted-foreground mt-1">{model || "—"}</div>
                                                         </div>
                                                     </TableCell>
 
                                                     <TableCell>
                                                         <div>
                                                             <div className="font-medium">{driverName}</div>
-                                                            <div className="text-sm text-muted-foreground mt-1">{driverEmail || "—"}</div>
+                                                            <div
+                                                                className="text-sm text-muted-foreground mt-1">{driverEmail || "—"}</div>
                                                         </div>
                                                     </TableCell>
 
                                                     <TableCell>
                                                         <div className="flex items-center gap-2">
-                                                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                                                            <Calendar className="h-4 w-4 text-muted-foreground"/>
                                                             {formatDateTime(trip.dataSaida)}
                                                         </div>
                                                     </TableCell>
 
                                                     <TableCell>
                                                         <div className="flex items-center gap-2">
-                                                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                                                            <Calendar className="h-4 w-4 text-muted-foreground"/>
                                                             {formatDateTime(trip.dataChegada)}
                                                         </div>
                                                     </TableCell>
 
-                                                    <TableCell className="max-w-sm truncate">{trip.finalidade ?? "—"}</TableCell>
+                                                    <TableCell
+                                                        className="max-w-sm truncate">{trip.finalidade ?? "—"}</TableCell>
 
                                                     <TableCell>
                                                         <div className="flex items-center">
-                                                            <Gauge className="h-4 w-4 mr-2 text-muted-foreground" />
+                                                            <Gauge className="h-4 w-4 mr-2 text-muted-foreground"/>
                                                             {trip.kmFinal ? `${trip.kmFinal.toLocaleString()} km` : 'N/A'}
                                                         </div>
                                                     </TableCell>
 
                                                     <TableCell>
                                                         <div className="flex items-center space-x-2">
-                                                            <Button variant="ghost" size="sm" onClick={() => handleView(trip.id)}>
-                                                                <Eye className="h-4 w-4" />
+                                                            <Button variant="ghost" size="sm"
+                                                                    onClick={() => handleView(trip.id)}>
+                                                                <Eye className="h-4 w-4"/>
                                                             </Button>
-                                                            <Button variant="ghost" size="sm" onClick={() => handleEdit(trip.id)}>
-                                                                <Edit className="h-4 w-4" />
+                                                            <Button variant="ghost" size="sm"
+                                                                    onClick={() => handleEdit(trip.id)}>
+                                                                <Edit className="h-4 w-4"/>
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"
@@ -335,7 +333,7 @@ export default function Trips() {
                                                                 onClick={() => handleDelete(trip.id)}
                                                                 disabled={deletingId === trip.id}
                                                             >
-                                                                <Trash2 className="h-4 w-4" />
+                                                                <Trash2 className="h-4 w-4"/>
                                                             </Button>
                                                         </div>
                                                     </TableCell>
@@ -346,7 +344,10 @@ export default function Trips() {
                                         <TableRow>
                                             <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                                 <div className="mb-2">Nenhuma viagem encontrada</div>
-                                                <Button variant="outline" onClick={() => { setSearchTerm(""); fetchTrips(); }}>
+                                                <Button variant="outline" onClick={() => {
+                                                    setSearchTerm("");
+                                                    fetchTrips();
+                                                }}>
                                                     Limpar filtros
                                                 </Button>
                                             </TableCell>

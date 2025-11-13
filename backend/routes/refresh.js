@@ -1,5 +1,5 @@
 import express from "express";
-import { PrismaClient } from "@prisma/client";
+import {PrismaClient} from "@prisma/client";
 import jwt from "jsonwebtoken";
 import {randomBytes} from "crypto";
 
@@ -12,34 +12,34 @@ const ACCESS_TOKEN_EXPIRES = "15m"; // expiração curta
 // rota de refresh
 router.post("/", async (req, res) => {
     try {
-        const { refreshToken } = req.body;
+        const {refreshToken} = req.body;
 
         if (!refreshToken) {
-            return res.status(400).json({ error: "Refresh token não informado" });
+            return res.status(400).json({error: "Refresh token não informado"});
         }
 
         // procurar refresh token no banco
         const dbToken = await prisma.refreshToken.findUnique({
-            where: { token: refreshToken },
-            include: { user: true },
+            where: {token: refreshToken},
+            include: {user: true},
         });
 
         if (!dbToken) {
-            return res.status(401).json({ error: "Refresh token inválido" });
+            return res.status(401).json({error: "Refresh token inválido"});
         }
 
         // verificar se expirou
         if (dbToken.expiresAt < new Date()) {
             // opcional: apagar do banco se expirado
-            await prisma.refreshToken.delete({ where: { id: dbToken.id } });
-            return res.status(401).json({ error: "Refresh token expirado" });
+            await prisma.refreshToken.delete({where: {id: dbToken.id}});
+            return res.status(401).json({error: "Refresh token expirado"});
         }
 
         // gerar novo access token
         const accessToken = jwt.sign(
-            { id: dbToken.user.id, email: dbToken.user.email, role: dbToken.user.role },
+            {id: dbToken.user.id, email: dbToken.user.email, role: dbToken.user.role},
             JWT_SECRET,
-            { expiresIn: ACCESS_TOKEN_EXPIRES }
+            {expiresIn: ACCESS_TOKEN_EXPIRES}
         );
 
         // opcional: gerar novo refresh token para renovar continuamente
@@ -56,7 +56,7 @@ router.post("/", async (req, res) => {
         });
 
         // deletar o velho refresh token (melhor segurança)
-        await prisma.refreshToken.delete({ where: { id: dbToken.id } });
+        await prisma.refreshToken.delete({where: {id: dbToken.id}});
 
         return res.json({
             accessToken,
@@ -64,7 +64,7 @@ router.post("/", async (req, res) => {
         });
     } catch (err) {
         console.error("Erro no /refresh:", err);
-        return res.status(500).json({ error: "Erro interno do servidor" });
+        return res.status(500).json({error: "Erro interno do servidor"});
     }
 });
 
@@ -72,9 +72,9 @@ export default router;
 
 
 router.post("/logout", async (req, res) => {
-    const { refreshToken } = req.body;
+    const {refreshToken} = req.body;
 
-    await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
+    await prisma.refreshToken.deleteMany({where: {token: refreshToken}});
 
-    res.json({ message: "Logout realizado com sucesso" });
+    res.json({message: "Logout realizado com sucesso"});
 });

@@ -1,9 +1,9 @@
 // backend/routes/veiculos.js
 import express from "express";
 import pkg from "@prisma/client";
-import { autenticarToken, autorizarRoles } from "../index.js";
+import {autenticarToken, autorizarRoles} from "../index.js";
 
-const { PrismaClient } = pkg;
+const {PrismaClient} = pkg;
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -33,7 +33,7 @@ function getRequiredDriverCategories(vehicleCategory) {
 router.get("/disponiveis", autenticarToken, autorizarRoles("USER"), async (req, res) => {
     try {
         const veiculos = await prisma.veiculo.findMany({
-            where: { status: "disponivel" },
+            where: {status: "disponivel"},
             select: {
                 id: true,
                 placa: true,
@@ -55,13 +55,13 @@ router.get("/disponiveis", autenticarToken, autorizarRoles("USER"), async (req, 
                 status: true,
                 categoria: true
             },
-            orderBy: { modelo: "asc" }
+            orderBy: {modelo: "asc"}
         });
 
         res.json(veiculos);
     } catch (error) {
         console.error("Erro ao listar veículos disponíveis:", error);
-        res.status(500).json({ error: "Erro interno do servidor." });
+        res.status(500).json({error: "Erro interno do servidor."});
     }
 });
 
@@ -90,13 +90,13 @@ router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
                 status: true,
                 categoria: true
             },
-            orderBy: { modelo: "asc" }
+            orderBy: {modelo: "asc"}
         });
 
         res.json(veiculos);
     } catch (error) {
         console.error("Erro ao listar veículos:", error);
-        res.status(500).json({ error: "Erro interno do servidor." });
+        res.status(500).json({error: "Erro interno do servidor."});
     }
 });
 
@@ -126,7 +126,7 @@ async function createVehicleHandler(req, res) {
 
         // validações básicas
         if (!placa || !modelo || !ano) {
-            return res.status(400).json({ error: "Campos obrigatórios: placa, modelo e ano." });
+            return res.status(400).json({error: "Campos obrigatórios: placa, modelo e ano."});
         }
 
         const novo = await prisma.veiculo.create({
@@ -173,7 +173,7 @@ async function createVehicleHandler(req, res) {
                             hasSome: requiredDriverCats // 'hasSome' verifica se o array contém algum dos itens
                         }
                     },
-                    select: { id: true }
+                    select: {id: true}
                 });
 
                 // Se encontrou motoristas, cria a associação
@@ -194,9 +194,9 @@ async function createVehicleHandler(req, res) {
     } catch (error) {
         console.error("Erro ao cadastrar veículo:", error);
         if (error?.code === "P2002") {
-            return res.status(409).json({ error: "Dados duplicados (placa, chassi ou renavam)." });
+            return res.status(409).json({error: "Dados duplicados (placa, chassi ou renavam)."});
         }
-        res.status(500).json({ error: "Erro interno ao cadastrar veículo." });
+        res.status(500).json({error: "Erro interno ao cadastrar veículo."});
     }
 }
 
@@ -211,13 +211,13 @@ router.post("/cadastrar", autenticarToken, autorizarRoles("ADMIN"), createVehicl
 // Buscar 1 veículo por id
 router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({ error: "ID inválido. Deve ser um número inteiro." });
+        return res.status(400).json({error: "ID inválido. Deve ser um número inteiro."});
     }
     const id = parseInt(req.params.id, 10);
 
     try {
         const veiculo = await prisma.veiculo.findUnique({
-            where: { id },
+            where: {id},
             select: {
                 id: true,
                 placa: true,
@@ -242,18 +242,18 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
             }
         });
 
-        if (!veiculo) return res.status(404).json({ error: "Veículo não encontrado." });
+        if (!veiculo) return res.status(404).json({error: "Veículo não encontrado."});
         res.json(veiculo);
     } catch (error) {
         console.error("GET /veiculos/:id error:", error);
-        res.status(500).json({ error: "Erro interno ao buscar veículo." });
+        res.status(500).json({error: "Erro interno ao buscar veículo."});
     }
 });
 
 // Atualizar veículo (APENAS ADMIN)
 router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({ error: "ID inválido. Deve ser um número inteiro." });
+        return res.status(400).json({error: "ID inválido. Deve ser um número inteiro."});
     }
     const id = parseInt(req.params.id, 10);
 
@@ -299,11 +299,11 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
         if (categoria !== undefined) updates.categoria = categoria;
         if (status !== undefined) updates.status = status;
 
-        const existing = await prisma.veiculo.findUnique({ where: { id } });
-        if (!existing) return res.status(404).json({ error: "Veículo não encontrado." });
+        const existing = await prisma.veiculo.findUnique({where: {id}});
+        if (!existing) return res.status(404).json({error: "Veículo não encontrado."});
 
         const updated = await prisma.veiculo.update({
-            where: { id },
+            where: {id},
             data: updates,
             select: {
                 id: true,
@@ -328,30 +328,30 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
             }
         });
 
-        res.json({ message: "Veículo atualizado com sucesso.", veiculo: updated });
+        res.json({message: "Veículo atualizado com sucesso.", veiculo: updated});
     } catch (error) {
         console.error("Erro ao atualizar veículo:", error);
-        if (error?.code === "P2002") return res.status(409).json({ error: "Dados duplicados." });
-        res.status(500).json({ error: "Erro interno ao atualizar veículo." });
+        if (error?.code === "P2002") return res.status(409).json({error: "Dados duplicados."});
+        res.status(500).json({error: "Erro interno ao atualizar veículo."});
     }
 });
 
 // Deletar veículo (APENAS ADMIN)
 router.delete("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({ error: "ID inválido. Deve ser um número inteiro." });
+        return res.status(400).json({error: "ID inválido. Deve ser um número inteiro."});
     }
     const id = parseInt(req.params.id, 10);
 
     try {
-        const existing = await prisma.veiculo.findUnique({ where: { id } });
-        if (!existing) return res.status(404).json({ error: "Veículo não encontrado." });
+        const existing = await prisma.veiculo.findUnique({where: {id}});
+        if (!existing) return res.status(404).json({error: "Veículo não encontrado."});
 
-        await prisma.veiculo.delete({ where: { id } });
-        res.json({ message: "Veículo deletado com sucesso." });
+        await prisma.veiculo.delete({where: {id}});
+        res.json({message: "Veículo deletado com sucesso."});
     } catch (error) {
         console.error("Erro ao deletar veículo:", error);
-        res.status(500).json({ error: "Erro interno ao deletar veículo." });
+        res.status(500).json({error: "Erro interno ao deletar veículo."});
     }
 });
 

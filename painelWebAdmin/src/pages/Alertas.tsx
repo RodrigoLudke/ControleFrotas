@@ -1,16 +1,16 @@
 // src/pages/Alertas.tsx
-import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, Check, X } from "lucide-react";
-import { apiFetch } from "@/services/api";
-import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale/pt-BR";
+import {useEffect, useState} from "react";
+import {AdminLayout} from "@/components/layout/AdminLayout";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Check, Search, X} from "lucide-react";
+import {apiFetch} from "@/services/api";
+import {useToast} from "@/hooks/use-toast";
+import {useNavigate} from "react-router-dom";
+import {format} from "date-fns";
+import {ptBR} from "date-fns/locale/pt-BR";
 
 interface Alert {
     id: number;
@@ -25,7 +25,7 @@ interface Alert {
 }
 
 export default function Alertas() {
-    const { toast } = useToast();
+    const {toast} = useToast();
     const navigate = useNavigate();
 
     const [searchTerm, setSearchTerm] = useState("");
@@ -44,8 +44,12 @@ export default function Alertas() {
         try {
             const res = await apiFetch("/alertas?status=PENDENTE");
             if (!res.ok) {
-                const e = await res.json().catch(() => ({ error: "Erro ao buscar alertas" }));
-                toast({ title: "Erro", description: e.error || "Não foi possível carregar alertas", variant: "destructive" });
+                const e = await res.json().catch(() => ({error: "Erro ao buscar alertas"}));
+                toast({
+                    title: "Erro",
+                    description: e.error || "Não foi possível carregar alertas",
+                    variant: "destructive"
+                });
                 setAlerts([]);
                 return;
             }
@@ -110,7 +114,11 @@ export default function Alertas() {
             }
         } catch (err) {
             console.error("Erro ao buscar alertas:", err);
-            toast({ title: "Erro de conexão", description: "Não foi possível conectar ao servidor", variant: "destructive" });
+            toast({
+                title: "Erro de conexão",
+                description: "Não foi possível conectar ao servidor",
+                variant: "destructive"
+            });
             setAlerts([]);
         } finally {
             setLoading(false);
@@ -130,26 +138,30 @@ export default function Alertas() {
 
             const res = await apiFetch(`/alertas/${alertId}/decidir`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action })
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({action})
             });
 
             if (!res.ok) {
-                const e = await res.json().catch(() => ({ error: "Erro ao processar decisão" }));
-                toast({ title: "Erro", description: e.error || "Não foi possível processar a decisão", variant: "destructive" });
+                const e = await res.json().catch(() => ({error: "Erro ao processar decisão"}));
+                toast({
+                    title: "Erro",
+                    description: e.error || "Não foi possível processar a decisão",
+                    variant: "destructive"
+                });
             } else {
-                toast({ title: action === "accept" ? "Alerta aceito" : "Alerta reprovado", variant: "default" });
+                toast({title: action === "accept" ? "Alerta aceito" : "Alerta reprovado", variant: "default"});
 
                 if (action === "accept") {
                     const alertPayload = detJson || alerts.find(a => a.id === alertId) || null;
-                    navigate("/registrarmanutencoes", { state: { alert: alertPayload } });
+                    navigate("/registrarmanutencoes", {state: {alert: alertPayload}});
                 } else {
                     setAlerts(prev => prev.filter(a => a.id !== alertId));
                 }
             }
         } catch (err) {
             console.error("Erro ao decidir alerta:", err);
-            toast({ title: "Erro", description: "Erro de conexão ao processar a decisão.", variant: "destructive" });
+            toast({title: "Erro", description: "Erro de conexão ao processar a decisão.", variant: "destructive"});
         } finally {
             setProcessingId(null);
         }
@@ -195,8 +207,10 @@ export default function Alertas() {
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
                     <div className="relative w-full sm:w-96">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                        <Input placeholder="Buscar por veículo, motorista ou mensagem..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+                        <Search
+                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"/>
+                        <Input placeholder="Buscar por veículo, motorista ou mensagem..." value={searchTerm}
+                               onChange={(e) => setSearchTerm(e.target.value)} className="pl-10"/>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="secondary" onClick={fetchAlerts}>Atualizar</Button>
@@ -225,7 +239,8 @@ export default function Alertas() {
                                 <TableBody>
                                     {loading ? (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Carregando...</TableCell>
+                                            <TableCell colSpan={5}
+                                                       className="text-center py-8 text-muted-foreground">Carregando...</TableCell>
                                         </TableRow>
                                     ) : filtered.length > 0 ? (
                                         filtered.map(alert => {
@@ -256,24 +271,31 @@ export default function Alertas() {
                                                     <TableCell>
                                                         <div>
                                                             <div className="font-medium">{veiculoPlate ?? "—"}</div>
-                                                            <div className="text-sm text-muted-foreground mt-1">{veiculoModel || "—"}</div>
+                                                            <div
+                                                                className="text-sm text-muted-foreground mt-1">{veiculoModel || "—"}</div>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
                                                         <div>
                                                             <div className="font-medium">{motoristaName ?? "—"}</div>
-                                                            <div className="text-sm text-muted-foreground mt-1">{motoristaEmail || "—"}</div>
+                                                            <div
+                                                                className="text-sm text-muted-foreground mt-1">{motoristaEmail || "—"}</div>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="max-w-sm truncate">{alert.mensagem}</TableCell>
-                                                    <TableCell>{alert.createdAt ? format(new Date(alert.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR }) : "—"}</TableCell>
+                                                    <TableCell
+                                                        className="max-w-sm truncate">{alert.mensagem}</TableCell>
+                                                    <TableCell>{alert.createdAt ? format(new Date(alert.createdAt), "dd/MM/yyyy HH:mm", {locale: ptBR}) : "—"}</TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-2">
-                                                            <Button size="sm" variant="ghost" onClick={() => handleDecision(alert.id, "reject")} disabled={processingId === alert.id}>
-                                                                <X className="h-4 w-4 text-destructive" />
+                                                            <Button size="sm" variant="ghost"
+                                                                    onClick={() => handleDecision(alert.id, "reject")}
+                                                                    disabled={processingId === alert.id}>
+                                                                <X className="h-4 w-4 text-destructive"/>
                                                             </Button>
-                                                            <Button size="sm" onClick={() => handleDecision(alert.id, "accept")} disabled={processingId === alert.id}>
-                                                                <Check className="h-4 w-4" />
+                                                            <Button size="sm"
+                                                                    onClick={() => handleDecision(alert.id, "accept")}
+                                                                    disabled={processingId === alert.id}>
+                                                                <Check className="h-4 w-4"/>
                                                                 <span className="sr-only">Aceitar</span>
                                                             </Button>
                                                         </div>
@@ -283,7 +305,8 @@ export default function Alertas() {
                                         })
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhum alerta pendente</TableCell>
+                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhum
+                                                alerta pendente</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>

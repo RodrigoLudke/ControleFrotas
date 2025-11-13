@@ -17,22 +17,22 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     }
 
     // 🔹 monta a URL absoluta aqui
-    let response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+    let response = await fetch(`${BASE_URL}${path}`, {...options, headers});
 
     if (response.status === 401 && refreshToken) {
         const refreshRes = await fetch(`${BASE_URL}/refresh`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refreshToken }),
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({refreshToken}),
         });
 
         if (refreshRes.ok) {
-            const { accessToken, refreshToken: newRefresh } = await refreshRes.json();
+            const {accessToken, refreshToken: newRefresh} = await refreshRes.json();
             await AsyncStorage.setItem("token", accessToken);
             await AsyncStorage.setItem("refreshToken", newRefresh);
 
             headers["Authorization"] = `Bearer ${accessToken}`;
-            response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+            response = await fetch(`${BASE_URL}${path}`, {...options, headers});
         } else {
             await AsyncStorage.removeItem("token");
             await AsyncStorage.removeItem("refreshToken");

@@ -1,9 +1,9 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
-import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
+import {DarkTheme, DefaultTheme, ThemeProvider} from "@react-navigation/native";
+import {useFonts} from "expo-font";
+import {Stack} from "expo-router";
+import {StatusBar} from "expo-status-bar";
 import "react-native-reanimated";
-import { useColorScheme } from "@/hooks/useColorScheme";
+import {useColorScheme} from "@/hooks/useColorScheme";
 
 export default function RootLayout() {
     const colorScheme = useColorScheme();
@@ -17,17 +17,17 @@ export default function RootLayout() {
 
     return (
         <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-            <Stack screenOptions={{ headerShown: false }}>
+            <Stack screenOptions={{headerShown: false}}>
                 {/* Tela inicial: login */}
-                <Stack.Screen name="index" />
+                <Stack.Screen name="index"/>
 
                 {/* Abas (só acessa depois do login) */}
-                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="(tabs)"/>
 
                 {/* Tela de erro */}
-                <Stack.Screen name="+not-found" />
+                <Stack.Screen name="+not-found"/>
             </Stack>
-            <StatusBar style="auto" />
+            <StatusBar style="auto"/>
         </ThemeProvider>
     );
 }

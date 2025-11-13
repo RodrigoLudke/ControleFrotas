@@ -2,14 +2,14 @@
 import express from "express";
 import pkg from "@prisma/client";
 import bcrypt from "bcrypt";
-import { autenticarToken, autorizarRoles } from "../index.js";
+import {autenticarToken, autorizarRoles} from "../index.js";
 
-const { PrismaClient } = pkg;
+const {PrismaClient} = pkg;
 const prisma = new PrismaClient();
 const router = express.Router();
 
 function expandCategories(selected = []) {
-    const map = { A: ["A"], B: ["B"], AB: ["A","B"], C: ["C"], D: ["D"], E: ["E"] };
+    const map = {A: ["A"], B: ["B"], AB: ["A", "B"], C: ["C"], D: ["D"], E: ["E"]};
     const result = new Set();
     for (const s of selected) {
         const arr = map[s];
@@ -26,38 +26,38 @@ function expandCategories(selected = []) {
 router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
         const motoristas = await prisma.user.findMany({
-            where: { role: "USER" },
+            where: {role: "USER"},
             select: {
                 id: true, nome: true, cpf: true, cnh: true, validadeCnh: true,
                 telefone: true, email: true, endereco: true, dataContratacao: true,
                 status: true, categoria: true, latitude: true, longitude: true, lastLocationUpdate: true
             },
-            orderBy: { nome: "asc" }
+            orderBy: {nome: "asc"}
         });
         res.json(motoristas);
     } catch (error) {
         console.error("Erro ao buscar motoristas:", error);
-        res.status(500).json({ error: "Erro interno do servidor." });
+        res.status(500).json({error: "Erro interno do servidor."});
     }
 });
 
 // Rota de criação simples (POST /)
 router.post("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
-        const { email, senha } = req.body;
-        if (!email || !senha) return res.status(400).json({ error: "Email e senha são obrigatórios." });
+        const {email, senha} = req.body;
+        if (!email || !senha) return res.status(400).json({error: "Email e senha são obrigatórios."});
 
-        const usuarioExistente = await prisma.user.findUnique({ where: { email } });
-        if (usuarioExistente) return res.status(409).json({ error: "Este email já está em uso." });
+        const usuarioExistente = await prisma.user.findUnique({where: {email}});
+        if (usuarioExistente) return res.status(409).json({error: "Este email já está em uso."});
 
         const senhaHash = await bcrypt.hash(senha, 10);
         const novoMotorista = await prisma.user.create({
-            data: { email, senha: senhaHash, role: "USER" }
+            data: {email, senha: senhaHash, role: "USER"}
         });
-        res.status(201).json({ message: "Motorista cadastrado com sucesso!", motorista: novoMotorista });
+        res.status(201).json({message: "Motorista cadastrado com sucesso!", motorista: novoMotorista});
     } catch (error) {
         console.error("Erro ao registrar motorista:", error);
-        res.status(500).json({ error: "Erro interno do servidor." });
+        res.status(500).json({error: "Erro interno do servidor."});
     }
 });
 
@@ -70,7 +70,7 @@ router.post("/cadastrar", async (req, res) => {
         } = req.body;
 
         if (!email || !senha || !nome || !cpf || !cnh) {
-            return res.status(400).json({ error: 'Campos obrigatórios faltando.' });
+            return res.status(400).json({error: 'Campos obrigatórios faltando.'});
         }
 
         const hashedPassword = await bcrypt.hash(senha, 10);
@@ -94,19 +94,19 @@ router.post("/cadastrar", async (req, res) => {
         const expanded = expandCategories(selectedCategories);
         if (expanded.length > 0) {
             const veiculosPermitidos = await prisma.veiculo.findMany({
-                where: { categoria: { in: expanded } }, select: { id: true }
+                where: {categoria: {in: expanded}}, select: {id: true}
             });
             if (veiculosPermitidos.length > 0) {
-                const createManyData = veiculosPermitidos.map(v => ({ userId: novoMotorista.id, veiculoId: v.id }));
-                await prisma.userVeiculo.createMany({ data: createManyData, skipDuplicates: true });
+                const createManyData = veiculosPermitidos.map(v => ({userId: novoMotorista.id, veiculoId: v.id}));
+                await prisma.userVeiculo.createMany({data: createManyData, skipDuplicates: true});
             }
         }
 
         res.status(201).json(novoMotorista);
     } catch (error) {
-        if (error?.code === 'P2002') return res.status(409).json({ error: 'Dados duplicados.' });
+        if (error?.code === 'P2002') return res.status(409).json({error: 'Dados duplicados.'});
         console.error("Erro ao cadastrar motorista:", error);
-        res.status(500).json({ error: 'Erro interno do servidor.' });
+        res.status(500).json({error: 'Erro interno do servidor.'});
     }
 });
 
@@ -114,14 +114,14 @@ router.post("/cadastrar", async (req, res) => {
 router.post("/localizacao", autenticarToken, async (req, res) => {
     try {
         const userId = req.user?.id;
-        const { latitude, longitude } = req.body;
+        const {latitude, longitude} = req.body;
 
         if (latitude == null || longitude == null) {
-            return res.status(400).json({ error: "Localização inválida." });
+            return res.status(400).json({error: "Localização inválida."});
         }
 
         await prisma.user.update({
-            where: { id: Number(userId) },
+            where: {id: Number(userId)},
             data: {
                 latitude: parseFloat(latitude),
                 longitude: parseFloat(longitude),
@@ -129,10 +129,10 @@ router.post("/localizacao", autenticarToken, async (req, res) => {
             },
         });
 
-        res.status(200).json({ message: "Localização atualizada." });
+        res.status(200).json({message: "Localização atualizada."});
     } catch (error) {
         console.error("Erro ao atualizar localização:", error);
-        res.status(500).json({ error: "Erro interno." });
+        res.status(500).json({error: "Erro interno."});
     }
 });
 
@@ -143,15 +143,15 @@ router.post("/localizacao", autenticarToken, async (req, res) => {
 // Buscar 1 motorista por id
 router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({ error: "ID inválido. O ID deve ser um número inteiro." });
+        return res.status(400).json({error: "ID inválido. O ID deve ser um número inteiro."});
     }
     const id = parseInt(req.params.id, 10);
     try {
         const id = parseInt(req.params.id, 10);
-        if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido." });
+        if (Number.isNaN(id)) return res.status(400).json({error: "ID inválido."});
 
         const motorista = await prisma.user.findUnique({
-            where: { id },
+            where: {id},
             select: {
                 id: true, nome: true, email: true, cpf: true, rg: true, telefone: true,
                 endereco: true, cnh: true, validadeCnh: true, categoria: true,
@@ -159,23 +159,23 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
             }
         });
 
-        if (!motorista) return res.status(404).json({ error: "Motorista não encontrado." });
+        if (!motorista) return res.status(404).json({error: "Motorista não encontrado."});
         return res.json(motorista);
     } catch (err) {
         console.error("GET /motoristas/:id error:", err);
-        return res.status(500).json({ error: "Erro interno ao buscar motorista." });
+        return res.status(500).json({error: "Erro interno ao buscar motorista."});
     }
 });
 
 // Atualizar motorista (APENAS ADMIN)
 router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({ error: "ID inválido. O ID deve ser um número inteiro." });
+        return res.status(400).json({error: "ID inválido. O ID deve ser um número inteiro."});
     }
     const id = parseInt(req.params.id, 10);
     try {
         const id = parseInt(req.params.id, 10);
-        if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido." });
+        if (Number.isNaN(id)) return res.status(400).json({error: "ID inválido."});
 
         const {
             nome, email, cpf, telefone, endereco, validadeCnh, categoria, status, senha, salario
@@ -193,41 +193,52 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
         if (salario !== undefined) updates.salario = Number(salario);
         if (senha !== undefined) updates.senha = await bcrypt.hash(String(senha), 10);
 
-        const motoristaExistente = await prisma.user.findUnique({ where: { id } });
-        if (!motoristaExistente) return res.status(404).json({ error: "Motorista não encontrado." });
+        const motoristaExistente = await prisma.user.findUnique({where: {id}});
+        if (!motoristaExistente) return res.status(404).json({error: "Motorista não encontrado."});
 
         const motoristaAtualizado = await prisma.user.update({
-            where: { id },
+            where: {id},
             data: updates,
-            select: { id: true, nome: true, email: true, cpf: true, telefone: true, endereco: true, categoria: true, status: true, validadeCnh: true, salario: true }
+            select: {
+                id: true,
+                nome: true,
+                email: true,
+                cpf: true,
+                telefone: true,
+                endereco: true,
+                categoria: true,
+                status: true,
+                validadeCnh: true,
+                salario: true
+            }
         });
 
-        res.json({ message: "Motorista atualizado com sucesso.", motorista: motoristaAtualizado });
+        res.json({message: "Motorista atualizado com sucesso.", motorista: motoristaAtualizado});
     } catch (error) {
         console.error("Erro ao atualizar motorista:", error);
-        if (error?.code === "P2002") return res.status(409).json({ error: "Dados duplicados." });
-        res.status(500).json({ error: "Erro interno ao atualizar motorista." });
+        if (error?.code === "P2002") return res.status(409).json({error: "Dados duplicados."});
+        res.status(500).json({error: "Erro interno ao atualizar motorista."});
     }
 });
 
 // Deletar motorista (APENAS ADMIN)
 router.delete("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({ error: "ID inválido. O ID deve ser um número inteiro." });
+        return res.status(400).json({error: "ID inválido. O ID deve ser um número inteiro."});
     }
     const id = parseInt(req.params.id, 10);
     try {
         const id = parseInt(req.params.id, 10);
-        if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido." });
+        if (Number.isNaN(id)) return res.status(400).json({error: "ID inválido."});
 
-        const motoristaExistente = await prisma.user.findUnique({ where: { id } });
-        if (!motoristaExistente) return res.status(404).json({ error: "Motorista não encontrado." });
+        const motoristaExistente = await prisma.user.findUnique({where: {id}});
+        if (!motoristaExistente) return res.status(404).json({error: "Motorista não encontrado."});
 
-        await prisma.user.delete({ where: { id } });
-        res.json({ message: "Motorista deletado com sucesso." });
+        await prisma.user.delete({where: {id}});
+        res.json({message: "Motorista deletado com sucesso."});
     } catch (error) {
         console.error("Erro ao deletar motorista:", error);
-        res.status(500).json({ error: "Erro interno ao deletar motorista." });
+        res.status(500).json({error: "Erro interno ao deletar motorista."});
     }
 });
 

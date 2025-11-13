@@ -1,23 +1,23 @@
-import { useState } from "react";
+import {useState} from "react";
 import {
+    ActivityIndicator,
     Alert,
-    View,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    Image,
-    StyleSheet,
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    ScrollView,
-    Platform,
+    View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import {useRouter} from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Mail, Lock, Truck } from "lucide-react-native";
+import {Lock, Mail, Truck} from "lucide-react-native";
 
-import { Colors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/useColorScheme";
+import {Colors} from "@/constants/Colors";
+import {useColorScheme} from "@/hooks/useColorScheme";
 
 const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
 
@@ -34,8 +34,8 @@ export default function LoginScreen() {
         try {
             const response = await fetch(`${BASE_URL}/index`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, senha }),
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({email, senha}),
             });
 
             const data = await response.json();
@@ -50,7 +50,8 @@ export default function LoginScreen() {
                 Alert.alert("Erro", data.error || "Falha no login");
             }
         } catch (error) {
-            Alert.alert("Erro", "Não foi possível conectar ao servidor");
+            Alert.alert("Erro", "Não foi possível conectar ao servidor ");
+            console.error("Erro de login:", error);
         }
     };
 
@@ -58,7 +59,7 @@ export default function LoginScreen() {
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={-50}
-            style={[styles.keyboardAvoidingView, { backgroundColor: theme.primary }]}
+            style={[styles.keyboardAvoidingView, {backgroundColor: theme.primary}]}
         >
             <ScrollView contentContainerStyle={styles.scrollContainer}>
                 <View style={styles.contentContainer}>
@@ -69,14 +70,14 @@ export default function LoginScreen() {
                             style={styles.logo}
                         />
                         {/*<Text style={[styles.title, { color: theme.textBack }]}>Controle de Frotas</Text>*/}
-                        <Text style={[styles.subtitle, { color: theme.iconBack }]}>
+                        <Text style={[styles.subtitle, {color: theme.iconBack}]}>
                             Sistema profissional de gestão de veículos
                         </Text>
                     </View>
                     {/* Card */}
-                    <View style={[styles.card, { backgroundColor: theme.background }]}>
-                        <Text style={[styles.cardTitle, { color: theme.text }]}>Entrar</Text>
-                        <Text style={[styles.cardDescription, { color: theme.icon }]}>
+                    <View style={[styles.card, {backgroundColor: theme.background}]}>
+                        <Text style={[styles.cardTitle, {color: theme.text}]}>Entrar</Text>
+                        <Text style={[styles.cardDescription, {color: theme.icon}]}>
                             Acesse sua conta para gerenciar a frota
                         </Text>
 
@@ -86,12 +87,12 @@ export default function LoginScreen() {
                             <View
                                 style={[
                                     styles.inputGroup,
-                                    { backgroundColor: theme.card, borderColor: theme.border },
+                                    {backgroundColor: theme.card, borderColor: theme.border},
                                 ]}
                             >
-                                <Mail size={18} color={theme.icon} style={styles.icon} />
+                                <Mail size={18} color={theme.icon} style={styles.icon}/>
                                 <TextInput
-                                    style={[styles.input, { color: theme.text }]}
+                                    style={[styles.input, {color: theme.text}]}
                                     placeholder="Email"
                                     placeholderTextColor={theme.icon}
                                     value={email}
@@ -105,12 +106,12 @@ export default function LoginScreen() {
                             <View
                                 style={[
                                     styles.inputGroup,
-                                    { backgroundColor: theme.card, borderColor: theme.border },
+                                    {backgroundColor: theme.card, borderColor: theme.border},
                                 ]}
                             >
-                                <Lock size={18} color={theme.icon} style={styles.icon} />
+                                <Lock size={18} color={theme.icon} style={styles.icon}/>
                                 <TextInput
-                                    style={[styles.input, { color: theme.text }]}
+                                    style={[styles.input, {color: theme.text}]}
                                     placeholder="Senha"
                                     placeholderTextColor={theme.icon}
                                     secureTextEntry
@@ -121,15 +122,15 @@ export default function LoginScreen() {
 
                             {/* Botão */}
                             <TouchableOpacity
-                                style={[styles.button, { backgroundColor: theme.primary }]}
+                                style={[styles.button, {backgroundColor: theme.primary}]}
                                 onPress={handleLogin}
                                 disabled={isLoading}
                             >
                                 {isLoading ? (
-                                    <ActivityIndicator color="#fff" />
+                                    <ActivityIndicator color="#fff"/>
                                 ) : (
                                     <View style={styles.buttonContent}>
-                                        <Truck size={18} color="#fff" style={{ marginRight: 6 }} />
+                                        <Truck size={18} color="#fff" style={{marginRight: 6}}/>
                                         <Text style={styles.buttonText}>Entrar</Text>
                                     </View>
                                 )}
@@ -139,9 +140,9 @@ export default function LoginScreen() {
 
                     {/* Rodapé */}
                     <View style={styles.footer}>
-                        <Text style={[styles.footerText, { color: theme.iconBack }]}>
+                        <Text style={[styles.footerText, {color: theme.iconBack}]}>
                             Problemas para acessar?{" "}
-                            <Text style={[styles.footerLink, { color: theme.textBack }]}>
+                            <Text style={[styles.footerLink, {color: theme.textBack}]}>
                                 Entre em contato
                             </Text>
                         </Text>
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
         width: "100%",
         elevation: 4,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: {width: 0, height: 2},
         shadowOpacity: 0.1,
         shadowRadius: 6,
     },

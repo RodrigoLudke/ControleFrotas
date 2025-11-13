@@ -1,44 +1,43 @@
 // src/pages/VehicleDetails.tsx
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+import {useEffect, useMemo, useState} from "react";
+import {useNavigate, useParams} from "react-router-dom";
+import {AdminLayout} from "@/components/layout/AdminLayout";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import {Avatar, AvatarFallback} from "@/components/ui/avatar";
+import {Separator} from "@/components/ui/separator";
 import {
-    ArrowLeft,
-    Car,
-    TrendingUp,
-    TrendingDown,
-    Fuel,
-    Wrench,
-    Calendar,
-    DollarSign,
     Activity,
     AlertTriangle,
+    ArrowLeft,
+    Calendar,
+    Car,
+    DollarSign,
+    Fuel,
+    TrendingDown,
+    TrendingUp,
+    Wrench,
 } from "lucide-react";
 import {
-    ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell,
-    Tooltip,
-    BarChart,
     Bar,
+    BarChart,
     CartesianGrid,
+    Cell,
+    Legend,
+    Line,
+    LineChart,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
     XAxis,
     YAxis,
-    LineChart,
-    Line,
-    Legend,
 } from "recharts";
-import { apiFetch } from "@/services/api";
-import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale/pt-BR";
+import {apiFetch} from "@/services/api";
+import {useToast} from "@/hooks/use-toast";
+import {format} from "date-fns";
+import {ptBR} from "date-fns/locale/pt-BR";
 
 /* ---------- types ---------- */
 type Veiculo = {
@@ -108,10 +107,10 @@ const COLORS = [
 ];
 
 export default function VehicleDetails() {
-    const { id } = useParams<{ id?: string }>();
+    const {id} = useParams<{ id?: string }>();
     const vehicleId = id ? Number(id) : NaN;
     const navigate = useNavigate();
-    const { toast } = useToast();
+    const {toast} = useToast();
 
     const [loading, setLoading] = useState(true);
     const [vehicle, setVehicle] = useState<Veiculo | null>(null);
@@ -297,7 +296,11 @@ export default function VehicleDetails() {
                     if (mounted) setVehicle(vehJson);
                 } else {
                     console.warn("Falha ao carregar /veiculos/:id", vRes.reason);
-                    toast({ title: "Aviso", description: "Não foi possível carregar dados básicos do veículo.", variant: "destructive" });
+                    toast({
+                        title: "Aviso",
+                        description: "Não foi possível carregar dados básicos do veículo.",
+                        variant: "destructive"
+                    });
                 }
 
                 if (driversRes.status === "fulfilled") {
@@ -340,7 +343,11 @@ export default function VehicleDetails() {
                 });
             } catch (err) {
                 console.error("Erro ao carregar dados do veículo:", err);
-                toast({ title: "Erro", description: "Erro ao carregar dados do veículo. Veja o console.", variant: "destructive" });
+                toast({
+                    title: "Erro",
+                    description: "Erro ao carregar dados do veículo. Veja o console.",
+                    variant: "destructive"
+                });
                 if (mounted) {
                     setTrips([]);
                     setFuels([]);
@@ -372,7 +379,7 @@ export default function VehicleDetails() {
         if (!Array.isArray(manuts) || manuts.length === 0) return null;
 
         const list = manuts
-            .map((m) => ({ ...m, __data: m?.data ? new Date(m.data) : null }))
+            .map((m) => ({...m, __data: m?.data ? new Date(m.data) : null}))
             .filter((m) => m.__data instanceof Date && !isNaN(m.__data.getTime()))
             .sort((a, b) => a.__data.getTime() - b.__data.getTime());
 
@@ -402,7 +409,7 @@ export default function VehicleDetails() {
             const validFuels = [...(fuels || [])]
                 .filter((f) => f && f.quilometragem !== undefined && f.litros !== undefined)
                 //eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .map((f) => ({ quil: Number((f as any).quilometragem), litros: Number((f as any).litros) }))
+                .map((f) => ({quil: Number((f as any).quilometragem), litros: Number((f as any).litros)}))
                 .filter((f) => !isNaN(f.quil) && !isNaN(f.litros))
                 .sort((a, b) => a.quil - b.quil);
 
@@ -423,11 +430,17 @@ export default function VehicleDetails() {
             mediaCombustivel = 0;
         }
 
-        return { totalViagens, kmRodados, custoTotal, mediaCombustivel };
+        return {totalViagens, kmRodados, custoTotal, mediaCombustivel};
     }, [trips, fuels, manuts]);
 
     const costOverTime = useMemo(() => {
-        const map: Record<string, { ym: string; mes: string; combustivel: number; manutencao: number; custo: number }> = {};
+        const map: Record<string, {
+            ym: string;
+            mes: string;
+            combustivel: number;
+            manutencao: number;
+            custo: number
+        }> = {};
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         const push = (iso?: string | null, amount = 0, key: "combustivel" | "manutencao") => {
@@ -436,11 +449,12 @@ export default function VehicleDetails() {
                 const d = new Date(iso);
                 if (isNaN(d.getTime())) return;
                 const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-                const label = format(d, "MMM", { locale: ptBR });
-                if (!map[ym]) map[ym] = { ym, mes: label, combustivel: 0, manutencao: 0, custo: 0 };
+                const label = format(d, "MMM", {locale: ptBR});
+                if (!map[ym]) map[ym] = {ym, mes: label, combustivel: 0, manutencao: 0, custo: 0};
                 map[ym][key] += amount;
                 map[ym].custo += amount;
-            } catch (e) { /* ignore */ }
+            } catch (e) { /* ignore */
+            }
         };
         fuels.forEach((f) => push(f.data, Number(f.custoTotal ?? 0), "combustivel"));
         manuts.forEach((m) => push(m.data ?? undefined, Number(m.custo ?? 0), "manutencao"));
@@ -451,11 +465,16 @@ export default function VehicleDetails() {
             for (let i = 5; i >= 0; i--) {
                 const d = new Date();
                 d.setMonth(d.getMonth() - i);
-                res.push({ mes: format(d, "MMM", { locale: ptBR }), custo: 0, combustivel: 0, manutencao: 0 });
+                res.push({mes: format(d, "MMM", {locale: ptBR}), custo: 0, combustivel: 0, manutencao: 0});
             }
             return res;
         }
-        return arr.slice(-6).map((x) => ({ mes: x.mes, custo: x.custo, combustivel: x.combustivel, manutencao: x.manutencao }));
+        return arr.slice(-6).map((x) => ({
+            mes: x.mes,
+            custo: x.custo,
+            combustivel: x.combustivel,
+            manutencao: x.manutencao
+        }));
     }, [fuels, manuts]);
 
     const driversUsage = useMemo(() => {
@@ -469,7 +488,7 @@ export default function VehicleDetails() {
             .map(([uid, qtd]) => {
                 const idn = Number(uid);
                 const d = driversMap[idn];
-                return { name: d?.nome ?? d?.email ?? `Motorista ${uid}`, value: qtd, trips: qtd };
+                return {name: d?.nome ?? d?.email ?? `Motorista ${uid}`, value: qtd, trips: qtd};
             })
             .sort((a, b) => b.value - a.value);
         return arr.slice(0, 8);
@@ -512,13 +531,13 @@ export default function VehicleDetails() {
             <AdminLayout title="Erro">
                 <div className="space-y-6 p-6">
                     <Button variant="ghost" onClick={() => navigate("/veiculos")}>
-                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        <ArrowLeft className="mr-2 h-4 w-4"/>
                         Voltar para Veículos
                     </Button>
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center text-destructive">
-                                <AlertTriangle className="mr-2 h-5 w-5" />
+                                <AlertTriangle className="mr-2 h-5 w-5"/>
                                 Veículo não encontrado
                             </CardTitle>
                         </CardHeader>
@@ -536,7 +555,7 @@ export default function VehicleDetails() {
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <Button variant="ghost" onClick={() => navigate("/veiculos")}>
-                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        <ArrowLeft className="mr-2 h-4 w-4"/>
                         Voltar para Veículos
                     </Button>
                 </div>
@@ -547,7 +566,7 @@ export default function VehicleDetails() {
                         <div className="flex items-start space-x-6">
                             <Avatar className="h-24 w-24">
                                 <AvatarFallback className="text-2xl">
-                                    <Car className="h-12 w-12" />
+                                    <Car className="h-12 w-12"/>
                                 </AvatarFallback>
                             </Avatar>
 
@@ -593,19 +612,20 @@ export default function VehicleDetails() {
                                     </div>
                                 </div>
 
-                                <Separator />
+                                <Separator/>
 
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                     <div>
                                         <p className="text-muted-foreground">Seguro</p>
                                         <p className="font-medium">{vehicle.seguradora ?? "—"}</p>
                                         <p className="text-xs text-muted-foreground">
-                                            Válido até: {vehicle.validadeSeguro ? format(new Date(vehicle.validadeSeguro), "dd/MM/yyyy", { locale: ptBR }) : "—"}
+                                            Válido
+                                            até: {vehicle.validadeSeguro ? format(new Date(vehicle.validadeSeguro), "dd/MM/yyyy", {locale: ptBR}) : "—"}
                                         </p>
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground">Manutenção</p>
-                                        <p className="font-medium">Próxima: {proxima ? format(new Date(proxima.data), "dd/MM/yyyy", { locale: ptBR }) : "—"}</p>
+                                        <p className="font-medium">Próxima: {proxima ? format(new Date(proxima.data), "dd/MM/yyyy", {locale: ptBR}) : "—"}</p>
                                         <p className="text-xs text-muted-foreground">Local: {proxima?.local ?? "—"}</p>
                                     </div>
                                 </div>
@@ -619,12 +639,13 @@ export default function VehicleDetails() {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total de Viagens</CardTitle>
-                            <Activity className="h-4 w-4 text-muted-foreground" />
+                            <Activity className="h-4 w-4 text-muted-foreground"/>
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{stats.totalViagens}</div>
                             <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingUp className="h-3 w-3 mr-1 text-success" /> {Math.round(Math.random() * 10)}% vs mês anterior
+                                <TrendingUp className="h-3 w-3 mr-1 text-success"/> {Math.round(Math.random() * 10)}% vs
+                                mês anterior
                             </p>
                         </CardContent>
                     </Card>
@@ -632,12 +653,13 @@ export default function VehicleDetails() {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Km Rodados</CardTitle>
-                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                            <TrendingUp className="h-4 w-4 text-muted-foreground"/>
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{stats.kmRodados.toLocaleString("pt-BR")}</div>
                             <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingUp className="h-3 w-3 mr-1 text-success" /> {Math.round(Math.random() * 10)}% vs mês anterior
+                                <TrendingUp className="h-3 w-3 mr-1 text-success"/> {Math.round(Math.random() * 10)}% vs
+                                mês anterior
                             </p>
                         </CardContent>
                     </Card>
@@ -645,12 +667,13 @@ export default function VehicleDetails() {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Custo Total</CardTitle>
-                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                            <DollarSign className="h-4 w-4 text-muted-foreground"/>
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{formatCurrency(stats.custoTotal)}</div>
                             <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingUp className="h-3 w-3 mr-1 text-destructive" /> {Math.round(Math.random() * 10)}% vs mês anterior
+                                <TrendingUp className="h-3 w-3 mr-1 text-destructive"/> {Math.round(Math.random() * 10)}%
+                                vs mês anterior
                             </p>
                         </CardContent>
                     </Card>
@@ -658,12 +681,13 @@ export default function VehicleDetails() {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Consumo Médio (estimado)</CardTitle>
-                            <Fuel className="h-4 w-4 text-muted-foreground" />
+                            <Fuel className="h-4 w-4 text-muted-foreground"/>
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{stats.mediaCombustivel || "—"}</div>
                             <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingDown className="h-3 w-3 mr-1 text-success" /> {Math.round(Math.random() * 5)}% vs mês anterior
+                                <TrendingDown className="h-3 w-3 mr-1 text-success"/> {Math.round(Math.random() * 5)}%
+                                vs mês anterior
                             </p>
                         </CardContent>
                     </Card>
@@ -680,19 +704,22 @@ export default function VehicleDetails() {
                                 <>
                                     <ResponsiveContainer width="100%" height={260}>
                                         <PieChart>
-                                            <Pie data={driversUsage} dataKey="value" cx="50%" cy="50%" outerRadius={80} labelLine={false} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
+                                            <Pie data={driversUsage} dataKey="value" cx="50%" cy="50%" outerRadius={80}
+                                                 labelLine={false}
+                                                 label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}>
                                                 {driversUsage.map((entry, idx) => (
-                                                    <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                                                    <Cell key={idx} fill={COLORS[idx % COLORS.length]}/>
                                                 ))}
                                             </Pie>
-                                            <Tooltip />
+                                            <Tooltip/>
                                         </PieChart>
                                     </ResponsiveContainer>
                                     <div className="mt-4 space-y-2">
                                         {driversUsage.map((d, i) => (
                                             <div key={i} className="flex items-center justify-between text-sm">
                                                 <div className="flex items-center">
-                                                    <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                                    <div className="w-3 h-3 rounded-full mr-2"
+                                                         style={{backgroundColor: COLORS[i % COLORS.length]}}/>
                                                     <span>{d.name}</span>
                                                 </div>
                                                 <span className="text-muted-foreground">{d.trips} viagens</span>
@@ -701,7 +728,9 @@ export default function VehicleDetails() {
                                     </div>
                                 </>
                             ) : (
-                                <div className="flex items-center justify-center h-[260px] text-muted-foreground">Nenhuma viagem registrada para este veículo.</div>
+                                <div
+                                    className="flex items-center justify-center h-[260px] text-muted-foreground">Nenhuma
+                                    viagem registrada para este veículo.</div>
                             )}
                         </CardContent>
                     </Card>
@@ -720,18 +749,20 @@ export default function VehicleDetails() {
                                                 const t = m.tipo ?? "Outros";
                                                 counts[t] = (counts[t] || 0) + 1;
                                             });
-                                            return Object.entries(counts).map(([type, count]) => ({ type, count }));
+                                            return Object.entries(counts).map(([type, count]) => ({type, count}));
                                         })()}
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="type" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Bar dataKey="count" fill={COLORS[0]} name="Quantidade" />
+                                        <CartesianGrid strokeDasharray="3 3"/>
+                                        <XAxis dataKey="type"/>
+                                        <YAxis/>
+                                        <Tooltip/>
+                                        <Bar dataKey="count" fill={COLORS[0]} name="Quantidade"/>
                                     </BarChart>
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="flex items-center justify-center h-[260px] text-muted-foreground">Nenhuma manutenção registrada.</div>
+                                <div
+                                    className="flex items-center justify-center h-[260px] text-muted-foreground">Nenhuma
+                                    manutenção registrada.</div>
                             )}
                         </CardContent>
                     </Card>
@@ -744,15 +775,18 @@ export default function VehicleDetails() {
                     <CardContent>
                         <ResponsiveContainer width="100%" height={300}>
                             <LineChart data={costOverTime}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="mes" />
-                                <YAxis />
+                                <CartesianGrid strokeDasharray="3 3"/>
+                                <XAxis dataKey="mes"/>
+                                <YAxis/>
                                 { /* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                <Tooltip formatter={(val: any) => formatCurrency(Number(val))} />
-                                <Legend />
-                                <Line type="monotone" dataKey="custo" stroke={COLORS[0]} name="Custo Total" strokeWidth={2} />
-                                <Line type="monotone" dataKey="combustivel" stroke={COLORS[2]} name="Combustível" strokeWidth={2} />
-                                <Line type="monotone" dataKey="manutencao" stroke={COLORS[3]} name="Manutenção" strokeWidth={2} />
+                                <Tooltip formatter={(val: any) => formatCurrency(Number(val))}/>
+                                <Legend/>
+                                <Line type="monotone" dataKey="custo" stroke={COLORS[0]} name="Custo Total"
+                                      strokeWidth={2}/>
+                                <Line type="monotone" dataKey="combustivel" stroke={COLORS[2]} name="Combustível"
+                                      strokeWidth={2}/>
+                                <Line type="monotone" dataKey="manutencao" stroke={COLORS[3]} name="Manutenção"
+                                      strokeWidth={2}/>
                             </LineChart>
                         </ResponsiveContainer>
                     </CardContent>
@@ -762,33 +796,36 @@ export default function VehicleDetails() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
-                            <Wrench className="mr-2 h-5 w-5" /> Histórico de Manutenções
+                            <Wrench className="mr-2 h-5 w-5"/> Histórico de Manutenções
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {maintenanceHistory.length === 0 && <div className="text-muted-foreground text-center p-4">Nenhuma manutenção registrada</div>}
+                            {maintenanceHistory.length === 0 &&
+                                <div className="text-muted-foreground text-center p-4">Nenhuma manutenção
+                                    registrada</div>}
                             {maintenanceHistory.map((m) => (
                                 <div key={m.id} className="flex items-start space-x-4 p-4 border rounded-lg">
                                     <div className="flex-shrink-0">
-                                        <Wrench className="h-5 w-5 text-muted-foreground" />
+                                        <Wrench className="h-5 w-5 text-muted-foreground"/>
                                     </div>
                                     <div className="flex-1 space-y-1">
                                         <div className="flex items-center justify-between">
                                             <p className="font-medium">{m.descricao ?? m.tipo ?? "Manutenção"}</p>
                                             <Badge>{m.tipo ?? "—"}</Badge>
                                         </div>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
+                                        <div
+                                            className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
                                             <div className="flex items-center">
-                                                <Calendar className="mr-1 h-3 w-3" />
-                                                {m.data ? format(new Date(m.data), "dd/MM/yyyy", { locale: ptBR }) : "—"}
+                                                <Calendar className="mr-1 h-3 w-3"/>
+                                                {m.data ? format(new Date(m.data), "dd/MM/yyyy", {locale: ptBR}) : "—"}
                                             </div>
                                             <div className="flex items-center">
-                                                <Activity className="mr-1 h-3 w-3" />
+                                                <Activity className="mr-1 h-3 w-3"/>
                                                 {m.quilometragem ? m.quilometragem.toLocaleString("pt-BR") : "—"} km
                                             </div>
                                             <div className="flex items-center">
-                                                <DollarSign className="mr-1 h-3 w-3" />
+                                                <DollarSign className="mr-1 h-3 w-3"/>
                                                 {m.custo ? formatCurrency(Number(m.custo)) : "—"}
                                             </div>
                                             <div>{m.status ?? "—"}</div>
@@ -803,34 +840,37 @@ export default function VehicleDetails() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
-                            <Fuel className="mr-2 h-5 w-5" /> Histórico de Abastecimento
+                            <Fuel className="mr-2 h-5 w-5"/> Histórico de Abastecimento
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {fuelHistory.length === 0 && <div className="text-muted-foreground text-center p-4">Nenhum abastecimento registrado</div>}
+                            {fuelHistory.length === 0 &&
+                                <div className="text-muted-foreground text-center p-4">Nenhum abastecimento
+                                    registrado</div>}
                             {fuelHistory.map((f) => (
                                 <div key={f.id} className="flex items-start space-x-4 p-4 border rounded-lg">
                                     <div className="flex-shrink-0">
-                                        <Fuel className="h-5 w-5 text-muted-foreground" />
+                                        <Fuel className="h-5 w-5 text-muted-foreground"/>
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between mb-2">
                                             <p className="font-medium">{f.posto ?? f.combustivel ?? "Abastecimento"}</p>
                                             <p className="text-lg font-bold">{formatCurrency(Number(f.custoTotal ?? 0))}</p>
                                         </div>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
+                                        <div
+                                            className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
                                             <div className="flex items-center">
-                                                <Calendar className="mr-1 h-3 w-3" />
-                                                {f.data ? format(new Date(f.data), "dd/MM/yyyy", { locale: ptBR }) : "—"}
+                                                <Calendar className="mr-1 h-3 w-3"/>
+                                                {f.data ? format(new Date(f.data), "dd/MM/yyyy", {locale: ptBR}) : "—"}
                                             </div>
                                             <div>
-                                                <Fuel className="inline mr-1 h-3 w-3" />
+                                                <Fuel className="inline mr-1 h-3 w-3"/>
                                                 {Number(f.litros).toFixed(2)} L
                                             </div>
                                             <div>R$ {Number(f.valorPorLitro).toFixed(2) ?? "—"}/L</div>
                                             <div className="flex items-center">
-                                                <Activity className="inline mr-1 h-3 w-3" />
+                                                <Activity className="inline mr-1 h-3 w-3"/>
                                                 {f.quilometragem?.toLocaleString("pt-BR") ?? "—"} km
                                             </div>
                                         </div>
@@ -848,5 +888,5 @@ export default function VehicleDetails() {
 /* helper currency */
 function formatCurrency(v: number) {
     if (typeof v !== "number") return "R$ 0,00";
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+    return new Intl.NumberFormat("pt-BR", {style: "currency", currency: "BRL"}).format(v);
 }

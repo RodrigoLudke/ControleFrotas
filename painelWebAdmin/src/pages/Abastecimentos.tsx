@@ -1,16 +1,16 @@
 // src/pages/Abastecimentos.tsx
-import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Eye, Edit, Trash2, Fuel } from "lucide-react";
-import { apiFetch } from "@/services/api";
-import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale/pt-BR";
+import {useEffect, useState} from "react";
+import {AdminLayout} from "@/components/layout/AdminLayout";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Input} from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Edit, Eye, Plus, Search, Trash2} from "lucide-react";
+import {apiFetch} from "@/services/api";
+import {useToast} from "@/hooks/use-toast";
+import {useNavigate} from "react-router-dom";
+import {format} from "date-fns";
+import {ptBR} from "date-fns/locale/pt-BR";
 
 interface AbastecimentoBackend {
     id: number;
@@ -30,7 +30,7 @@ interface AbastecimentoBackend {
 
 export default function Abastecimentos() {
     const navigate = useNavigate();
-    const { toast } = useToast();
+    const {toast} = useToast();
 
     const [searchTerm, setSearchTerm] = useState("");
     const [abastecimentos, setAbastecimentos] = useState<AbastecimentoBackend[]>([]);
@@ -47,7 +47,7 @@ export default function Abastecimentos() {
             // buscar abastecimentos (rota admin)
             const res = await apiFetch("/abastecimentos");
             if (!res.ok) {
-                const e = await res.json().catch(() => ({ error: "Erro ao buscar abastecimentos" }));
+                const e = await res.json().catch(() => ({error: "Erro ao buscar abastecimentos"}));
                 toast({
                     title: "Erro ao carregar abastecimentos",
                     description: e.error || "Não foi possível carregar os abastecimentos.",
@@ -142,7 +142,7 @@ export default function Abastecimentos() {
     const formatDateTime = (iso?: string | null) => {
         if (!iso) return "—";
         try {
-            return format(new Date(iso), "dd/MM/yyyy HH:mm", { locale: ptBR });
+            return format(new Date(iso), "dd/MM/yyyy HH:mm", {locale: ptBR});
         } catch {
             return iso;
         }
@@ -170,7 +170,7 @@ export default function Abastecimentos() {
 
         setDeletingId(id);
         try {
-            const res = await apiFetch(`/abastecimentos/${id}`, { method: "DELETE" });
+            const res = await apiFetch(`/abastecimentos/${id}`, {method: "DELETE"});
             if (res.ok) {
                 toast({
                     title: "Abastecimento deletado",
@@ -178,7 +178,7 @@ export default function Abastecimentos() {
                 });
                 setAbastecimentos(prev => prev.filter(a => a.id !== id));
             } else {
-                const err = await res.json().catch(() => ({ error: "Erro ao deletar abastecimento." }));
+                const err = await res.json().catch(() => ({error: "Erro ao deletar abastecimento."}));
                 toast({
                     title: "Erro ao deletar",
                     description: err.error || "Não foi possível deletar o abastecimento.",
@@ -230,7 +230,8 @@ export default function Abastecimentos() {
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row gap-4 justify-between">
                     <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Search
+                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"/>
                         <Input
                             placeholder="Buscar por placa, motorista, posto ou combustível..."
                             value={searchTerm}
@@ -239,8 +240,9 @@ export default function Abastecimentos() {
                         />
                     </div>
 
-                    <Button onClick={() => navigate("/registrarabastecimentos")} className="bg-primary hover:bg-primary/90">
-                        <Plus className="mr-2 h-4 w-4" /> Novo Abastecimento
+                    <Button onClick={() => navigate("/registrarabastecimentos")}
+                            className="bg-primary hover:bg-primary/90">
+                        <Plus className="mr-2 h-4 w-4"/> Novo Abastecimento
                     </Button>
                 </div>
 
@@ -271,7 +273,8 @@ export default function Abastecimentos() {
                                 <TableBody>
                                     {loading ? (
                                         <TableRow>
-                                            <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Carregando...</TableCell>
+                                            <TableCell colSpan={10}
+                                                       className="text-center py-8 text-muted-foreground">Carregando...</TableCell>
                                         </TableRow>
                                     ) : filtered.length > 0 ? (
                                         filtered.map((a) => {
@@ -301,14 +304,16 @@ export default function Abastecimentos() {
                                                             <div className="font-medium flex items-center gap-2">
                                                                 <span>{plate}</span>
                                                             </div>
-                                                            <div className="text-sm text-muted-foreground mt-1">{model || "—"}</div>
+                                                            <div
+                                                                className="text-sm text-muted-foreground mt-1">{model || "—"}</div>
                                                         </div>
                                                     </TableCell>
 
                                                     <TableCell>
                                                         <div>
                                                             <div className="font-medium">{driverName}</div>
-                                                            <div className="text-sm text-muted-foreground mt-1">{driverEmail}</div>
+                                                            <div
+                                                                className="text-sm text-muted-foreground mt-1">{driverEmail}</div>
                                                         </div>
                                                     </TableCell>
 
@@ -316,23 +321,35 @@ export default function Abastecimentos() {
 
                                                     <TableCell>{a.quilometragem != null ? `${a.quilometragem.toLocaleString()} km` : "—"}</TableCell>
 
-                                                    <TableCell>{formatNumber(a.litros, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</TableCell>
+                                                    <TableCell>{formatNumber(a.litros, {
+                                                        minimumFractionDigits: 3,
+                                                        maximumFractionDigits: 3
+                                                    })}</TableCell>
 
-                                                    <TableCell>{formatNumber(a.valorPorLitro, { style: "currency", currency: "BRL" })}</TableCell>
+                                                    <TableCell>{formatNumber(a.valorPorLitro, {
+                                                        style: "currency",
+                                                        currency: "BRL"
+                                                    })}</TableCell>
 
-                                                    <TableCell>{formatNumber(a.custoTotal, { style: "currency", currency: "BRL" })}</TableCell>
+                                                    <TableCell>{formatNumber(a.custoTotal, {
+                                                        style: "currency",
+                                                        currency: "BRL"
+                                                    })}</TableCell>
 
                                                     <TableCell>{a.combustivel ?? "—"}</TableCell>
 
-                                                    <TableCell className="max-w-sm truncate">{a.posto ?? "—"}</TableCell>
+                                                    <TableCell
+                                                        className="max-w-sm truncate">{a.posto ?? "—"}</TableCell>
 
                                                     <TableCell>
                                                         <div className="flex items-center space-x-2">
-                                                            <Button variant="ghost" size="sm" onClick={() => handleView(a.id)}>
-                                                                <Eye className="h-4 w-4" />
+                                                            <Button variant="ghost" size="sm"
+                                                                    onClick={() => handleView(a.id)}>
+                                                                <Eye className="h-4 w-4"/>
                                                             </Button>
-                                                            <Button variant="ghost" size="sm" onClick={() => handleEdit(a.id)}>
-                                                                <Edit className="h-4 w-4" />
+                                                            <Button variant="ghost" size="sm"
+                                                                    onClick={() => handleEdit(a.id)}>
+                                                                <Edit className="h-4 w-4"/>
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"
@@ -341,7 +358,7 @@ export default function Abastecimentos() {
                                                                 onClick={() => handleDelete(a.id)}
                                                                 disabled={deletingId === a.id}
                                                             >
-                                                                <Trash2 className="h-4 w-4" />
+                                                                <Trash2 className="h-4 w-4"/>
                                                             </Button>
                                                         </div>
                                                     </TableCell>
@@ -352,7 +369,10 @@ export default function Abastecimentos() {
                                         <TableRow>
                                             <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                                                 <div className="mb-2">Nenhum abastecimento encontrado</div>
-                                                <Button variant="outline" onClick={() => { setSearchTerm(""); fetchAbastecimentos(); }}>
+                                                <Button variant="outline" onClick={() => {
+                                                    setSearchTerm("");
+                                                    fetchAbastecimentos();
+                                                }}>
                                                     Limpar filtros
                                                 </Button>
                                             </TableCell>

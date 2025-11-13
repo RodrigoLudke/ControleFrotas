@@ -1,19 +1,18 @@
-import { useNavigate, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import {useLocation, useNavigate} from "react-router-dom";
+import {Button} from "@/components/ui/button";
 import {
-    LayoutDashboard,
-    Users,
     Car,
-    UserPlus,
     CarFront,
-    Settings,
-    LogOut,
-    Truck,
-    MapPin,
-    TriangleAlert,
-    Wrench,
     Fuel,
-    ShieldCheck
+    LayoutDashboard,
+    MapPin,
+    Settings,
+    ShieldCheck,
+    TriangleAlert,
+    Truck,
+    UserPlus,
+    Users,
+    Wrench
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -21,17 +20,18 @@ interface AdminSidebarProps {
     setSidebarOpen: (open: boolean) => void;
 }
 
-export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps) {
+export function AdminSidebar({sidebarOpen, setSidebarOpen}: AdminSidebarProps) {
     const navigate = useNavigate();
     const location = useLocation();
 
     return (
         <>
-            <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+            <aside
+                className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
                 <div className="flex h-16 items-center border-b px-6">
                     <div className="flex items-center space-x-2">
                         <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                            <Truck className="h-4 w-4 text-primary-foreground" />
+                            <Truck className="h-4 w-4 text-primary-foreground"/>
                         </div>
                         <span className="font-semibold">Controle Frotas</span>
                     </div>
@@ -44,7 +44,7 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                         onClick={() => navigate("/dashboard")}
                         data-active={location.pathname === "/dashboard"}
                     >
-                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        <LayoutDashboard className="mr-2 h-4 w-4"/>
                         Dashboard
                     </Button>
                     <Button
@@ -53,7 +53,7 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                         onClick={() => navigate("/motoristas")}
                         data-active={location.pathname === "/Motoristas"}
                     >
-                        <Users className="mr-2 h-4 w-4" />
+                        <Users className="mr-2 h-4 w-4"/>
                         Motoristas
                     </Button>
                     <Button
@@ -62,7 +62,7 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                         onClick={() => navigate("/veiculos")}
                         data-active={location.pathname === "/Veiculos"}
                     >
-                        <Car className="mr-2 h-4 w-4" />
+                        <Car className="mr-2 h-4 w-4"/>
                         Veículos
                     </Button>
                     <Button
@@ -71,7 +71,7 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                         onClick={() => navigate("/registrarmotoristas")}
                         data-active={location.pathname === "/RegistrarMotoristas"}
                     >
-                        <UserPlus className="mr-2 h-4 w-4" />
+                        <UserPlus className="mr-2 h-4 w-4"/>
                         Cadastrar Motorista
                     </Button>
                     <Button
@@ -80,7 +80,7 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                         onClick={() => navigate("/registrarveiculos")}
                         data-active={location.pathname === "/RegistrarVeiculos"}
                     >
-                        <CarFront className="mr-2 h-4 w-4" />
+                        <CarFront className="mr-2 h-4 w-4"/>
                         Cadastrar Veículo
                     </Button>
                     <Button
@@ -89,7 +89,7 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                         onClick={() => navigate("/viagens")}
                         data-active={location.pathname === "/Viagens"}
                     >
-                        <MapPin className="mr-2 h-4 w-4" />
+                        <MapPin className="mr-2 h-4 w-4"/>
                         Viagens
                     </Button>
                     <Button
@@ -98,7 +98,7 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                         onClick={() => navigate("/alertas")}
                         data-active={location.pathname === "/Alertas"}
                     >
-                        <TriangleAlert className="mr-2 h-4 w-4" />
+                        <TriangleAlert className="mr-2 h-4 w-4"/>
                         Alertas
                     </Button>
                     <Button
@@ -107,7 +107,7 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                         onClick={() => navigate("/registrarmanutencoes")}
                         data-active={location.pathname === "/RegistrarManutencoes"}
                     >
-                        <Wrench className="mr-2 h-4 w-4" />
+                        <Wrench className="mr-2 h-4 w-4"/>
                         Registrar Manutenções
                     </Button>
                     <Button
@@ -116,7 +116,7 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                         onClick={() => navigate("/manutencoes")}
                         data-active={location.pathname === "/Manutencoes"}
                     >
-                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        <ShieldCheck className="mr-2 h-4 w-4"/>
                         Manutenções
                     </Button>
                     <Button
@@ -125,7 +125,7 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                         onClick={() => navigate("/abastecimentos")}
                         data-active={location.pathname === "/Abastecimentos"}
                     >
-                        <Fuel className="mr-2 h-4 w-4" />
+                        <Fuel className="mr-2 h-4 w-4"/>
                         Abastecimentos
                     </Button>
                     <Button
@@ -134,7 +134,7 @@ export function AdminSidebar({ sidebarOpen, setSidebarOpen }: AdminSidebarProps)
                         onClick={() => navigate("/settings")}
                         data-active={location.pathname === "/settings"}
                     >
-                        <Settings className="mr-2 h-4 w-4" />
+                        <Settings className="mr-2 h-4 w-4"/>
                         Configurações
                     </Button>
                 </nav>

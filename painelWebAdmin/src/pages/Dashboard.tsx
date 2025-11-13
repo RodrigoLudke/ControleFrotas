@@ -1,25 +1,17 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-    Truck,
-    Users,
-    MapPin,
-    AlertTriangle,
-    TrendingUp,
-    Settings,
-    Clock
-} from "lucide-react";
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { apiFetch } from "@/services/api";
-import { AdminLayout } from "@/components/layout/AdminLayout";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Badge} from "@/components/ui/badge";
+import {Button} from "@/components/ui/button";
+import {AlertTriangle, Clock, MapPin, Settings, TrendingUp, Truck, Users} from "lucide-react";
+import {useEffect, useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {apiFetch} from "@/services/api";
+import {AdminLayout} from "@/components/layout/AdminLayout";
 
 // --- NOVOS IMPORTS ---
-import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import {useQuery} from "@tanstack/react-query";
+import {MapContainer, Marker, Popup, TileLayer} from 'react-leaflet';
 // Lembre-se de importar 'leaflet/dist/leaflet.css' no seu main.tsx!
 // --- FIM DOS NOVOS IMPORTS ---
 
@@ -66,6 +58,7 @@ interface DriverLocation {
     longitude: number | null;
     lastLocationUpdate: string | null;
 }
+
 // --- FIM DA NOVA INTERFACE ---
 
 export default function Dashboard() {
@@ -89,7 +82,7 @@ export default function Dashboard() {
     // Busca os motoristas e suas localizações
     // Note que isso agora busca os motoristas *separadamente* do useEffect principal
     // para poder ter seu próprio polling (refetchInterval)
-    const { data: motoristasComLocalizacao, isLoading: isLoadingMotoristasLocalizacao } = useQuery<DriverLocation[]>({
+    const {data: motoristasComLocalizacao, isLoading: isLoadingMotoristasLocalizacao} = useQuery<DriverLocation[]>({
         queryKey: ['motoristasLocalizacao'], // Chave única para esta query
         queryFn: async () => {
             // Assume que sua rota /motoristas agora retorna os campos de localização
@@ -306,10 +299,10 @@ export default function Dashboard() {
     ];
 
     const quickActions = [
-        { label: "Adicionar Veículo", icon: Truck, variant: "secondary" as const, to: "/registrarveiculos" },
-        { label: "Adicionar Motorista", icon: Users, variant: "secondary" as const, to: "/registrarmotoristas" },
-        { label: "Relatórios", icon: TrendingUp, variant: "secondary" as const, to: "/" },
-        { label: "Configurações", icon: Settings, variant: "secondary" as const, to: "/" }
+        {label: "Adicionar Veículo", icon: Truck, variant: "secondary" as const, to: "/registrarveiculos"},
+        {label: "Adicionar Motorista", icon: Users, variant: "secondary" as const, to: "/registrarmotoristas"},
+        {label: "Relatórios", icon: TrendingUp, variant: "secondary" as const, to: "/"},
+        {label: "Configurações", icon: Settings, variant: "secondary" as const, to: "/"}
     ];
 
     return (
@@ -329,12 +322,13 @@ export default function Dashboard() {
                                         <p className={`text-xs flex items-center ${
                                             stat.trend === 'up' ? 'text-success' : stat.trend === 'down' ? 'text-destructive' : 'text-muted-foreground'
                                         }`}>
-                                            <TrendingUp className="h-3 w-3 mr-1" />
+                                            <TrendingUp className="h-3 w-3 mr-1"/>
                                             {stat.change}
                                         </p>
                                     </div>
-                                    <div className={`w-12 h-12 rounded-lg bg-${stat.color}/10 flex items-center justify-center`}>
-                                        <stat.icon className={`h-6 w-6 text-${stat.color}`} />
+                                    <div
+                                        className={`w-12 h-12 rounded-lg bg-${stat.color}/10 flex items-center justify-center`}>
+                                        <stat.icon className={`h-6 w-6 text-${stat.color}`}/>
                                     </div>
                                 </div>
                             </CardContent>
@@ -364,7 +358,9 @@ export default function Dashboard() {
                                 <tbody>
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={6} className="text-center py-6 text-muted-foreground">Carregando...</td>
+                                        <td colSpan={6}
+                                            className="text-center py-6 text-muted-foreground">Carregando...
+                                        </td>
                                     </tr>
                                 ) : viagens.length > 0 ? (
                                     viagens.map((item) => {
@@ -383,7 +379,9 @@ export default function Dashboard() {
                                     })
                                 ) : (
                                     <tr className="bg-card">
-                                        <td colSpan={6} className="text-center py-4 text-muted-foreground">Nenhuma viagem encontrada.</td>
+                                        <td colSpan={6} className="text-center py-4 text-muted-foreground">Nenhuma
+                                            viagem encontrada.
+                                        </td>
                                     </tr>
                                 )}
                                 </tbody>
@@ -407,7 +405,7 @@ export default function Dashboard() {
                                     className="w-full justify-start"
                                     onClick={() => navigate(action.to)}
                                 >
-                                    <action.icon className="mr-2 h-4 w-4" />
+                                    <action.icon className="mr-2 h-4 w-4"/>
                                     {action.label}
                                 </Button>
                             ))}
@@ -423,17 +421,20 @@ export default function Dashboard() {
                         <CardContent>
                             <div className="space-y-4">
                                 {loadingManutencoes ? (
-                                    <div className="text-center py-6 text-muted-foreground">Carregando manutenções...</div>
+                                    <div className="text-center py-6 text-muted-foreground">Carregando
+                                        manutenções...</div>
                                 ) : manutencoesUpcoming.length === 0 ? (
-                                    <div className="text-center py-6 text-muted-foreground">Nenhuma manutenção agendada nos próximos dias.</div>
+                                    <div className="text-center py-6 text-muted-foreground">Nenhuma manutenção agendada
+                                        nos próximos dias.</div>
                                 ) : (
                                     manutencoesUpcoming.map((m) => {
                                         const vehicleLabel = (m.veiculoId && vehiclesMap[m.veiculoId]) || `Veículo ${m.veiculoId}`;
                                         // const userLabel = (m.userId && driversMap[m.userId]) || "—"; // userLabel não estava sendo usado
                                         return (
-                                            <div key={m.id} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
+                                            <div key={m.id}
+                                                 className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
                                                 <div className="flex-shrink-0">
-                                                    <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
+                                                    <Clock className="h-5 w-5 text-muted-foreground mt-0.5"/>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-medium">
@@ -448,7 +449,8 @@ export default function Dashboard() {
                                                     {m.status !== undefined && m.status !== null ? (
                                                         <Badge variant="default" className="ml-auto">{m.status}</Badge>
                                                     ) : (
-                                                        <Badge variant="secondary" className="ml-auto">Sem Status</Badge>
+                                                        <Badge variant="secondary" className="ml-auto">Sem
+                                                            Status</Badge>
                                                     )}
                                                 </div>
                                             </div>
@@ -477,7 +479,7 @@ export default function Dashboard() {
                             {isLoadingMotoristasLocalizacao && !motoristasComLocalizacao ? (
                                 <div className="h-full w-full bg-muted flex items-center justify-center">
                                     <div className="text-center">
-                                        <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-2 animate-pulse" />
+                                        <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-2 animate-pulse"/>
                                         <p className="text-muted-foreground">Carregando mapa...</p>
                                     </div>
                                 </div>
@@ -486,7 +488,7 @@ export default function Dashboard() {
                                     // Centraliza no Brasil continental
                                     center={[-14.2350, -51.9253]}
                                     zoom={4}
-                                    style={{ height: '100%', width: '100%' }}
+                                    style={{height: '100%', width: '100%'}}
                                     scrollWheelZoom={true}
                                 >
                                     <TileLayer
@@ -500,7 +502,7 @@ export default function Dashboard() {
                                             position={[motorista.latitude!, motorista.longitude!]}
                                         >
                                             <Popup>
-                                                <strong>{motorista.nome}</strong><br />
+                                                <strong>{motorista.nome}</strong><br/>
                                                 Última atualização: {motorista.lastLocationUpdate
                                                 ? new Date(motorista.lastLocationUpdate).toLocaleString('pt-BR')
                                                 : 'N/A'}

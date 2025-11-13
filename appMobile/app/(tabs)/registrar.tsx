@@ -1,26 +1,26 @@
 // RegistrarViagem.tsx
-import React, { useCallback, useEffect, useState } from "react";
+import React, {useCallback, useState} from "react";
 import {
-    View,
-    StyleSheet,
-    TextInput,
-    Pressable,
+    ActivityIndicator,
+    Alert,
     KeyboardAvoidingView,
     Platform,
+    Pressable,
     ScrollView,
-    Alert,
-    ActivityIndicator,
+    StyleSheet,
     Text,
+    TextInput,
+    View,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useFocusEffect, useRoute, useNavigation } from "@react-navigation/native";
-import { ThemedView } from "@/components/ThemedView";
-import { ThemedText } from "@/components/ThemedText";
-import { Colors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/useColorScheme";
-import { MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
-import { Picker } from "@react-native-picker/picker";
-import { apiFetch } from "@/services/api";
+import {useFocusEffect, useNavigation, useRoute} from "@react-navigation/native";
+import {ThemedView} from "@/components/ThemedView";
+import {ThemedText} from "@/components/ThemedText";
+import {Colors} from "@/constants/Colors";
+import {useColorScheme} from "@/hooks/useColorScheme";
+import {FontAwesome5, MaterialCommunityIcons} from "@expo/vector-icons";
+import {Picker} from "@react-native-picker/picker";
+import {apiFetch} from "@/services/api";
 
 export default function RegistrarViagem() {
     const route = useRoute();
@@ -119,7 +119,7 @@ export default function RegistrarViagem() {
     };
 
     const formatDate = (d?: Date) => (d ? d.toLocaleDateString() : "");
-    const formatTime = (d?: Date) => (d ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+    const formatTime = (d?: Date) => (d ? d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "");
 
     const salvarViagem = async () => {
         try {
@@ -159,13 +159,13 @@ export default function RegistrarViagem() {
             if (editingId) {
                 response = await apiFetch(`/viagens/${editingId}`, {
                     method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {"Content-Type": "application/json"},
                     body: JSON.stringify(body),
                 });
             } else {
                 response = await apiFetch("/viagens", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {"Content-Type": "application/json"},
                     body: JSON.stringify(body),
                 });
             }
@@ -196,14 +196,14 @@ export default function RegistrarViagem() {
     const excluirViagem = async () => {
         if (!editingId) return;
         Alert.alert("Confirmar", "Deseja realmente deletar esta viagem?", [
-            { text: "Cancelar", style: "cancel" },
+            {text: "Cancelar", style: "cancel"},
             {
                 text: "Deletar",
                 style: "destructive",
                 onPress: async () => {
                     try {
                         setSaving(true);
-                        const res = await apiFetch(`/viagens/${editingId}`, { method: "DELETE" });
+                        const res = await apiFetch(`/viagens/${editingId}`, {method: "DELETE"});
                         if (res.ok) {
                             Alert.alert("Sucesso", "Viagem deletada.");
                             navigation.goBack();
@@ -242,38 +242,41 @@ export default function RegistrarViagem() {
 
     if (loadingInit) {
         return (
-            <ThemedView style={[styles.container, { backgroundColor: theme.background }]}>
-                <View style={{ padding: 20 }}>
-                    <ActivityIndicator />
-                    <Text style={{ marginTop: 8 }}>Carregando viagem...</Text>
+            <ThemedView style={[styles.container, {backgroundColor: theme.background}]}>
+                <View style={{padding: 20}}>
+                    <ActivityIndicator/>
+                    <Text style={{marginTop: 8}}>Carregando viagem...</Text>
                 </View>
             </ThemedView>
         );
     }
 
     return (
-        <ThemedView style={[styles.container, { backgroundColor: theme.background }]}>
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingView}>
+        <ThemedView style={[styles.container, {backgroundColor: theme.background}]}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}
+                                  style={styles.keyboardAvoidingView}>
                 <ScrollView contentContainerStyle={styles.scrollContainer}>
                     <ThemedText type="title" style={styles.title}>
-                        <MaterialCommunityIcons name="map-marker" size={28} /> {editingId ? "Editar Viagem" : "Nova Viagem"}
+                        <MaterialCommunityIcons name="map-marker"
+                                                size={28}/> {editingId ? "Editar Viagem" : "Nova Viagem"}
                     </ThemedText>
 
                     {/* Veículo */}
-                    <View style={[styles.section, { backgroundColor: theme.card }]}>
-                        <ThemedText style={styles.sectionTitle}><FontAwesome5 name="truck" size={14} /> Informações do Veículo</ThemedText>
+                    <View style={[styles.section, {backgroundColor: theme.card}]}>
+                        <ThemedText style={styles.sectionTitle}><FontAwesome5 name="truck" size={14}/> Informações do
+                            Veículo</ThemedText>
                         {loadingVeiculos ? (
-                            <ActivityIndicator />
+                            <ActivityIndicator/>
                         ) : (
-                            <View style={[styles.pickerWrap, { borderColor: theme.border }]}>
+                            <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
                                 <Picker
                                     selectedValue={veiculoId}
                                     onValueChange={(val) => setVeiculoId(String(val))}
                                     mode="dropdown"
-                                    style={Platform.OS === 'android' ? { color: veiculoId ? theme.text : "#9aa0a6" } : undefined}
+                                    style={Platform.OS === 'android' ? {color: veiculoId ? theme.text : "#9aa0a6"} : undefined}
                                     dropdownIconColor={Platform.OS === 'android' ? theme.text : undefined}
                                 >
-                                    <Picker.Item label="Selecione o veículo" value="" />
+                                    <Picker.Item label="Selecione o veículo" value=""/>
                                     {veiculos.map((v: any) => (
                                         <Picker.Item
                                             key={String(v.id)}
@@ -287,64 +290,86 @@ export default function RegistrarViagem() {
                     </View>
 
                     {/* Datas e horários */}
-                    <View style={[styles.section, { backgroundColor: theme.card }]}>
-                        <ThemedText style={styles.sectionTitle}><MaterialCommunityIcons name="calendar" size={14} /> Rota e Data</ThemedText>
+                    <View style={[styles.section, {backgroundColor: theme.card}]}>
+                        <ThemedText style={styles.sectionTitle}><MaterialCommunityIcons name="calendar" size={14}/> Rota
+                            e Data</ThemedText>
                         <View style={styles.row}>
-                            <View style={{ flex: 1 }}>
+                            <View style={{flex: 1}}>
                                 <ThemedText style={styles.label}>Data Saída</ThemedText>
-                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={() => setShowDatePicker(true)}>
+                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                           onPress={() => setShowDatePicker(true)}>
                                     <ThemedText>{formatDate(data)}</ThemedText>
                                 </Pressable>
-                                {showDatePicker && <DateTimePicker value={data} mode="date" display="default" onChange={onChangeData} />}
+                                {showDatePicker && <DateTimePicker value={data} mode="date" display="default"
+                                                                   onChange={onChangeData}/>}
                             </View>
-                            <View style={{ flex: 1 }}>
+                            <View style={{flex: 1}}>
                                 <ThemedText style={styles.label}>Horário Saída</ThemedText>
-                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={() => setShowSaidaPicker(true)}>
+                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                           onPress={() => setShowSaidaPicker(true)}>
                                     <ThemedText>{formatTime(horarioSaida)}</ThemedText>
                                 </Pressable>
-                                {showSaidaPicker && <DateTimePicker value={horarioSaida} mode="time" display="spinner" onChange={onChangeHorarioSaida} />}
+                                {showSaidaPicker && <DateTimePicker value={horarioSaida} mode="time" display="spinner"
+                                                                    onChange={onChangeHorarioSaida}/>}
                             </View>
                         </View>
 
                         <View style={styles.row}>
-                            <View style={{ flex: 1 }}>
+                            <View style={{flex: 1}}>
                                 <ThemedText style={styles.label}>Data Chegada</ThemedText>
-                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={() => setShowDataChegadaPicker(true)}>
+                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                           onPress={() => setShowDataChegadaPicker(true)}>
                                     <ThemedText>{formatDate(dataChegada)}</ThemedText>
                                 </Pressable>
-                                {showDataChegadaPicker && <DateTimePicker value={dataChegada} mode="date" display="default" onChange={onChangeDataChegada} />}
+                                {showDataChegadaPicker &&
+                                    <DateTimePicker value={dataChegada} mode="date" display="default"
+                                                    onChange={onChangeDataChegada}/>}
                             </View>
-                            <View style={{ flex: 1 }}>
+                            <View style={{flex: 1}}>
                                 <ThemedText style={styles.label}>Horário Chegada</ThemedText>
-                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={() => setShowChegadaPicker(true)}>
+                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                           onPress={() => setShowChegadaPicker(true)}>
                                     <ThemedText>{formatTime(horarioChegada)}</ThemedText>
                                 </Pressable>
-                                {showChegadaPicker && <DateTimePicker value={horarioChegada} mode="time" display="spinner" onChange={onChangeHorarioChegada} />}
+                                {showChegadaPicker &&
+                                    <DateTimePicker value={horarioChegada} mode="time" display="spinner"
+                                                    onChange={onChangeHorarioChegada}/>}
                             </View>
                         </View>
                     </View>
 
                     {/* Dados da viagem */}
-                    <View style={[styles.section, { backgroundColor: theme.card }]}>
-                        <ThemedText style={styles.sectionTitle}><MaterialCommunityIcons name="file-document" size={14} /> Dados da Viagem</ThemedText>
-                        <TextInput placeholder="Finalidade" placeholderTextColor="#9aa0a6" style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={finalidade} onChangeText={setFinalidade} />
-                        <TextInput placeholder="KM Final" placeholderTextColor="#9aa0a6" keyboardType="numeric" style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={kmFinal} onChangeText={setKmFinal} />
+                    <View style={[styles.section, {backgroundColor: theme.card}]}>
+                        <ThemedText style={styles.sectionTitle}><MaterialCommunityIcons name="file-document"
+                                                                                        size={14}/> Dados da
+                            Viagem</ThemedText>
+                        <TextInput placeholder="Finalidade" placeholderTextColor="#9aa0a6"
+                                   style={[styles.input, {color: theme.text, borderColor: theme.border}]}
+                                   value={finalidade} onChangeText={setFinalidade}/>
+                        <TextInput placeholder="KM Final" placeholderTextColor="#9aa0a6" keyboardType="numeric"
+                                   style={[styles.input, {color: theme.text, borderColor: theme.border}]}
+                                   value={kmFinal} onChangeText={setKmFinal}/>
                     </View>
 
                     {/* Botões */}
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 12 }}>
-                        <Pressable style={[styles.btnOutline, { borderColor: theme.primary }]} onPress={() => navigation.goBack()}>
-                            <ThemedText style={{ color: theme.primary }}>Voltar</ThemedText>
+                    <View style={{flexDirection: "row", justifyContent: "space-between", marginTop: 12}}>
+                        <Pressable style={[styles.btnOutline, {borderColor: theme.primary}]}
+                                   onPress={() => navigation.goBack()}>
+                            <ThemedText style={{color: theme.primary}}>Voltar</ThemedText>
                         </Pressable>
 
                         {!!editingId && (
-                            <Pressable style={[styles.btnOutline, { borderColor: "#e53e3e" }]} onPress={excluirViagem} disabled={saving}>
-                                {saving ? <ActivityIndicator /> : <ThemedText style={{ color: "#e53e3e" }}>Deletar</ThemedText>}
+                            <Pressable style={[styles.btnOutline, {borderColor: "#e53e3e"}]} onPress={excluirViagem}
+                                       disabled={saving}>
+                                {saving ? <ActivityIndicator/> :
+                                    <ThemedText style={{color: "#e53e3e"}}>Deletar</ThemedText>}
                             </Pressable>
                         )}
 
-                        <Pressable style={[styles.btnPrimary, { backgroundColor: theme.primary }]} onPress={salvarViagem} disabled={saving}>
-                            {saving ? <ActivityIndicator color="#fff" /> : <ThemedText style={{ color: theme.textBack }}>{editingId ? "Atualizar" : "Registrar Viagem"}</ThemedText>}
+                        <Pressable style={[styles.btnPrimary, {backgroundColor: theme.primary}]} onPress={salvarViagem}
+                                   disabled={saving}>
+                            {saving ? <ActivityIndicator color="#fff"/> : <ThemedText
+                                style={{color: theme.textBack}}>{editingId ? "Atualizar" : "Registrar Viagem"}</ThemedText>}
                         </Pressable>
                     </View>
                 </ScrollView>
@@ -354,17 +379,24 @@ export default function RegistrarViagem() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    keyboardAvoidingView: { flex: 1 },
-    scrollContainer: { padding: 20, paddingBottom: 40 },
-    title: { fontSize: 28, fontWeight: "800", marginBottom: 6 },
-    section: { borderRadius: 12, padding: 14, marginTop: 12 },
-    sectionTitle: { fontSize: 15, fontWeight: "700", marginBottom: 6 },
-    input: { padding: 12, borderWidth: 1, borderRadius: 10, marginTop: 8 },
-    dateBtn: { padding: 12, borderWidth: 1, borderRadius: 10, marginTop: 8 },
-    pickerWrap: { borderWidth: 1, borderRadius: 10, overflow: "hidden", marginTop: 8 },
-    row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-    btnPrimary: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, minWidth: 140, alignItems: "center" },
-    btnOutline: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, minWidth: 100, alignItems: "center", borderWidth: 1 },
-    label: { color: "#6b7280", fontSize: 13 },
+    container: {flex: 1},
+    keyboardAvoidingView: {flex: 1},
+    scrollContainer: {padding: 20, paddingBottom: 40},
+    title: {fontSize: 28, fontWeight: "800", marginBottom: 6},
+    section: {borderRadius: 12, padding: 14, marginTop: 12},
+    sectionTitle: {fontSize: 15, fontWeight: "700", marginBottom: 6},
+    input: {padding: 12, borderWidth: 1, borderRadius: 10, marginTop: 8},
+    dateBtn: {padding: 12, borderWidth: 1, borderRadius: 10, marginTop: 8},
+    pickerWrap: {borderWidth: 1, borderRadius: 10, overflow: "hidden", marginTop: 8},
+    row: {flexDirection: "row", justifyContent: "space-between", gap: 12},
+    btnPrimary: {paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, minWidth: 140, alignItems: "center"},
+    btnOutline: {
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        minWidth: 100,
+        alignItems: "center",
+        borderWidth: 1
+    },
+    label: {color: "#6b7280", fontSize: 13},
 });

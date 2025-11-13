@@ -1,22 +1,13 @@
 // VerViagens.tsx
-import React, { useCallback, useState } from "react";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import {
-    FlatList,
-    StyleSheet,
-    View,
-    Pressable,
-    ActivityIndicator,
-    Platform,
-    Text,
-    Alert,
-} from "react-native";
-import { ThemedView } from "@/components/ThemedView";
-import { ThemedText } from "@/components/ThemedText";
-import { Colors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/useColorScheme";
-import { apiFetch } from "@/services/api";
-import { MaterialCommunityIcons, FontAwesome5, Feather } from "@expo/vector-icons";
+import React, {useCallback, useState} from "react";
+import {useFocusEffect, useNavigation} from "@react-navigation/native";
+import {ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, View,} from "react-native";
+import {ThemedView} from "@/components/ThemedView";
+import {ThemedText} from "@/components/ThemedText";
+import {Colors} from "@/constants/Colors";
+import {useColorScheme} from "@/hooks/useColorScheme";
+import {apiFetch} from "@/services/api";
+import {Feather, FontAwesome5, MaterialCommunityIcons} from "@expo/vector-icons";
 
 export default function VerViagens() {
     const [viagens, setViagens] = useState<any[]>([]);
@@ -64,23 +55,25 @@ export default function VerViagens() {
         }
     };
 
-    useFocusEffect(useCallback(() => { fetchAll(); }, []));
+    useFocusEffect(useCallback(() => {
+        fetchAll();
+    }, []));
 
     const handleEdit = (id: number) => {
         // navega para a tela de registrar viagem em modo edição
         // @ts-expect-error
-        navigation.navigate("registrar" as never, { id } as never);
+        navigation.navigate("registrar" as never, {id} as never);
     };
 
     const handleDelete = (id: number) => {
         Alert.alert("Confirmar", "Deseja realmente deletar esta viagem?", [
-            { text: "Cancelar", style: "cancel" },
+            {text: "Cancelar", style: "cancel"},
             {
                 text: "Deletar",
                 style: "destructive",
                 onPress: async () => {
                     try {
-                        const res = await apiFetch(`/viagens/${id}`, { method: "DELETE" });
+                        const res = await apiFetch(`/viagens/${id}`, {method: "DELETE"});
                         if (!res.ok) {
                             const err = await res.json().catch(() => ({}));
                             Alert.alert("Erro", err.error || "Não foi possível deletar a viagem.");
@@ -105,49 +98,58 @@ export default function VerViagens() {
         return acc;
     }, 0);
 
-    const renderViagem = ({ item }: { item: any }) => {
+    const renderViagem = ({item}: { item: any }) => {
         const saida = item.dataSaida ? new Date(item.dataSaida) : null;
         const chegada = item.dataChegada ? new Date(item.dataChegada) : null;
         const veiculoId = item.veiculoId ?? item.veiculo?.id ?? "";
         const veiculoLabel = veiculoId ? `${veiculoId} - ${veiculosMap[String(veiculoId)] ?? (item.placa ?? item.veiculo?.placa ?? "Veículo")}` : (item.placa ?? "Veículo");
 
         return (
-            <View style={[styles.card, { backgroundColor: theme.card }]}>
+            <View style={[styles.card, {backgroundColor: theme.card}]}>
                 <View style={styles.cardHeader}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <FontAwesome5 name="truck" size={18} color="#2b6cb0" />
+                    <View style={{flexDirection: "row", alignItems: "center", gap: 8}}>
+                        <FontAwesome5 name="truck" size={18} color="#2b6cb0"/>
                         <ThemedText style={styles.cardTitle}>{veiculoLabel}</ThemedText>
                     </View>
 
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <Pressable onPress={() => handleEdit(item.id)} hitSlop={8} style={{ padding: 6 }}>
-                            <Feather name="edit-3" size={18} color="#0ea5a2" />
+                    <View style={{flexDirection: "row", alignItems: "center", gap: 8}}>
+                        <Pressable onPress={() => handleEdit(item.id)} hitSlop={8} style={{padding: 6}}>
+                            <Feather name="edit-3" size={18} color="#0ea5a2"/>
                         </Pressable>
-                        <Pressable onPress={() => handleDelete(item.id)} hitSlop={8} style={{ padding: 6 }}>
-                            <Feather name="trash-2" size={18} color="#ef4444" />
+                        <Pressable onPress={() => handleDelete(item.id)} hitSlop={8} style={{padding: 6}}>
+                            <Feather name="trash-2" size={18} color="#ef4444"/>
                         </Pressable>
                     </View>
                 </View>
 
                 <View style={styles.row}>
-                    <View style={{ flex: 1 }}>
+                    <View style={{flex: 1}}>
                         <ThemedText style={styles.label}>Saída</ThemedText>
-                        <ThemedText style={styles.value}>{saida ? `${saida.toLocaleDateString("pt-BR")} • ${saida.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "-"}</ThemedText>
+                        <ThemedText
+                            style={styles.value}>{saida ? `${saida.toLocaleDateString("pt-BR")} • ${saida.toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                        })}` : "-"}</ThemedText>
                     </View>
-                    <View style={{ flex: 1 }}>
+                    <View style={{flex: 1}}>
                         <ThemedText style={styles.label}>Chegada</ThemedText>
-                        <ThemedText style={styles.value}>{chegada ? `${chegada.toLocaleDateString("pt-BR")} • ${chegada.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "-"}</ThemedText>
+                        <ThemedText
+                            style={styles.value}>{chegada ? `${chegada.toLocaleDateString("pt-BR")} • ${chegada.toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                        })}` : "-"}</ThemedText>
                     </View>
                 </View>
 
                 <View style={styles.row}>
-                    <View style={{ flex: 1 }}>
+                    <View style={{flex: 1}}>
                         <ThemedText style={styles.label}>Finalidade</ThemedText>
                         <ThemedText style={styles.value}>{item.finalidade ?? "-"}</ThemedText>
                     </View>
-                    <View style={{ flex: 1 }}>
+                    <View style={{flex: 1}}>
                         <ThemedText style={styles.label}>KM Final</ThemedText>
-                        <ThemedText style={styles.value}>{item.kmFinal != null ? String(item.kmFinal) : "-"}</ThemedText>
+                        <ThemedText
+                            style={styles.value}>{item.kmFinal != null ? String(item.kmFinal) : "-"}</ThemedText>
                     </View>
                 </View>
             </View>
@@ -155,24 +157,24 @@ export default function VerViagens() {
     };
 
     return (
-        <ThemedView style={[styles.container, { backgroundColor: theme.background }]}>
+        <ThemedView style={[styles.container, {backgroundColor: theme.background}]}>
             <View style={styles.header}>
                 <ThemedText type="title" style={styles.title}>
-                    <MaterialCommunityIcons name="map-marker" size={28} /> Minhas Viagens
+                    <MaterialCommunityIcons name="map-marker" size={28}/> Minhas Viagens
                 </ThemedText>
                 <ThemedText style={styles.subtitle}>Histórico das suas viagens</ThemedText>
             </View>
 
-            <View style={{ paddingHorizontal: 20 }}>
-                <View style={[styles.summaryCard, { backgroundColor: theme.card }]}>
+            <View style={{paddingHorizontal: 20}}>
+                <View style={[styles.summaryCard, {backgroundColor: theme.card}]}>
                     <View style={styles.summaryItem}>
-                        <MaterialCommunityIcons name="map-marker" size={22} color="#38a169" />
+                        <MaterialCommunityIcons name="map-marker" size={22} color="#38a169"/>
                         <ThemedText style={styles.summaryNumber}>{totalViagens}</ThemedText>
                         <ThemedText style={styles.summaryLabel}>Suas Viagens</ThemedText>
                     </View>
 
                     <View style={styles.summaryItem}>
-                        <FontAwesome5 name="truck" size={22} color="#2b6cb0" />
+                        <FontAwesome5 name="truck" size={22} color="#2b6cb0"/>
                         <ThemedText style={styles.summaryNumber}>{totalKm.toLocaleString()}</ThemedText>
                         <ThemedText style={styles.summaryLabel}>KM Percorridos</ThemedText>
                     </View>
@@ -180,18 +182,22 @@ export default function VerViagens() {
             </View>
 
             {loading ? (
-                <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                    <ActivityIndicator />
+                <View style={{flex: 1, justifyContent: "center", alignItems: "center"}}>
+                    <ActivityIndicator/>
                 </View>
             ) : (
                 <FlatList
                     data={viagens}
                     keyExtractor={(item) => String(item.id)}
                     renderItem={renderViagem}
-                    contentContainerStyle={{ padding: 20, paddingTop: 12, paddingBottom: Platform.OS === "ios" ? 40 : 20 }}
-                    ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+                    contentContainerStyle={{
+                        padding: 20,
+                        paddingTop: 12,
+                        paddingBottom: Platform.OS === "ios" ? 40 : 20
+                    }}
+                    ItemSeparatorComponent={() => <View style={{height: 12}}/>}
                     ListEmptyComponent={() => (
-                        <View style={{ padding: 20 }}>
+                        <View style={{padding: 20}}>
                             <ThemedText>Nenhuma viagem registrada.</ThemedText>
                         </View>
                     )}
@@ -202,18 +208,25 @@ export default function VerViagens() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    header: { padding: 20 },
-    title: { fontSize: 32, fontWeight: "800" },
-    subtitle: { color: "#6b7280" },
-    summaryCard: { marginTop: 8, borderRadius: 12, padding: 14, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    summaryItem: { alignItems: "center", flex: 1 },
-    summaryNumber: { fontWeight: "700", fontSize: 18, marginTop: 4 },
-    summaryLabel: { color: "#6b7280", marginTop: 2 },
-    card: { borderRadius: 12, padding: 16, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
-    cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-    cardTitle: { fontWeight: "800", fontSize: 16 },
-    row: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
-    label: { color: "#6b7280", fontSize: 13 },
-    value: { fontWeight: "700", fontSize: 14, marginTop: 2 },
+    container: {flex: 1},
+    header: {padding: 20},
+    title: {fontSize: 32, fontWeight: "800"},
+    subtitle: {color: "#6b7280"},
+    summaryCard: {
+        marginTop: 8,
+        borderRadius: 12,
+        padding: 14,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center"
+    },
+    summaryItem: {alignItems: "center", flex: 1},
+    summaryNumber: {fontWeight: "700", fontSize: 18, marginTop: 4},
+    summaryLabel: {color: "#6b7280", marginTop: 2},
+    card: {borderRadius: 12, padding: 16, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6, elevation: 1},
+    cardHeader: {flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8},
+    cardTitle: {fontWeight: "800", fontSize: 16},
+    row: {flexDirection: "row", justifyContent: "space-between", marginTop: 8},
+    label: {color: "#6b7280", fontSize: 13},
+    value: {fontWeight: "700", fontSize: 14, marginTop: 2},
 });

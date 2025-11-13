@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Truck, Lock, Mail } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
-import { apiFetch } from "@/services/api";
+import {useState} from "react";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Button} from "@/components/ui/button";
+import {Lock, Mail, Truck} from "lucide-react";
+import {useNavigate} from "react-router-dom";
+import {useToast} from "@/hooks/use-toast";
+import {apiFetch} from "@/services/api";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -14,7 +14,7 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const router = useNavigate();
-    const { toast } = useToast();
+    const {toast} = useToast();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,7 +24,7 @@ export default function LoginPage() {
         try {
             const response = await apiFetch("/index", {
                 method: "POST",
-                body: JSON.stringify({ email, senha }),
+                body: JSON.stringify({email, senha}),
             });
 
             const data = await response.json();
@@ -62,12 +62,14 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex items-center justify-center p-4">
+        <div
+            className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 {/* Logo and Header */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-primary rounded-2xl mb-4 shadow-primary">
-                        <Truck className="h-8 w-8 text-primary-foreground" />
+                    <div
+                        className="inline-flex items-center justify-center w-16 h-16 bg-gradient-primary rounded-2xl mb-4 shadow-primary">
+                        <Truck className="h-8 w-8 text-primary-foreground"/>
                     </div>
                     <h1 className="text-3xl font-bold tracking-tight">Controle de Frotas</h1>
                     <p className="text-muted-foreground mt-2">Painel Administrativo</p>
@@ -86,7 +88,7 @@ export default function LoginPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="email">Email</Label>
                                 <div className="relative">
-                                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/>
                                     <Input
                                         id="email"
                                         type="email"
@@ -102,7 +104,7 @@ export default function LoginPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="senha">Senha</Label>
                                 <div className="relative">
-                                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/>
                                     <Input
                                         id="senha"
                                         type="password"

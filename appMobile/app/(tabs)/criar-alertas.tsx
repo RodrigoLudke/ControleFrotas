@@ -1,26 +1,26 @@
 // src/screens/RegistrarAlertaManutencao.tsx
-import React, { useCallback, useState } from "react";
+import React, {useCallback, useState} from "react";
 import {
-    View,
-    StyleSheet,
-    TextInput,
-    Pressable,
+    ActivityIndicator,
+    Alert,
     KeyboardAvoidingView,
     Platform,
+    Pressable,
     ScrollView,
-    Alert,
-    ActivityIndicator,
+    StyleSheet,
     Text,
+    TextInput,
+    View,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { ThemedView } from "@/components/ThemedView";
-import { ThemedText } from "@/components/ThemedText";
-import { Colors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/useColorScheme";
-import { MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
-import { Picker } from "@react-native-picker/picker";
-import { apiFetch } from "@/services/api";
+import {useFocusEffect, useNavigation} from "@react-navigation/native";
+import {ThemedView} from "@/components/ThemedView";
+import {ThemedText} from "@/components/ThemedText";
+import {Colors} from "@/constants/Colors";
+import {useColorScheme} from "@/hooks/useColorScheme";
+import {FontAwesome5, MaterialCommunityIcons} from "@expo/vector-icons";
+import {Picker} from "@react-native-picker/picker";
+import {apiFetch} from "@/services/api";
 
 export default function RegistrarAlertaManutencao() {
     const navigation = useNavigation();
@@ -76,7 +76,7 @@ export default function RegistrarAlertaManutencao() {
     };
 
     const formatDate = (d?: Date) => (d ? d.toLocaleDateString() : "");
-    const formatTime = (d?: Date) => (d ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+    const formatTime = (d?: Date) => (d ? d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "");
 
     // Abre o fluxo de seleção de data/hora:
     // - iOS: abre um único picker em modo "datetime"
@@ -166,7 +166,7 @@ export default function RegistrarAlertaManutencao() {
 
             const res = await apiFetch("/alertas", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {"Content-Type": "application/json"},
                 body: JSON.stringify(payload),
             });
 
@@ -192,40 +192,41 @@ export default function RegistrarAlertaManutencao() {
 
     if (loadingInit) {
         return (
-            <ThemedView style={[styles.container, { backgroundColor: theme.background }]}>
-                <View style={{ padding: 20 }}>
-                    <ActivityIndicator />
-                    <Text style={{ marginTop: 8 }}>Carregando...</Text>
+            <ThemedView style={[styles.container, {backgroundColor: theme.background}]}>
+                <View style={{padding: 20}}>
+                    <ActivityIndicator/>
+                    <Text style={{marginTop: 8}}>Carregando...</Text>
                 </View>
             </ThemedView>
         );
     }
 
     return (
-        <ThemedView style={[styles.container, { backgroundColor: theme.background }]}>
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingView}>
+        <ThemedView style={[styles.container, {backgroundColor: theme.background}]}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}
+                                  style={styles.keyboardAvoidingView}>
                 <ScrollView contentContainerStyle={styles.scrollContainer}>
                     <ThemedText type="title" style={styles.title}>
-                        <MaterialCommunityIcons name="wrench" size={28} /> Solicitar Manutenção
+                        <MaterialCommunityIcons name="wrench" size={28}/> Solicitar Manutenção
                     </ThemedText>
 
                     {/* Veículo */}
-                    <View style={[styles.section, { backgroundColor: theme.card }]}>
+                    <View style={[styles.section, {backgroundColor: theme.card}]}>
                         <ThemedText style={styles.sectionTitle}>
-                            <FontAwesome5 name="truck" size={14} /> Veículo
+                            <FontAwesome5 name="truck" size={14}/> Veículo
                         </ThemedText>
                         {loadingVeiculos ? (
-                            <ActivityIndicator />
+                            <ActivityIndicator/>
                         ) : (
-                            <View style={[styles.pickerWrap, { borderColor: theme.border }]}>
+                            <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
                                 <Picker
                                     selectedValue={veiculoId}
                                     onValueChange={(val) => setVeiculoId(String(val))}
                                     mode="dropdown"
-                                    style={Platform.OS === "android" ? { color: veiculoId ? theme.text : "#9aa0a6" } : undefined}
+                                    style={Platform.OS === "android" ? {color: veiculoId ? theme.text : "#9aa0a6"} : undefined}
                                     dropdownIconColor={Platform.OS === "android" ? theme.text : undefined}
                                 >
-                                    <Picker.Item label="Selecione o veículo" value="" />
+                                    <Picker.Item label="Selecione o veículo" value=""/>
                                     {veiculos.map((v: any) => (
                                         <Picker.Item
                                             key={String(v.id)}
@@ -239,15 +240,16 @@ export default function RegistrarAlertaManutencao() {
                     </View>
 
                     {/* Data / Urgente / Tipo */}
-                    <View style={[styles.section, { backgroundColor: theme.card }]}>
+                    <View style={[styles.section, {backgroundColor: theme.card}]}>
                         <ThemedText style={styles.sectionTitle}>
-                            <MaterialCommunityIcons name="calendar" size={14} /> Detalhes
+                            <MaterialCommunityIcons name="calendar" size={14}/> Detalhes
                         </ThemedText>
 
                         <View style={styles.row}>
-                            <View style={{ flex: 1 }}>
+                            <View style={{flex: 1}}>
                                 <ThemedText style={styles.label}>Data / Hora</ThemedText>
-                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={openDateTimePicker}>
+                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                           onPress={openDateTimePicker}>
                                     <ThemedText>{`${formatDate(data)} ${formatTime(data)}`}</ThemedText>
                                 </Pressable>
 
@@ -282,10 +284,10 @@ export default function RegistrarAlertaManutencao() {
                                 )}
                             </View>
 
-                            <View style={{ flex: 1 }}>
+                            <View style={{flex: 1}}>
                                 <ThemedText style={styles.label}>Urgente</ThemedText>
                                 <Pressable
-                                    style={[styles.dateBtn, { borderColor: theme.border, justifyContent: "center" }]}
+                                    style={[styles.dateBtn, {borderColor: theme.border, justifyContent: "center"}]}
                                     onPress={() => setUrgente((s) => !s)}
                                 >
                                     <ThemedText>{urgente ? "Sim — Urgente" : "Não"}</ThemedText>
@@ -293,27 +295,29 @@ export default function RegistrarAlertaManutencao() {
                             </View>
                         </View>
 
-                        <View style={{ marginTop: 8 }}>
+                        <View style={{marginTop: 8}}>
                             <ThemedText style={styles.label}>Tipo</ThemedText>
-                            <View style={[styles.pickerWrap, { borderColor: theme.border }]}>
+                            <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
                                 <Picker
                                     selectedValue={tipo}
                                     onValueChange={(val) => setTipo(val as any)}
                                     mode="dropdown"
-                                    style={Platform.OS === "android" ? { color: tipo ? theme.text : "#9aa0a6" } : undefined}
+                                    style={Platform.OS === "android" ? {color: tipo ? theme.text : "#9aa0a6"} : undefined}
                                 >
-                                    <Picker.Item label="Selecione o tipo" value="" />
-                                    <Picker.Item label="Solicitação de manutenção (motorista solicita reparo)" value="SOLICITACAO" />
-                                    <Picker.Item label="Registro rápido (manutenção pequena já realizada)" value="REGISTRO_RAPIDO" />
+                                    <Picker.Item label="Selecione o tipo" value=""/>
+                                    <Picker.Item label="Solicitação de manutenção (motorista solicita reparo)"
+                                                 value="SOLICITACAO"/>
+                                    <Picker.Item label="Registro rápido (manutenção pequena já realizada)"
+                                                 value="REGISTRO_RAPIDO"/>
                                 </Picker>
                             </View>
                         </View>
                     </View>
 
                     {/* Descrição / Quilometragem */}
-                    <View style={[styles.section, { backgroundColor: theme.card }]}>
+                    <View style={[styles.section, {backgroundColor: theme.card}]}>
                         <ThemedText style={styles.sectionTitle}>
-                            <MaterialCommunityIcons name="file-document" size={14} /> Descrição
+                            <MaterialCommunityIcons name="file-document" size={14}/> Descrição
                         </ThemedText>
 
                         <TextInput
@@ -321,7 +325,7 @@ export default function RegistrarAlertaManutencao() {
                             placeholderTextColor="#9aa0a6"
                             multiline
                             numberOfLines={4}
-                            style={[styles.textarea, { color: theme.text, borderColor: theme.border }]}
+                            style={[styles.textarea, {color: theme.text, borderColor: theme.border}]}
                             value={descricao}
                             onChangeText={setDescricao}
                         />
@@ -330,20 +334,23 @@ export default function RegistrarAlertaManutencao() {
                             placeholder="Quilometragem atual (opcional)"
                             placeholderTextColor="#9aa0a6"
                             keyboardType="numeric"
-                            style={[styles.input, { color: theme.text, borderColor: theme.border, marginTop: 8 }]}
+                            style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
                             value={quilometragem}
                             onChangeText={setQuilometragem}
                         />
                     </View>
 
                     {/* Botões */}
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 12 }}>
-                        <Pressable style={[styles.btnOutline, { borderColor: theme.primary }]} onPress={() => navigation.goBack()}>
-                            <ThemedText style={{ color: theme.primary }}>Voltar</ThemedText>
+                    <View style={{flexDirection: "row", justifyContent: "space-between", marginTop: 12}}>
+                        <Pressable style={[styles.btnOutline, {borderColor: theme.primary}]}
+                                   onPress={() => navigation.goBack()}>
+                            <ThemedText style={{color: theme.primary}}>Voltar</ThemedText>
                         </Pressable>
 
-                        <Pressable style={[styles.btnPrimary, { backgroundColor: theme.primary }]} onPress={enviarAlerta} disabled={saving}>
-                            {saving ? <ActivityIndicator color="#fff" /> : <ThemedText style={{ color: theme.textBack }}>Enviar Alerta</ThemedText>}
+                        <Pressable style={[styles.btnPrimary, {backgroundColor: theme.primary}]} onPress={enviarAlerta}
+                                   disabled={saving}>
+                            {saving ? <ActivityIndicator color="#fff"/> :
+                                <ThemedText style={{color: theme.textBack}}>Enviar Alerta</ThemedText>}
                         </Pressable>
                     </View>
                 </ScrollView>
@@ -353,18 +360,25 @@ export default function RegistrarAlertaManutencao() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    keyboardAvoidingView: { flex: 1 },
-    scrollContainer: { padding: 20, paddingBottom: 40 },
-    title: { fontSize: 28, fontWeight: "800", marginBottom: 6 },
-    section: { borderRadius: 12, padding: 14, marginTop: 12 },
-    sectionTitle: { fontSize: 15, fontWeight: "700", marginBottom: 6 },
-    input: { padding: 12, borderWidth: 1, borderRadius: 10 },
-    textarea: { padding: 12, borderWidth: 1, borderRadius: 10, textAlignVertical: "top" },
-    dateBtn: { padding: 12, borderWidth: 1, borderRadius: 10 },
-    pickerWrap: { borderWidth: 1, borderRadius: 10, overflow: "hidden", marginTop: 8 },
-    row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-    btnPrimary: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, minWidth: 140, alignItems: "center" },
-    btnOutline: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, minWidth: 100, alignItems: "center", borderWidth: 1 },
-    label: { color: "#6b7280", fontSize: 13 },
+    container: {flex: 1},
+    keyboardAvoidingView: {flex: 1},
+    scrollContainer: {padding: 20, paddingBottom: 40},
+    title: {fontSize: 28, fontWeight: "800", marginBottom: 6},
+    section: {borderRadius: 12, padding: 14, marginTop: 12},
+    sectionTitle: {fontSize: 15, fontWeight: "700", marginBottom: 6},
+    input: {padding: 12, borderWidth: 1, borderRadius: 10},
+    textarea: {padding: 12, borderWidth: 1, borderRadius: 10, textAlignVertical: "top"},
+    dateBtn: {padding: 12, borderWidth: 1, borderRadius: 10},
+    pickerWrap: {borderWidth: 1, borderRadius: 10, overflow: "hidden", marginTop: 8},
+    row: {flexDirection: "row", justifyContent: "space-between", gap: 12},
+    btnPrimary: {paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, minWidth: 140, alignItems: "center"},
+    btnOutline: {
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        minWidth: 100,
+        alignItems: "center",
+        borderWidth: 1
+    },
+    label: {color: "#6b7280", fontSize: 13},
 });

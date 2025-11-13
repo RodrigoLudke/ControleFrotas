@@ -1,24 +1,14 @@
-import { useState, useEffect } from "react";
-import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-    Search,
-    Plus,
-    Edit,
-    Trash2,
-    Eye,
-    Phone,
-    Mail,
-    Calendar,
-    MapPin
-} from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { apiFetch } from "@/services/api";
-import { useToast } from "@/hooks/use-toast";
+import {useEffect, useState} from "react";
+import {AdminLayout} from "@/components/layout/AdminLayout";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Badge} from "@/components/ui/badge";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Calendar, Edit, Eye, Mail, MapPin, Phone, Plus, Search, Trash2} from "lucide-react";
+import {useNavigate} from "react-router-dom";
+import {apiFetch} from "@/services/api";
+import {useToast} from "@/hooks/use-toast";
 
 interface Driver {
     id: number;
@@ -36,7 +26,7 @@ interface Driver {
 
 const Motoristas = () => {
     const navigate = useNavigate();
-    const { toast } = useToast();
+    const {toast} = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [loading, setLoading] = useState(true);
@@ -50,7 +40,7 @@ const Motoristas = () => {
                 const data = await response.json();
                 setDrivers(data);
             } else {
-                const errorData = await response.json().catch(() => ({ error: "Erro ao buscar motoristas." }));
+                const errorData = await response.json().catch(() => ({error: "Erro ao buscar motoristas."}));
                 toast({
                     title: "Erro ao carregar motoristas",
                     description: errorData.error || "Não foi possível carregar a lista de motoristas.",
@@ -117,7 +107,7 @@ const Motoristas = () => {
 
         setDeletingId(id);
         try {
-            const res = await apiFetch(`/motoristas/${id}`, { method: "DELETE" });
+            const res = await apiFetch(`/motoristas/${id}`, {method: "DELETE"});
             if (res.ok) {
                 // backend pode retornar 200/204/JSON
                 toast({
@@ -127,7 +117,7 @@ const Motoristas = () => {
                 // remover localmente
                 setDrivers(prev => prev.filter(d => d.id !== id));
             } else {
-                const err = await res.json().catch(() => ({ error: "Erro ao deletar motorista." }));
+                const err = await res.json().catch(() => ({error: "Erro ao deletar motorista."}));
                 toast({
                     title: "Erro ao deletar",
                     description: err.error || "Não foi possível deletar o motorista.",
@@ -152,7 +142,8 @@ const Motoristas = () => {
                 {/* Header Actions */}
                 <div className="flex flex-col sm:flex-row gap-4 justify-between">
                     <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Search
+                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"/>
                         <Input
                             placeholder="Buscar motoristas..."
                             value={searchTerm}
@@ -164,7 +155,7 @@ const Motoristas = () => {
                         onClick={() => navigate("/register-driver")}
                         className="bg-primary hover:bg-primary/90"
                     >
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus className="mr-2 h-4 w-4"/>
                         Novo Motorista
                     </Button>
                 </div>
@@ -198,7 +189,7 @@ const Motoristas = () => {
                                                 <div>
                                                     <div className="font-medium">{driver.nome}</div>
                                                     <div className="text-sm text-muted-foreground flex items-center">
-                                                        <MapPin className="h-3 w-3 mr-1" />
+                                                        <MapPin className="h-3 w-3 mr-1"/>
                                                         {driver.endereco}
                                                     </div>
                                                 </div>
@@ -208,7 +199,7 @@ const Motoristas = () => {
                                                 <div>
                                                     <div className="font-mono text-sm">{driver.cnh}</div>
                                                     <div className="text-xs text-muted-foreground flex items-center">
-                                                        <Calendar className="h-3 w-3 mr-1" />
+                                                        <Calendar className="h-3 w-3 mr-1"/>
                                                         {driver.validadeCnh ? `Válida até ${new Date(driver.validadeCnh).toLocaleDateString('pt-BR')}` : 'Sem data'}
                                                     </div>
                                                 </div>
@@ -217,11 +208,11 @@ const Motoristas = () => {
                                             <TableCell>
                                                 <div className="space-y-1">
                                                     <div className="text-sm flex items-center">
-                                                        <Phone className="h-3 w-3 mr-1" />
+                                                        <Phone className="h-3 w-3 mr-1"/>
                                                         {driver.telefone}
                                                     </div>
                                                     <div className="text-sm flex items-center text-muted-foreground">
-                                                        <Mail className="h-3 w-3 mr-1" />
+                                                        <Mail className="h-3 w-3 mr-1"/>
                                                         {driver.email}
                                                     </div>
                                                 </div>
@@ -229,11 +220,13 @@ const Motoristas = () => {
                                             <TableCell>{getStatusBadge(driver.status || "")}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center space-x-2">
-                                                    <Button variant="ghost" size="sm" onClick={() => navigate(`/motoristas/${driver.id}`)}>
-                                                        <Eye className="h-4 w-4" />
+                                                    <Button variant="ghost" size="sm"
+                                                            onClick={() => navigate(`/motoristas/${driver.id}`)}>
+                                                        <Eye className="h-4 w-4"/>
                                                     </Button>
-                                                    <Button variant="ghost" size="sm" onClick={() => handleEditDriver(driver.id)}>
-                                                        <Edit className="h-4 w-4" />
+                                                    <Button variant="ghost" size="sm"
+                                                            onClick={() => handleEditDriver(driver.id)}>
+                                                        <Edit className="h-4 w-4"/>
                                                     </Button>
                                                     <Button
                                                         variant="ghost"
@@ -242,7 +235,7 @@ const Motoristas = () => {
                                                         onClick={() => handleDeleteDriver(driver.id)}
                                                         disabled={deletingId === driver.id}
                                                     >
-                                                        <Trash2 className="h-4 w-4" />
+                                                        <Trash2 className="h-4 w-4"/>
                                                     </Button>
                                                 </div>
                                             </TableCell>
@@ -254,7 +247,10 @@ const Motoristas = () => {
                             {filteredDrivers.length === 0 && !loading && (
                                 <div className="text-center py-8 text-muted-foreground">
                                     <div className="mb-2">Nenhum motorista encontrado</div>
-                                    <Button variant="outline" onClick={() => { setSearchTerm(""); fetchDrivers(); }}>
+                                    <Button variant="outline" onClick={() => {
+                                        setSearchTerm("");
+                                        fetchDrivers();
+                                    }}>
                                         Limpar filtros
                                     </Button>
                                 </div>

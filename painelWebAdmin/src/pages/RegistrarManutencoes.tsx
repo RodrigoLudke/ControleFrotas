@@ -1,17 +1,17 @@
 // src/pages/RegistrarManutencoes.tsx
-import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
-import { Save, Wrench } from "lucide-react";
-import { apiFetch } from "@/services/api";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import {useEffect, useState} from "react";
+import {AdminLayout} from "@/components/layout/AdminLayout";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {Textarea} from "@/components/ui/textarea";
+import {useToast} from "@/hooks/use-toast";
+import {z} from "zod";
+import {Save, Wrench} from "lucide-react";
+import {apiFetch} from "@/services/api";
+import {useLocation, useNavigate, useParams} from "react-router-dom";
 
 const manutencaoSchema = z.object({
     veiculoId: z.number().int().positive("Selecione um veículo"),
@@ -32,9 +32,9 @@ const manutencaoSchema = z.object({
 type ManutencaoForm = z.infer<typeof manutencaoSchema>;
 
 export default function RegisterMaintenance() {
-    const { id } = useParams<{ id?: string }>();
+    const {id} = useParams<{ id?: string }>();
     const isEdit = Boolean(id);
-    const { toast } = useToast();
+    const {toast} = useToast();
     const navigate = useNavigate();
     const location = useLocation();
     // incoming alert (se vier de navigate('/registrarmanutencoes', { state: { alert } }))
@@ -234,13 +234,13 @@ export default function RegisterMaintenance() {
     const validateField = <K extends keyof ManutencaoForm>(key: K, value: any) => {
         try {
             //eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const single = z.object({ [key]: (manutencaoSchema as any).shape[key] });
-            single.parse({ [key]: value });
-            setErrors(prev => ({ ...prev, [key]: undefined }));
+            const single = z.object({[key]: (manutencaoSchema as any).shape[key]});
+            single.parse({[key]: value});
+            setErrors(prev => ({...prev, [key]: undefined}));
             return true;
         } catch (err) {
             if (err instanceof z.ZodError) {
-                setErrors(prev => ({ ...prev, [key]: err.errors[0].message }));
+                setErrors(prev => ({...prev, [key]: err.errors[0].message}));
             }
             return false;
         }
@@ -248,7 +248,7 @@ export default function RegisterMaintenance() {
 
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleChange = <K extends keyof ManutencaoForm>(key: K, value: any) => {
-        setForm(prev => ({ ...prev, [key]: value }));
+        setForm(prev => ({...prev, [key]: value}));
         validateField(key, value);
     };
 
@@ -283,13 +283,13 @@ export default function RegisterMaintenance() {
             if (isEdit && id) {
                 res = await apiFetch(`/manutencoes/${id}`, {
                     method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {"Content-Type": "application/json"},
                     body: JSON.stringify(validated)
                 });
             } else {
                 res = await apiFetch("/manutencoes", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {"Content-Type": "application/json"},
                     body: JSON.stringify(validated)
                 });
             }
@@ -301,7 +301,7 @@ export default function RegisterMaintenance() {
                 });
                 navigate("/manutencoes");
             } else {
-                const err = await res.json().catch(() => ({ error: "Erro ao salvar manutenção." }));
+                const err = await res.json().catch(() => ({error: "Erro ao salvar manutenção."}));
                 toast({
                     title: "Erro",
                     description: err.error || "Não foi possível salvar a manutenção.",
@@ -347,8 +347,9 @@ export default function RegisterMaintenance() {
                 <Card className="shadow-form">
                     <CardHeader className="space-y-2">
                         <div className="flex items-center space-x-2">
-                            <Wrench className="h-6 w-6 text-primary" />
-                            <CardTitle className="text-2xl">{isEdit ? "Editar Manutenção" : "Registrar Nova Manutenção"}</CardTitle>
+                            <Wrench className="h-6 w-6 text-primary"/>
+                            <CardTitle
+                                className="text-2xl">{isEdit ? "Editar Manutenção" : "Registrar Nova Manutenção"}</CardTitle>
                         </div>
                         <CardDescription>
                             {isEdit ? "Altere os dados da manutenção" : "Preencha os dados para registrar a manutenção do veículo"}
@@ -358,7 +359,8 @@ export default function RegisterMaintenance() {
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="space-y-4">
-                                <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">Dados da Manutenção</h3>
+                                <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">Dados da
+                                    Manutenção</h3>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
@@ -371,7 +373,7 @@ export default function RegisterMaintenance() {
                                                 id="veiculo"
                                                 className={`${errors.veiculoId ? "border-destructive" : ""} ${!form.veiculoId ? "text-muted-foreground" : ""}`}
                                             >
-                                                <SelectValue placeholder="Selecione o veículo (placa)" />
+                                                <SelectValue placeholder="Selecione o veículo (placa)"/>
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {veiculos.map(v => (
@@ -381,7 +383,8 @@ export default function RegisterMaintenance() {
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        {errors.veiculoId && <p className="text-sm text-destructive">{errors.veiculoId}</p>}
+                                        {errors.veiculoId &&
+                                            <p className="text-sm text-destructive">{errors.veiculoId}</p>}
                                     </div>
 
                                     <div className="space-y-2">
@@ -394,8 +397,9 @@ export default function RegisterMaintenance() {
                                                 else handleChange("userId", v ? Number(v) : undefined);
                                             }}
                                         >
-                                            <SelectTrigger id="user" className={`${!form.userId ? "text-muted-foreground" : ""}`}>
-                                                <SelectValue placeholder="Selecione o motorista (opcional)" />
+                                            <SelectTrigger id="user"
+                                                           className={`${!form.userId ? "text-muted-foreground" : ""}`}>
+                                                <SelectValue placeholder="Selecione o motorista (opcional)"/>
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {/* opção "Sem motorista" NÃO pode ter value="" -> uso "0" */}
@@ -432,7 +436,8 @@ export default function RegisterMaintenance() {
                                             className={errors.quilometragem ? "border-destructive" : ""}
                                             placeholder="0"
                                         />
-                                        {errors.quilometragem && <p className="text-sm text-destructive">{errors.quilometragem}</p>}
+                                        {errors.quilometragem &&
+                                            <p className="text-sm text-destructive">{errors.quilometragem}</p>}
                                     </div>
 
                                     <div className="space-y-2">
@@ -442,8 +447,9 @@ export default function RegisterMaintenance() {
                                             //eslint-disable-next-line @typescript-eslint/no-explicit-any
                                             onValueChange={(v) => handleChange("tipo", v as any)}
                                         >
-                                            <SelectTrigger id="tipo" className={`${!form.tipo ? "text-muted-foreground" : ""}`}>
-                                                <SelectValue placeholder="Selecione o tipo" />
+                                            <SelectTrigger id="tipo"
+                                                           className={`${!form.tipo ? "text-muted-foreground" : ""}`}>
+                                                <SelectValue placeholder="Selecione o tipo"/>
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="PREVENTIVA">Preventiva</SelectItem>
@@ -460,8 +466,9 @@ export default function RegisterMaintenance() {
                                             //eslint-disable-next-line @typescript-eslint/no-explicit-any
                                             onValueChange={(v) => handleChange("status", v as any)}
                                         >
-                                            <SelectTrigger id="status" className={`${!form.status ? "text-muted-foreground" : ""}`}>
-                                                <SelectValue placeholder="Selecione status" />
+                                            <SelectTrigger id="status"
+                                                           className={`${!form.status ? "text-muted-foreground" : ""}`}>
+                                                <SelectValue placeholder="Selecione status"/>
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="AGENDADA">Agendada</SelectItem>
@@ -483,7 +490,8 @@ export default function RegisterMaintenance() {
                                             className={errors.descricao ? "border-destructive" : ""}
                                             placeholder="Descreva o problema ou serviço a ser realizado"
                                         />
-                                        {errors.descricao && <p className="text-sm text-destructive">{errors.descricao}</p>}
+                                        {errors.descricao &&
+                                            <p className="text-sm text-destructive">{errors.descricao}</p>}
                                     </div>
 
                                     <div className="space-y-2">
@@ -522,7 +530,8 @@ export default function RegisterMaintenance() {
                                             className={errors.observacoes ? "border-destructive" : ""}
                                             placeholder="Observações adicionais (opcional)"
                                         />
-                                        {errors.observacoes && <p className="text-sm text-destructive">{errors.observacoes}</p>}
+                                        {errors.observacoes &&
+                                            <p className="text-sm text-destructive">{errors.observacoes}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -531,10 +540,11 @@ export default function RegisterMaintenance() {
                                 <Button type="button" variant="secondary" onClick={() => navigate("/manutencoes")}>
                                     Cancelar
                                 </Button>
-                                <Button type="submit" disabled={isSaving} onClick={handleSubmit} className="min-w-[140px]">
+                                <Button type="submit" disabled={isSaving} onClick={handleSubmit}
+                                        className="min-w-[140px]">
                                     {isSaving ? "Salvando..." : (
                                         <>
-                                            <Save className="mr-2 h-4 w-4" />
+                                            <Save className="mr-2 h-4 w-4"/>
                                             {isEdit ? "Atualizar" : "Cadastrar"}
                                         </>
                                     )}

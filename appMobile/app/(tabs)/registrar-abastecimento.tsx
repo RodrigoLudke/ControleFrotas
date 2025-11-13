@@ -1,26 +1,26 @@
 // src/screens/RegistrarAbastecimento.tsx
-import React, { useCallback, useState } from "react";
+import React, {useCallback, useState} from "react";
 import {
-    View,
-    StyleSheet,
-    TextInput,
-    Pressable,
+    ActivityIndicator,
+    Alert,
     KeyboardAvoidingView,
     Platform,
+    Pressable,
     ScrollView,
-    Alert,
-    ActivityIndicator,
+    StyleSheet,
     Text,
+    TextInput,
+    View,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { ThemedView } from "@/components/ThemedView";
-import { ThemedText } from "@/components/ThemedText";
-import { Colors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/useColorScheme";
-import { MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
-import { Picker } from "@react-native-picker/picker";
-import { apiFetch } from "@/services/api";
+import {useFocusEffect, useNavigation} from "@react-navigation/native";
+import {ThemedView} from "@/components/ThemedView";
+import {ThemedText} from "@/components/ThemedText";
+import {Colors} from "@/constants/Colors";
+import {useColorScheme} from "@/hooks/useColorScheme";
+import {FontAwesome5, MaterialCommunityIcons} from "@expo/vector-icons";
+import {Picker} from "@react-native-picker/picker";
+import {apiFetch} from "@/services/api";
 
 export default function RegistrarAbastecimento() {
     const navigation = useNavigation();
@@ -78,7 +78,7 @@ export default function RegistrarAbastecimento() {
     };
 
     const formatDate = (d?: Date) => (d ? d.toLocaleDateString() : "");
-    const formatTime = (d?: Date) => (d ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+    const formatTime = (d?: Date) => (d ? d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "");
 
     // Date/Time flow (same logic as alert screen)
     const openDateTimePicker = () => {
@@ -178,7 +178,7 @@ export default function RegistrarAbastecimento() {
 
             const res = await apiFetch("/abastecimentos", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {"Content-Type": "application/json"},
                 body: JSON.stringify(payload),
             });
 
@@ -203,40 +203,41 @@ export default function RegistrarAbastecimento() {
 
     if (loadingInit) {
         return (
-            <ThemedView style={[styles.container, { backgroundColor: theme.background }]}>
-                <View style={{ padding: 20 }}>
-                    <ActivityIndicator />
-                    <Text style={{ marginTop: 8 }}>Carregando...</Text>
+            <ThemedView style={[styles.container, {backgroundColor: theme.background}]}>
+                <View style={{padding: 20}}>
+                    <ActivityIndicator/>
+                    <Text style={{marginTop: 8}}>Carregando...</Text>
                 </View>
             </ThemedView>
         );
     }
 
     return (
-        <ThemedView style={[styles.container, { backgroundColor: theme.background }]}>
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingView}>
+        <ThemedView style={[styles.container, {backgroundColor: theme.background}]}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}
+                                  style={styles.keyboardAvoidingView}>
                 <ScrollView contentContainerStyle={styles.scrollContainer}>
                     <ThemedText type="title" style={styles.title}>
-                        <MaterialCommunityIcons name="fuel" size={28} /> Registrar Abastecimento
+                        <MaterialCommunityIcons name="fuel" size={28}/> Registrar Abastecimento
                     </ThemedText>
 
                     {/* Veículo */}
-                    <View style={[styles.section, { backgroundColor: theme.card }]}>
+                    <View style={[styles.section, {backgroundColor: theme.card}]}>
                         <ThemedText style={styles.sectionTitle}>
-                            <FontAwesome5 name="truck" size={14} /> Veículo
+                            <FontAwesome5 name="truck" size={14}/> Veículo
                         </ThemedText>
                         {loadingVeiculos ? (
-                            <ActivityIndicator />
+                            <ActivityIndicator/>
                         ) : (
-                            <View style={[styles.pickerWrap, { borderColor: theme.border }]}>
+                            <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
                                 <Picker
                                     selectedValue={veiculoId}
                                     onValueChange={(val) => setVeiculoId(String(val))}
                                     mode="dropdown"
-                                    style={Platform.OS === "android" ? { color: veiculoId ? theme.text : "#9aa0a6" } : undefined}
+                                    style={Platform.OS === "android" ? {color: veiculoId ? theme.text : "#9aa0a6"} : undefined}
                                     dropdownIconColor={Platform.OS === "android" ? theme.text : undefined}
                                 >
-                                    <Picker.Item label="Selecione o veículo" value="" />
+                                    <Picker.Item label="Selecione o veículo" value=""/>
                                     {veiculos.map((v: any) => (
                                         <Picker.Item
                                             key={String(v.id)}
@@ -250,44 +251,47 @@ export default function RegistrarAbastecimento() {
                     </View>
 
                     {/* Data / Combustível */}
-                    <View style={[styles.section, { backgroundColor: theme.card }]}>
+                    <View style={[styles.section, {backgroundColor: theme.card}]}>
                         <ThemedText style={styles.sectionTitle}>
-                            <MaterialCommunityIcons name="calendar" size={14} /> Detalhes
+                            <MaterialCommunityIcons name="calendar" size={14}/> Detalhes
                         </ThemedText>
 
                         <View style={styles.row}>
-                            <View style={{ flex: 0.8 }}>
+                            <View style={{flex: 0.8}}>
                                 <ThemedText style={styles.label}>Data / Hora</ThemedText>
-                                <Pressable style={[styles.dateBtn, { borderColor: theme.border }]} onPress={openDateTimePicker}>
+                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                           onPress={openDateTimePicker}>
                                     <ThemedText>{`${formatDate(data)} ${formatTime(data)}`}</ThemedText>
                                 </Pressable>
 
                                 {showDatePicker && Platform.OS === "ios" && (
-                                    <DateTimePicker value={data} mode="datetime" display="default" onChange={onChangeDate} />
+                                    <DateTimePicker value={data} mode="datetime" display="default"
+                                                    onChange={onChangeDate}/>
                                 )}
                                 {showDatePicker && Platform.OS === "android" && (
-                                    <DateTimePicker value={data} mode="date" display="calendar" onChange={onChangeDate} />
+                                    <DateTimePicker value={data} mode="date" display="calendar"
+                                                    onChange={onChangeDate}/>
                                 )}
                                 {showTimePicker && Platform.OS === "android" && (
-                                    <DateTimePicker value={data} mode="time" display="spinner" onChange={onChangeTime} />
+                                    <DateTimePicker value={data} mode="time" display="spinner" onChange={onChangeTime}/>
                                 )}
                             </View>
 
-                            <View style={{ flex: 1 }}>
+                            <View style={{flex: 1}}>
                                 <ThemedText style={styles.label}>Combustível</ThemedText>
-                                <View style={[styles.pickerWrap, { borderColor: theme.border }]}>
+                                <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
                                     <Picker
                                         selectedValue={combustivel}
                                         onValueChange={(val) => setCombustivel(String(val))}
                                         mode="dropdown"
-                                        style={Platform.OS === "android" ? { color: combustivel ? theme.text : "#9aa0a6" } : undefined}
+                                        style={Platform.OS === "android" ? {color: combustivel ? theme.text : "#9aa0a6"} : undefined}
                                     >
-                                        <Picker.Item label="Selecione o combustível" value="" />
-                                        <Picker.Item label="Gasolina" value="gasolina" />
-                                        <Picker.Item label="Alcool" value="álcool" />
-                                        <Picker.Item label="Flex" value="flex" />
-                                        <Picker.Item label="Diesel" value="diesel" />
-                                        <Picker.Item label="Elétrico" value="eletrico" />
+                                        <Picker.Item label="Selecione o combustível" value=""/>
+                                        <Picker.Item label="Gasolina" value="gasolina"/>
+                                        <Picker.Item label="Alcool" value="álcool"/>
+                                        <Picker.Item label="Flex" value="flex"/>
+                                        <Picker.Item label="Diesel" value="diesel"/>
+                                        <Picker.Item label="Elétrico" value="eletrico"/>
                                     </Picker>
                                 </View>
                             </View>
@@ -295,16 +299,16 @@ export default function RegistrarAbastecimento() {
                     </View>
 
                     {/* Valores / Quilometragem */}
-                    <View style={[styles.section, { backgroundColor: theme.card }]}>
+                    <View style={[styles.section, {backgroundColor: theme.card}]}>
                         <ThemedText style={styles.sectionTitle}>
-                            <MaterialCommunityIcons name="speedometer" size={14} /> Medidas e Valores
+                            <MaterialCommunityIcons name="speedometer" size={14}/> Medidas e Valores
                         </ThemedText>
 
                         <TextInput
                             placeholder="Quilometragem"
                             placeholderTextColor="#9aa0a6"
                             keyboardType="numeric"
-                            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+                            style={[styles.input, {color: theme.text, borderColor: theme.border}]}
                             value={quilometragem}
                             onChangeText={setQuilometragem}
                         />
@@ -313,7 +317,7 @@ export default function RegistrarAbastecimento() {
                             placeholder="Litros abastecidos (ex: 45.32)"
                             placeholderTextColor="#9aa0a6"
                             keyboardType="numeric"
-                            style={[styles.input, { color: theme.text, borderColor: theme.border, marginTop: 8 }]}
+                            style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
                             value={litros}
                             onChangeText={setLitros}
                         />
@@ -322,7 +326,7 @@ export default function RegistrarAbastecimento() {
                             placeholder="Valor por litro (ex: 5.599)"
                             placeholderTextColor="#9aa0a6"
                             keyboardType="numeric"
-                            style={[styles.input, { color: theme.text, borderColor: theme.border, marginTop: 8 }]}
+                            style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
                             value={valorPorLitro}
                             onChangeText={setValorPorLitro}
                         />
@@ -330,20 +334,23 @@ export default function RegistrarAbastecimento() {
                         <TextInput
                             placeholder="Posto (opcional)"
                             placeholderTextColor="#9aa0a6"
-                            style={[styles.input, { color: theme.text, borderColor: theme.border, marginTop: 8 }]}
+                            style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
                             value={posto}
                             onChangeText={setPosto}
                         />
                     </View>
 
                     {/* Botões */}
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 12 }}>
-                        <Pressable style={[styles.btnOutline, { borderColor: theme.primary }]} onPress={() => navigation.goBack()}>
-                            <ThemedText style={{ color: theme.primary }}>Voltar</ThemedText>
+                    <View style={{flexDirection: "row", justifyContent: "space-between", marginTop: 12}}>
+                        <Pressable style={[styles.btnOutline, {borderColor: theme.primary}]}
+                                   onPress={() => navigation.goBack()}>
+                            <ThemedText style={{color: theme.primary}}>Voltar</ThemedText>
                         </Pressable>
 
-                        <Pressable style={[styles.btnPrimary, { backgroundColor: theme.primary }]} onPress={enviarAbastecimento} disabled={saving}>
-                            {saving ? <ActivityIndicator color="#fff" /> : <ThemedText style={{ color: theme.textBack }}>Registrar Abastecimento</ThemedText>}
+                        <Pressable style={[styles.btnPrimary, {backgroundColor: theme.primary}]}
+                                   onPress={enviarAbastecimento} disabled={saving}>
+                            {saving ? <ActivityIndicator color="#fff"/> :
+                                <ThemedText style={{color: theme.textBack}}>Registrar Abastecimento</ThemedText>}
                         </Pressable>
                     </View>
                 </ScrollView>
@@ -353,17 +360,24 @@ export default function RegistrarAbastecimento() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    keyboardAvoidingView: { flex: 1 },
-    scrollContainer: { padding: 20, paddingBottom: 40 },
-    title: { fontSize: 28, fontWeight: "800", marginBottom: 6 },
-    section: { borderRadius: 12, padding: 14, marginTop: 12 },
-    sectionTitle: { fontSize: 15, fontWeight: "700", marginBottom: 6 },
-    input: { padding: 12, borderWidth: 1, borderRadius: 10 },
-    dateBtn: { padding: 12, borderWidth: 1, borderRadius: 10, marginTop: 11 },
-    pickerWrap: { borderWidth: 1, borderRadius: 10, overflow: "hidden", marginTop: 8 },
-    row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-    btnPrimary: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, minWidth: 140, alignItems: "center" },
-    btnOutline: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, minWidth: 100, alignItems: "center", borderWidth: 1 },
-    label: { color: "#6b7280", fontSize: 13 },
+    container: {flex: 1},
+    keyboardAvoidingView: {flex: 1},
+    scrollContainer: {padding: 20, paddingBottom: 40},
+    title: {fontSize: 28, fontWeight: "800", marginBottom: 6},
+    section: {borderRadius: 12, padding: 14, marginTop: 12},
+    sectionTitle: {fontSize: 15, fontWeight: "700", marginBottom: 6},
+    input: {padding: 12, borderWidth: 1, borderRadius: 10},
+    dateBtn: {padding: 12, borderWidth: 1, borderRadius: 10, marginTop: 11},
+    pickerWrap: {borderWidth: 1, borderRadius: 10, overflow: "hidden", marginTop: 8},
+    row: {flexDirection: "row", justifyContent: "space-between", gap: 12},
+    btnPrimary: {paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, minWidth: 140, alignItems: "center"},
+    btnOutline: {
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        minWidth: 100,
+        alignItems: "center",
+        borderWidth: 1
+    },
+    label: {color: "#6b7280", fontSize: 13},
 });

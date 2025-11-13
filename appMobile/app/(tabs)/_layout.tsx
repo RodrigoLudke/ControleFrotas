@@ -1,8 +1,8 @@
 // app/_layout.tsx  (ou onde estiver seu layout de tabs atual)
-import { Stack } from "expo-router";
+import {Stack} from "expo-router";
 import React from "react";
-import { Colors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/useColorScheme";
+import {Colors} from "@/constants/Colors";
+import {useColorScheme} from "@/hooks/useColorScheme";
 
 export default function AppStackLayout() {
     const colorScheme = useColorScheme();
@@ -22,7 +22,7 @@ export default function AppStackLayout() {
                     elevation: 0,
                     shadowOpacity: 0,
                 },
-                headerTitleStyle: { fontWeight: "700" },
+                headerTitleStyle: {fontWeight: "700"},
             }}
         >
             {/* Home (index) => é a tela principal, não precisa de header com voltar */}
@@ -34,10 +34,10 @@ export default function AppStackLayout() {
             />
 
             {/* Outras telas — terão automaticamente botão "voltar" no header */}
-            <Stack.Screen name="registrar" options={{ title: "Registrar" }} />
-            <Stack.Screen name="ver-viagens" options={{ title: "Relatório" }} />
-            <Stack.Screen name="criar-alertas" options={{ title: "Alertas" }} />
-            <Stack.Screen name="registrar-abastecimento" options={{ title: "Abastecimento" }} />
+            <Stack.Screen name="registrar" options={{title: "Registrar"}}/>
+            <Stack.Screen name="ver-viagens" options={{title: "Relatório"}}/>
+            <Stack.Screen name="criar-alertas" options={{title: "Alertas"}}/>
+            <Stack.Screen name="registrar-abastecimento" options={{title: "Abastecimento"}}/>
 
         </Stack>
     );

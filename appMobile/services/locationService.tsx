@@ -1,15 +1,15 @@
 import * as Location from 'expo-location';
-import { apiFetch } from './api';
-import { Alert } from 'react-native';
+import {apiFetch} from './api';
+import {Alert} from 'react-native';
 
 export async function requestLocationPermissions() {
-    let { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+    let {status: foregroundStatus} = await Location.requestForegroundPermissionsAsync();
     if (foregroundStatus !== 'granted') {
         console.error('Permissão de localização em primeiro plano negada');
         return false;
     }
 
-    let { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+    let {status: backgroundStatus} = await Location.requestBackgroundPermissionsAsync();
     if (backgroundStatus !== 'granted') {
         console.error('Permissão de localização em segundo plano negada');
         return false;

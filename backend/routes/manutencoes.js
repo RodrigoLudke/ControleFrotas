@@ -1,8 +1,8 @@
 import express from "express";
 import pkg from "@prisma/client";
-import { autenticarToken, autorizarRoles } from "../index.js";
+import {autenticarToken} from "../index.js";
 
-const { PrismaClient } = pkg;
+const {PrismaClient} = pkg;
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -18,7 +18,7 @@ const router = express.Router();
 // Listar manutenções (com filtros)
 router.get("/", autenticarToken, async (req, res) => {
     try {
-        const { status, from, to, veiculoId, limit } = req.query;
+        const {status, from, to, veiculoId, limit} = req.query;
         const isAdmin = req.user && req.user.role === "ADMIN";
 
         const where = {};
@@ -41,11 +41,11 @@ router.get("/", autenticarToken, async (req, res) => {
 
         if (from) {
             const d = new Date(String(from));
-            if (!Number.isNaN(d.getTime())) where.data = { ...(where.data || {}), gte: d };
+            if (!Number.isNaN(d.getTime())) where.data = {...(where.data || {}), gte: d};
         }
         if (to) {
             const d = new Date(String(to));
-            if (!Number.isNaN(d.getTime())) where.data = { ...(where.data || {}), lte: d };
+            if (!Number.isNaN(d.getTime())) where.data = {...(where.data || {}), lte: d};
         }
 
         // Prisma where construction: if we used mixed shape above, ensure shape valid
@@ -60,43 +60,43 @@ router.get("/", autenticarToken, async (req, res) => {
 
         const manutencoes = await prisma.manutencao.findMany({
             where: prismaWhere,
-            orderBy: { data: "asc" },
+            orderBy: {data: "asc"},
             take,
             include: {
-                veiculo: { select: { id: true, placa: true, modelo: true } },
-                user: { select: { id: true, nome: true, email: true } }
+                veiculo: {select: {id: true, placa: true, modelo: true}},
+                user: {select: {id: true, nome: true, email: true}}
             }
         });
 
         res.json(manutencoes);
     } catch (error) {
         console.error("Erro ao listar manutenções:", error);
-        res.status(500).json({ error: "Erro interno ao listar manutenções." });
+        res.status(500).json({error: "Erro interno ao listar manutenções."});
     }
 });
 
 // Buscar 1 manutenção por id
 router.get("/:id", autenticarToken, async (req, res) => {
-    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: "ID inválido." });
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
 
     try {
         const m = await prisma.manutencao.findUnique({
-            where: { id },
+            where: {id},
             include: {
-                veiculo: { select: { id: true, placa: true, modelo: true } },
-                user: { select: { id: true, nome: true, email: true } }
+                veiculo: {select: {id: true, placa: true, modelo: true}},
+                user: {select: {id: true, nome: true, email: true}}
             }
         });
-        if (!m) return res.status(404).json({ error: "Manutenção não encontrada." });
+        if (!m) return res.status(404).json({error: "Manutenção não encontrada."});
 
         const isAdmin = req.user && req.user.role === "ADMIN";
-        if (!isAdmin && m.userId !== req.user.id) return res.status(403).json({ error: "Acesso negado." });
+        if (!isAdmin && m.userId !== req.user.id) return res.status(403).json({error: "Acesso negado."});
 
         res.json(m);
     } catch (error) {
         console.error("GET /manutencoes/:id error:", error);
-        res.status(500).json({ error: "Erro interno ao buscar manutenção." });
+        res.status(500).json({error: "Erro interno ao buscar manutenção."});
     }
 });
 
@@ -116,15 +116,15 @@ router.post("/", autenticarToken, async (req, res) => {
         } = req.body;
 
         if (!veiculoId || !data || !quilometragem || !tipo || !descricao) {
-            return res.status(400).json({ error: "Campos obrigatórios: veiculoId, data, quilometragem, tipo, descricao." });
+            return res.status(400).json({error: "Campos obrigatórios: veiculoId, data, quilometragem, tipo, descricao."});
         }
 
         // valida veiculoId
         const vid = parseInt(String(veiculoId), 10);
-        if (Number.isNaN(vid)) return res.status(400).json({ error: "veiculoId inválido." });
+        if (Number.isNaN(vid)) return res.status(400).json({error: "veiculoId inválido."});
 
         const dt = new Date(String(data));
-        if (Number.isNaN(dt.getTime())) return res.status(400).json({ error: "data inválida." });
+        if (Number.isNaN(dt.getTime())) return res.status(400).json({error: "data inválida."});
 
         const newManut = await prisma.manutencao.create({
             data: {
@@ -144,21 +144,21 @@ router.post("/", autenticarToken, async (req, res) => {
         res.status(201).json(newManut);
     } catch (error) {
         console.error("Erro ao criar manutenção:", error);
-        res.status(500).json({ error: "Erro interno ao criar manutenção." });
+        res.status(500).json({error: "Erro interno ao criar manutenção."});
     }
 });
 
 // Atualizar manutenção (owner ou ADMIN)
 router.patch("/:id", autenticarToken, async (req, res) => {
-    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: "ID inválido." });
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
 
     try {
-        const existing = await prisma.manutencao.findUnique({ where: { id } });
-        if (!existing) return res.status(404).json({ error: "Manutenção não encontrada." });
+        const existing = await prisma.manutencao.findUnique({where: {id}});
+        if (!existing) return res.status(404).json({error: "Manutenção não encontrada."});
 
         const isAdmin = req.user && req.user.role === "ADMIN";
-        if (!isAdmin && existing.userId !== req.user.id) return res.status(403).json({ error: "Acesso negado." });
+        if (!isAdmin && existing.userId !== req.user.id) return res.status(403).json({error: "Acesso negado."});
 
         const {
             veiculoId,
@@ -175,12 +175,12 @@ router.patch("/:id", autenticarToken, async (req, res) => {
         const updates = {};
         if (veiculoId !== undefined) {
             const vid = parseInt(String(veiculoId), 10);
-            if (Number.isNaN(vid)) return res.status(400).json({ error: "veiculoId inválido." });
+            if (Number.isNaN(vid)) return res.status(400).json({error: "veiculoId inválido."});
             updates.veiculoId = vid;
         }
         if (data !== undefined) {
             const dt = new Date(String(data));
-            if (Number.isNaN(dt.getTime())) return res.status(400).json({ error: "data inválida." });
+            if (Number.isNaN(dt.getTime())) return res.status(400).json({error: "data inválida."});
             updates.data = dt;
         }
         if (quilometragem !== undefined) updates.quilometragem = Number(quilometragem);
@@ -192,34 +192,34 @@ router.patch("/:id", autenticarToken, async (req, res) => {
         if (status !== undefined) updates.status = String(status).toUpperCase();
 
         const updated = await prisma.manutencao.update({
-            where: { id },
+            where: {id},
             data: updates
         });
 
-        res.json({ message: "Manutenção atualizada com sucesso.", manutencao: updated });
+        res.json({message: "Manutenção atualizada com sucesso.", manutencao: updated});
     } catch (error) {
         console.error("Erro ao atualizar manutenção:", error);
-        res.status(500).json({ error: "Erro interno ao atualizar manutenção." });
+        res.status(500).json({error: "Erro interno ao atualizar manutenção."});
     }
 });
 
 // Deletar manutenção (owner ou ADMIN)
 router.delete("/:id", autenticarToken, async (req, res) => {
-    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: "ID inválido." });
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
 
     try {
-        const existing = await prisma.manutencao.findUnique({ where: { id } });
-        if (!existing) return res.status(404).json({ error: "Manutenção não encontrada." });
+        const existing = await prisma.manutencao.findUnique({where: {id}});
+        if (!existing) return res.status(404).json({error: "Manutenção não encontrada."});
 
         const isAdmin = req.user && req.user.role === "ADMIN";
-        if (!isAdmin && existing.userId !== req.user.id) return res.status(403).json({ error: "Acesso negado." });
+        if (!isAdmin && existing.userId !== req.user.id) return res.status(403).json({error: "Acesso negado."});
 
-        await prisma.manutencao.delete({ where: { id } });
-        res.json({ message: "Manutenção deletada com sucesso." });
+        await prisma.manutencao.delete({where: {id}});
+        res.json({message: "Manutenção deletada com sucesso."});
     } catch (error) {
         console.error("Erro ao deletar manutenção:", error);
-        res.status(500).json({ error: "Erro interno ao deletar manutenção." });
+        res.status(500).json({error: "Erro interno ao deletar manutenção."});
     }
 });
 

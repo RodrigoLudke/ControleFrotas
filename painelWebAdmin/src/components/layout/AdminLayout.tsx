@@ -1,22 +1,22 @@
-import { ReactNode, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, LogOut, Menu } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { AdminSidebar } from "./AdminSidebar";
+import {ReactNode, useState} from "react";
+import {Button} from "@/components/ui/button";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import {Bell, LogOut, Menu} from "lucide-react";
+import {useNavigate} from "react-router-dom";
+import {AdminSidebar} from "./AdminSidebar";
 
 interface AdminLayoutProps {
     children: ReactNode;
     title?: string;
 }
 
-export function AdminLayout({ children, title }: AdminLayoutProps) {
+export function AdminLayout({children, title}: AdminLayoutProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
 
     return (
         <div className="min-h-screen bg-background">
-            <AdminSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <AdminSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}/>
 
             {/* Main Content */}
             <div className="lg:pl-64">
@@ -29,7 +29,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                             className="lg:hidden"
                             onClick={() => setSidebarOpen(!sidebarOpen)}
                         >
-                            <Menu className="h-4 w-4" />
+                            <Menu className="h-4 w-4"/>
                         </Button>
                         <div>
                             <h1 className="text-xl font-semibold">{title || "Dashboard"}</h1>
@@ -39,10 +39,10 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
                     <div className="flex items-center space-x-4">
                         <Button variant="ghost" size="sm">
-                            <Bell className="h-4 w-4" />
+                            <Bell className="h-4 w-4"/>
                         </Button>
                         <Avatar>
-                            <AvatarImage src="/placeholder-avatar.jpg" />
+                            <AvatarImage src="/placeholder-avatar.jpg"/>
                             <AvatarFallback>AD</AvatarFallback>
                         </Avatar>
                         <Button
@@ -50,7 +50,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                             size="sm"
                             onClick={() => navigate("/")}
                         >
-                            <LogOut className="h-4 w-4" />
+                            <LogOut className="h-4 w-4"/>
                         </Button>
                     </div>
                 </header>

@@ -29,7 +29,7 @@ const processQueue = async (error: Error | null, newAccessToken: string | null =
 
             try {
                 // A requisição é aguardada antes de chamar o resolve
-                const response = await fetch(`${API_BASE_URL}${prom.path}`, { ...prom.options, headers: newHeaders });
+                const response = await fetch(`${API_BASE_URL}${prom.path}`, {...prom.options, headers: newHeaders});
                 prom.resolve(response);
             } catch (err) {
                 prom.reject(err);
@@ -54,12 +54,12 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+        const response = await fetch(`${API_BASE_URL}${path}`, {...options, headers});
 
         if (response.status === 401 && refreshToken) {
             if (isRefreshing) {
                 return new Promise<Response>((resolve, reject) => {
-                    failedQueue.push({ resolve, reject, path, options });
+                    failedQueue.push({resolve, reject, path, options});
                 });
             }
 
@@ -67,12 +67,12 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
 
             const refreshRes = await fetch(`${API_BASE_URL}/refresh`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ refreshToken }),
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({refreshToken}),
             });
 
             if (refreshRes.ok) {
-                const { accessToken, refreshToken: newRefresh } = await refreshRes.json();
+                const {accessToken, refreshToken: newRefresh} = await refreshRes.json();
                 localStorage.setItem("token", accessToken);
                 localStorage.setItem("refreshToken", newRefresh);
                 isRefreshing = false;
@@ -84,7 +84,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
                     "Authorization": `Bearer ${accessToken}`,
                 };
 
-                return await fetch(`${API_BASE_URL}${path}`, { ...options, headers: newHeaders });
+                return await fetch(`${API_BASE_URL}${path}`, {...options, headers: newHeaders});
             } else {
                 isRefreshing = false;
                 await processQueue(new Error("Sessão expirada. Faça login novamente."));

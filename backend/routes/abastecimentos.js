@@ -1,8 +1,8 @@
 import express from "express";
 import pkg from "@prisma/client";
-import { autenticarToken } from "../index.js";
+import {autenticarToken} from "../index.js";
 
-const { PrismaClient } = pkg;
+const {PrismaClient} = pkg;
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -18,7 +18,7 @@ const router = express.Router();
 // Listar abastecimentos
 router.get("/", autenticarToken, async (req, res) => {
     try {
-        const { veiculoId, from, to, limit } = req.query;
+        const {veiculoId, from, to, limit} = req.query;
         const isAdmin = req.user && req.user.role === "ADMIN";
 
         const where = {};
@@ -34,11 +34,11 @@ router.get("/", autenticarToken, async (req, res) => {
 
         if (from) {
             const d = new Date(String(from));
-            if (!Number.isNaN(d.getTime())) where.data = { ...(where.data || {}), gte: d };
+            if (!Number.isNaN(d.getTime())) where.data = {...(where.data || {}), gte: d};
         }
         if (to) {
             const d = new Date(String(to));
-            if (!Number.isNaN(d.getTime())) where.data = { ...(where.data || {}), lte: d };
+            if (!Number.isNaN(d.getTime())) where.data = {...(where.data || {}), lte: d};
         }
 
         const prismaWhere = {};
@@ -50,43 +50,43 @@ router.get("/", autenticarToken, async (req, res) => {
 
         const abastecimentos = await prisma.abastecimento.findMany({
             where: prismaWhere,
-            orderBy: { data: "desc" },
+            orderBy: {data: "desc"},
             take,
             include: {
-                veiculo: { select: { id: true, placa: true, modelo: true } },
-                user: { select: { id: true, nome: true, email: true } }
+                veiculo: {select: {id: true, placa: true, modelo: true}},
+                user: {select: {id: true, nome: true, email: true}}
             }
         });
 
         res.json(abastecimentos);
     } catch (error) {
         console.error("Erro ao listar abastecimentos:", error);
-        res.status(500).json({ error: "Erro interno ao listar abastecimentos." });
+        res.status(500).json({error: "Erro interno ao listar abastecimentos."});
     }
 });
 
 // Buscar 1 abastecimento por id
 router.get("/:id", autenticarToken, async (req, res) => {
-    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: "ID inválido." });
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
 
     try {
         const a = await prisma.abastecimento.findUnique({
-            where: { id },
+            where: {id},
             include: {
-                veiculo: { select: { id: true, placa: true, modelo: true } },
-                user: { select: { id: true, nome: true, email: true } }
+                veiculo: {select: {id: true, placa: true, modelo: true}},
+                user: {select: {id: true, nome: true, email: true}}
             }
         });
-        if (!a) return res.status(404).json({ error: "Abastecimento não encontrado." });
+        if (!a) return res.status(404).json({error: "Abastecimento não encontrado."});
 
         const isAdmin = req.user && req.user.role === "ADMIN";
-        if (!isAdmin && a.userId !== req.user.id) return res.status(403).json({ error: "Acesso negado." });
+        if (!isAdmin && a.userId !== req.user.id) return res.status(403).json({error: "Acesso negado."});
 
         res.json(a);
     } catch (error) {
         console.error("GET /abastecimentos/:id error:", error);
-        res.status(500).json({ error: "Erro interno ao buscar abastecimento." });
+        res.status(500).json({error: "Erro interno ao buscar abastecimento."});
     }
 });
 
@@ -104,18 +104,18 @@ router.post("/", autenticarToken, async (req, res) => {
         } = req.body;
 
         if (!veiculoId || !data || quilometragem === undefined || litros === undefined || valorPorLitro === undefined || !combustivel) {
-            return res.status(400).json({ error: "Campos obrigatórios: veiculoId, data, quilometragem, litros, valorPorLitro, combustivel." });
+            return res.status(400).json({error: "Campos obrigatórios: veiculoId, data, quilometragem, litros, valorPorLitro, combustivel."});
         }
 
         const vid = parseInt(String(veiculoId), 10);
-        if (Number.isNaN(vid)) return res.status(400).json({ error: "veiculoId inválido." });
+        if (Number.isNaN(vid)) return res.status(400).json({error: "veiculoId inválido."});
 
         const dt = new Date(String(data));
-        if (Number.isNaN(dt.getTime())) return res.status(400).json({ error: "data inválida." });
+        if (Number.isNaN(dt.getTime())) return res.status(400).json({error: "data inválida."});
 
         const litrosNum = Number(litros);
         const valorNum = Number(valorPorLitro);
-        if (isNaN(litrosNum) || isNaN(valorNum)) return res.status(400).json({ error: "litros ou valorPorLitro inválido." });
+        if (isNaN(litrosNum) || isNaN(valorNum)) return res.status(400).json({error: "litros ou valorPorLitro inválido."});
 
         const custoTotal = litrosNum * valorNum;
 
@@ -136,21 +136,21 @@ router.post("/", autenticarToken, async (req, res) => {
         res.status(201).json(novo);
     } catch (error) {
         console.error("Erro ao criar abastecimento:", error);
-        res.status(500).json({ error: "Erro interno ao criar abastecimento." });
+        res.status(500).json({error: "Erro interno ao criar abastecimento."});
     }
 });
 
 // Atualizar abastecimento (owner ou ADMIN)
 router.patch("/:id", autenticarToken, async (req, res) => {
-    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: "ID inválido." });
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
 
     try {
-        const existing = await prisma.abastecimento.findUnique({ where: { id } });
-        if (!existing) return res.status(404).json({ error: "Abastecimento não encontrado." });
+        const existing = await prisma.abastecimento.findUnique({where: {id}});
+        if (!existing) return res.status(404).json({error: "Abastecimento não encontrado."});
 
         const isAdmin = req.user && req.user.role === "ADMIN";
-        if (!isAdmin && existing.userId !== req.user.id) return res.status(403).json({ error: "Acesso negado." });
+        if (!isAdmin && existing.userId !== req.user.id) return res.status(403).json({error: "Acesso negado."});
 
         const {
             veiculoId,
@@ -165,12 +165,12 @@ router.patch("/:id", autenticarToken, async (req, res) => {
         const updates = {};
         if (veiculoId !== undefined) {
             const vid = parseInt(String(veiculoId), 10);
-            if (Number.isNaN(vid)) return res.status(400).json({ error: "veiculoId inválido." });
+            if (Number.isNaN(vid)) return res.status(400).json({error: "veiculoId inválido."});
             updates.veiculoId = vid;
         }
         if (data !== undefined) {
             const dt = new Date(String(data));
-            if (Number.isNaN(dt.getTime())) return res.status(400).json({ error: "data inválida." });
+            if (Number.isNaN(dt.getTime())) return res.status(400).json({error: "data inválida."});
             updates.data = dt;
         }
         if (quilometragem !== undefined) updates.quilometragem = Number(quilometragem);
@@ -185,34 +185,34 @@ router.patch("/:id", autenticarToken, async (req, res) => {
         if (posto !== undefined) updates.posto = posto;
 
         const updated = await prisma.abastecimento.update({
-            where: { id },
+            where: {id},
             data: updates
         });
 
-        res.json({ message: "Abastecimento atualizado com sucesso.", abastecimento: updated });
+        res.json({message: "Abastecimento atualizado com sucesso.", abastecimento: updated});
     } catch (error) {
         console.error("Erro ao atualizar abastecimento:", error);
-        res.status(500).json({ error: "Erro interno ao atualizar abastecimento." });
+        res.status(500).json({error: "Erro interno ao atualizar abastecimento."});
     }
 });
 
 // Deletar abastecimento (owner ou ADMIN)
 router.delete("/:id", autenticarToken, async (req, res) => {
-    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: "ID inválido." });
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
 
     try {
-        const existing = await prisma.abastecimento.findUnique({ where: { id } });
-        if (!existing) return res.status(404).json({ error: "Abastecimento não encontrado." });
+        const existing = await prisma.abastecimento.findUnique({where: {id}});
+        if (!existing) return res.status(404).json({error: "Abastecimento não encontrado."});
 
         const isAdmin = req.user && req.user.role === "ADMIN";
-        if (!isAdmin && existing.userId !== req.user.id) return res.status(403).json({ error: "Acesso negado." });
+        if (!isAdmin && existing.userId !== req.user.id) return res.status(403).json({error: "Acesso negado."});
 
-        await prisma.abastecimento.delete({ where: { id } });
-        res.json({ message: "Abastecimento deletado com sucesso." });
+        await prisma.abastecimento.delete({where: {id}});
+        res.json({message: "Abastecimento deletado com sucesso."});
     } catch (error) {
         console.error("Erro ao deletar abastecimento:", error);
-        res.status(500).json({ error: "Erro interno ao deletar abastecimento." });
+        res.status(500).json({error: "Erro interno ao deletar abastecimento."});
     }
 });
 
