@@ -42,7 +42,7 @@ export default function Alertas() {
     const fetchAlerts = async () => {
         setLoading(true);
         try {
-            const res = await apiFetch("/alertas?status=PENDENTE");
+            const res = await apiFetch("/alertas/admin?status=PENDENTE");
             if (!res.ok) {
                 const e = await res.json().catch(() => ({error: "Erro ao buscar alertas"}));
                 toast({
