@@ -267,34 +267,31 @@ export default function Dashboard() {
         {
             title: "Veículos Ativos",
             value: String(countVehiclesActive),
-            change: "--",
-            trend: "up",
             icon: Truck,
-            color: "fleet-success"
+            // Defina as classes completas que o Tailwind pode ler
+            bgColorClass: "bg-fleet-success/10",
+            textColorClass: "text-fleet-success"
         },
         {
             title: "Motoristas",
             value: String(countDrivers),
-            change: "--",
-            trend: "up",
             icon: Users,
-            color: "fleet-primary"
+            bgColorClass: "bg-fleet-primary/10",
+            textColorClass: "text-fleet-primary"
         },
         {
             title: "Viagens Recentes",
             value: String(viagens.length),
-            change: "--",
-            trend: "up",
             icon: MapPin,
-            color: "fleet-warning"
+            bgColorClass: "bg-fleet-warning/10",
+            textColorClass: "text-fleet-warning"
         },
         {
             title: "Alertas",
             value: String(alertas.length),
-            change: "--",
-            trend: "up",
             icon: AlertTriangle,
-            color: "fleet-danger"
+            bgColorClass: "bg-fleet-danger/10",
+            textColorClass: "text-fleet-danger"
         }
     ];
 
@@ -319,16 +316,10 @@ export default function Dashboard() {
                                             {stat.title}
                                         </p>
                                         <p className="text-2xl font-bold">{stat.value}</p>
-                                        <p className={`text-xs flex items-center ${
-                                            stat.trend === 'up' ? 'text-success' : stat.trend === 'down' ? 'text-destructive' : 'text-muted-foreground'
-                                        }`}>
-                                            <TrendingUp className="h-3 w-3 mr-1"/>
-                                            {stat.change}
-                                        </p>
                                     </div>
                                     <div
-                                        className={`w-12 h-12 rounded-lg bg-${stat.color}/10 flex items-center justify-center`}>
-                                        <stat.icon className={`h-6 w-6 text-${stat.color}`}/>
+                                        className={`w-12 h-12 rounded-lg flex items-center justify-center ${stat.bgColorClass}`}>
+                                        <stat.icon className={`h-6 w-6 ${stat.textColorClass}`} />
                                     </div>
                                 </div>
                             </CardContent>

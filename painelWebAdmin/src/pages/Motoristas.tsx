@@ -152,7 +152,7 @@ const Motoristas = () => {
                         />
                     </div>
                     <Button
-                        onClick={() => navigate("/register-driver")}
+                        onClick={() => navigate("/registrarmotoristas")}
                         className="bg-primary hover:bg-primary/90"
                     >
                         <Plus className="mr-2 h-4 w-4"/>
