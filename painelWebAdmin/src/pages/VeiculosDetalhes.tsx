@@ -108,7 +108,7 @@ const COLORS = [
 
 export default function VehicleDetails() {
     const {id} = useParams<{ id?: string }>();
-    const vehicleId = id ? Number(id) : NaN;
+    const vehicleId = id ? Number(id) : Number.NaN;
     const navigate = useNavigate();
     const {toast} = useToast();
 
@@ -368,9 +368,9 @@ export default function VehicleDetails() {
     /* mapa de drivers */
     const driversMap = useMemo(() => {
         const m: Record<number, Motorista> = {};
-        drivers.forEach((d) => {
+        for (const d of drivers) {
             if (d && typeof d.id === "number") m[d.id] = d;
-        });
+        }
         return m;
     }, [drivers]);
 
@@ -380,7 +380,7 @@ export default function VehicleDetails() {
 
         const list = manuts
             .map((m) => ({...m, __data: m?.data ? new Date(m.data) : null}))
-            .filter((m) => m.__data instanceof Date && !isNaN(m.__data.getTime()))
+            .filter((m) => m.__data instanceof Date && !Number.isNaN(m.__data.getTime()))
             .sort((a, b) => a.__data.getTime() - b.__data.getTime());
 
         const now = new Date();
@@ -392,26 +392,106 @@ export default function VehicleDetails() {
     }, [manuts]);
 
     const stats = useMemo(() => {
-        const totalViagens = Array.isArray(trips) ? trips.length : 0;
-        const kmRodados = (trips || []).reduce((acc, t) => {
+        // Definir períodos de data
+        const hoje = new Date();
+        const inicioMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        const inicioMesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+        const fimMesAnterior = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+
+        // Função auxiliar para calcular variação percentual
+        const calcularVariacao = (valorAtual: number, valorAnterior: number): number => {
+            if (valorAnterior === 0) {
+                return valorAtual > 0 ? Number.POSITIVE_INFINITY : 0;
+            }
+            return ((valorAtual - valorAnterior) / valorAnterior) * 100;
+        };
+
+        // Calcular totais para período atual (inicioMesAtual até hoje)
+        const tripsAtual = (trips || []).filter(t => {
+            if (!t.dataSaida) return false;
+            const data = new Date(t.dataSaida);
+            if (data.getTime() > hoje.getTime()) return false;
+            return data >= inicioMesAtual && data <= hoje;
+        });
+        const viagensAtualCount = tripsAtual.length;
+
+        const kmAtual = tripsAtual.reduce((acc, t) => {
             const ki = typeof t.kmInicial === "number" ? t.kmInicial : null;
             const kf = typeof t.kmFinal === "number" ? t.kmFinal : null;
             if (ki !== null && kf !== null && kf >= ki) return acc + (kf - ki);
             return acc;
         }, 0);
-        const fuelCost = (fuels || []).reduce((acc, f) => acc + (f && f.custoTotal ? Number(f.custoTotal) : 0), 0);
-        const manutCost = (manuts || []).reduce((acc, m) => acc + (m && m.custo ? Number(m.custo) : 0), 0);
-        const custoTotal = fuelCost + manutCost;
 
-        // média estimada de consumo (baseado em intervalos entre abastecimentos)
-        let mediaCombustivel = 0;
-        try {
-            const validFuels = [...(fuels || [])]
+        const fuelsAtual = (fuels || []).filter(f => {
+            if (!f.data) return false;
+            const data = new Date(f.data);
+            if (data.getTime() > hoje.getTime()) return false;
+            return data >= inicioMesAtual && data <= hoje;
+        });
+
+        // Excluir manutenções agendadas/futuras do período atual
+        const manutsAtual = (manuts || []).filter(m => {
+            if (!m.data) return false;
+            const status = (m.status ?? "").toString().toUpperCase();
+            if (status === "AGENDADA") return false;
+            const data = new Date(m.data);
+            if (data.getTime() > hoje.getTime()) return false;
+            return data >= inicioMesAtual && data <= hoje;
+        });
+
+        const custoAtual =
+            fuelsAtual.reduce((acc, f) => acc + (f.custoTotal ? Number(f.custoTotal) : 0), 0) +
+            manutsAtual.reduce((acc, m) => acc + (m.custo ? Number(m.custo) : 0), 0);
+
+        // Calcular totais para período anterior (inicioMesAnterior até fimMesAnterior)
+        const tripsAnterior = (trips || []).filter(t => {
+            if (!t.dataSaida) return false;
+            const data = new Date(t.dataSaida);
+            return data >= inicioMesAnterior && data <= fimMesAnterior;
+        });
+        const viagensAnteriorCount = tripsAnterior.length;
+
+        const kmAnterior = tripsAnterior.reduce((acc, t) => {
+            const ki = typeof t.kmInicial === "number" ? t.kmInicial : null;
+            const kf = typeof t.kmFinal === "number" ? t.kmFinal : null;
+            if (ki !== null && kf !== null && kf >= ki) return acc + (kf - ki);
+            return acc;
+        }, 0);
+
+        const fuelsAnterior = (fuels || []).filter(f => {
+            if (!f.data) return false;
+            const data = new Date(f.data);
+            return data >= inicioMesAnterior && data <= fimMesAnterior;
+        });
+
+        const manutsAnterior = (manuts || []).filter(m => {
+            if (!m.data) return false;
+            const status = (m.status ?? "").toString().toUpperCase();
+            if (status === "AGENDADA") return false;
+            const data = new Date(m.data);
+            return data >= inicioMesAnterior && data <= fimMesAnterior;
+        });
+
+        const custoAnterior =
+            fuelsAnterior.reduce((acc, f) => acc + (f.custoTotal ? Number(f.custoTotal) : 0), 0) +
+            manutsAnterior.reduce((acc, m) => acc + (m.custo ? Number(m.custo) : 0), 0);
+
+        // Variações
+        const deltaViagens = calcularVariacao(viagensAtualCount, viagensAnteriorCount);
+        const deltaKm = calcularVariacao(kmAtual, kmAnterior);
+        const deltaCusto = calcularVariacao(custoAtual, custoAnterior);
+
+        // Calcular consumo médio para períodos atual e anterior
+        const calcularConsumoMedio = (fuelsList: Abastecimento[]) => {
+            if (fuelsList.length < 2) return 0;
+            const validFuels = [...fuelsList]
                 .filter((f) => f && f.quilometragem !== undefined && f.litros !== undefined)
                 //eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .map((f) => ({quil: Number((f as any).quilometragem), litros: Number((f as any).litros)}))
-                .filter((f) => !isNaN(f.quil) && !isNaN(f.litros))
+                .filter((f) => !Number.isNaN(f.quil) && !Number.isNaN(f.litros))
                 .sort((a, b) => a.quil - b.quil);
+
+            if (validFuels.length < 2) return 0;
 
             let totalKm = 0;
             let totalLitros = 0;
@@ -425,12 +505,58 @@ export default function VehicleDetails() {
                     totalLitros += litros;
                 }
             }
-            mediaCombustivel = totalLitros > 0 ? +(totalKm / totalLitros).toFixed(2) : 0;
+            return totalLitros > 0 ? +(totalKm / totalLitros).toFixed(2) : 0;
+        };
+
+        const consumoAtual = calcularConsumoMedio(fuelsAtual);
+        const consumoAnterior = calcularConsumoMedio(fuelsAnterior);
+        const deltaConsumo = calcularVariacao(consumoAtual, consumoAnterior);
+
+        // Totais gerais (todos os dados)
+        const totalViagens = (trips || []).length;
+        const kmRodados = (trips || []).reduce((acc, t) => {
+            const ki = typeof t.kmInicial === "number" ? t.kmInicial : null;
+            const kf = typeof t.kmFinal === "number" ? t.kmFinal : null;
+            if (ki !== null && kf !== null && kf >= ki) return acc + (kf - ki);
+            return acc;
+        }, 0);
+
+        // Excluir manutenções agendadas do custo total global
+        const fuelCost = (fuels || []).reduce((acc, f) => acc + (f.custoTotal ? Number(f.custoTotal) : 0), 0);
+        const manutCostEfetivo = (manuts || []).filter(m => ((m.status ?? "").toString().toUpperCase() !== "AGENDADA"))
+            .reduce((acc, m) => acc + (m.custo ? Number(m.custo) : 0), 0);
+        const custoTotal = fuelCost + manutCostEfetivo;
+
+        // Média de consumo estimado (global - todos os dados)
+        let mediaCombustivel = 0;
+        try {
+            mediaCombustivel = calcularConsumoMedio(fuels || []);
         } catch (e) {
             mediaCombustivel = 0;
         }
 
-        return {totalViagens, kmRodados, custoTotal, mediaCombustivel};
+        return {
+            totalViagens,
+            kmRodados,
+            custoTotal,
+            mediaCombustivel,
+            deltas: {
+                viagens: deltaViagens,
+                km: deltaKm,
+                custo: deltaCusto,
+                consumo: deltaConsumo
+            },
+            periodTotals: {
+                viagensAtual: viagensAtualCount,
+                viagensAnterior: viagensAnteriorCount,
+                kmAtual,
+                kmAnterior,
+                custoAtual,
+                custoAnterior,
+                consumoAtual,
+                consumoAnterior
+            }
+        };
     }, [trips, fuels, manuts]);
 
     const costOverTime = useMemo(() => {
@@ -447,7 +573,7 @@ export default function VehicleDetails() {
             if (!iso) return;
             try {
                 const d = new Date(iso);
-                if (isNaN(d.getTime())) return;
+                if (Number.isNaN(d.getTime())) return;
                 const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
                 const label = format(d, "MMM", {locale: ptBR});
                 if (!map[ym]) map[ym] = {ym, mes: label, combustivel: 0, manutencao: 0, custo: 0};
@@ -456,8 +582,8 @@ export default function VehicleDetails() {
             } catch (e) { /* ignore */
             }
         };
-        fuels.forEach((f) => push(f.data, Number(f.custoTotal ?? 0), "combustivel"));
-        manuts.forEach((m) => push(m.data ?? undefined, Number(m.custo ?? 0), "manutencao"));
+        for (const f of (fuels || [])) push(f.data, Number(f.custoTotal ?? 0), "combustivel");
+        for (const m of (manuts || [])) push(m.data ?? undefined, Number(m.custo ?? 0), "manutencao");
         const arr = Object.values(map).sort((a, b) => a.ym.localeCompare(b.ym));
         if (arr.length === 0) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -479,11 +605,11 @@ export default function VehicleDetails() {
 
     const driversUsage = useMemo(() => {
         const count: Record<number, number> = {};
-        (trips || []).forEach((t) => {
-            const uid = t.userId ?? (t.user && t.user.id);
-            const uidNum = uid !== undefined && uid !== null ? Number(uid) : NaN;
+        for (const t of (trips || [])) {
+            const uid = t.userId ?? t.user?.id;
+            const uidNum = uid !== undefined && uid !== null ? Number(uid) : Number.NaN;
             if (!Number.isNaN(uidNum)) count[uidNum] = (count[uidNum] || 0) + 1;
-        });
+        }
         const arr = Object.entries(count)
             .map(([uid, qtd]) => {
                 const idn = Number(uid);
@@ -642,24 +768,64 @@ export default function VehicleDetails() {
                             <Activity className="h-4 w-4 text-muted-foreground"/>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{stats.totalViagens}</div>
-                            <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingUp className="h-3 w-3 mr-1 text-success"/> {Math.round(Math.random() * 10)}% vs
-                                mês anterior
+                            <div className="flex items-baseline justify-between">
+                                <div className="text-2xl font-bold">{stats.totalViagens}</div>
+                                <div className="text-sm text-muted-foreground">Mês atual: <span className="font-medium">{stats.periodTotals?.viagensAtual ?? 0}</span></div>
+                            </div>
+                            <p className="text-xs flex items-center mt-1">
+                                {Number.isFinite(stats.deltas.viagens) ? (
+                                    stats.deltas.viagens >= 0 ? (
+                                        <>
+                                            <TrendingUp className="h-3 w-3 mr-1 text-success"/>
+                                            <span className="text-success">+{stats.deltas.viagens.toFixed(1)}%</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TrendingDown className="h-3 w-3 mr-1 text-destructive"/>
+                                            <span className="text-destructive">{stats.deltas.viagens.toFixed(1)}%</span>
+                                        </>
+                                    )
+                                ) : (
+                                    <>
+                                        <TrendingUp className="h-3 w-3 mr-1 text-success"/>
+                                        <span className="text-success">+∞</span>
+                                    </>
+                                )}
+                                <span className="text-muted-foreground ml-1">% vs mês anterior</span>
                             </p>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Km Rodados</CardTitle>
+                            <CardTitle className="text-sm font-medium">Total de Km Rodados</CardTitle>
                             <TrendingUp className="h-4 w-4 text-muted-foreground"/>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{stats.kmRodados.toLocaleString("pt-BR")}</div>
-                            <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingUp className="h-3 w-3 mr-1 text-success"/> {Math.round(Math.random() * 10)}% vs
-                                mês anterior
+                            <div className="flex items-baseline justify-between">
+                                <div className="text-2xl font-bold">{stats.kmRodados.toLocaleString("pt-BR")}</div>
+                                <div className="text-sm text-muted-foreground">Mês atual: <span className="font-medium">{(stats.periodTotals?.kmAtual ?? 0).toLocaleString("pt-BR")}</span></div>
+                            </div>
+                            <p className="text-xs flex items-center mt-1">
+                                {Number.isFinite(stats.deltas.km) ? (
+                                    stats.deltas.km >= 0 ? (
+                                        <>
+                                            <TrendingUp className="h-3 w-3 mr-1 text-success"/>
+                                            <span className="text-success">+{stats.deltas.km.toFixed(1)}%</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TrendingDown className="h-3 w-3 mr-1 text-destructive"/>
+                                            <span className="text-destructive">{stats.deltas.km.toFixed(1)}%</span>
+                                        </>
+                                    )
+                                ) : (
+                                    <>
+                                        <TrendingUp className="h-3 w-3 mr-1 text-success"/>
+                                        <span className="text-success">+∞</span>
+                                    </>
+                                )}
+                                <span className="text-muted-foreground ml-1">% vs mês anterior</span>
                             </p>
                         </CardContent>
                     </Card>
@@ -670,24 +836,64 @@ export default function VehicleDetails() {
                             <DollarSign className="h-4 w-4 text-muted-foreground"/>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(stats.custoTotal)}</div>
-                            <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingUp className="h-3 w-3 mr-1 text-destructive"/> {Math.round(Math.random() * 10)}%
-                                vs mês anterior
+                            <div className="flex items-baseline justify-between">
+                                <div className="text-2xl font-bold">{formatCurrency(stats.custoTotal)}</div>
+                                <div className="text-sm text-muted-foreground">Mês atual: <span className="font-medium">{formatCurrency(stats.periodTotals?.custoAtual ?? 0)}</span></div>
+                            </div>
+                            <p className="text-xs flex items-center mt-1">
+                                {Number.isFinite(stats.deltas.custo) ? (
+                                    stats.deltas.custo > 0 ? (
+                                        <>
+                                            <TrendingUp className="h-3 w-3 mr-1 text-destructive"/>
+                                            <span className="text-destructive">+{stats.deltas.custo.toFixed(1)}%</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TrendingDown className="h-3 w-3 mr-1 text-success"/>
+                                            <span className="text-success">{stats.deltas.custo.toFixed(1)}%</span>
+                                        </>
+                                    )
+                                ) : (
+                                    <>
+                                        <TrendingUp className="h-3 w-3 mr-1 text-destructive"/>
+                                        <span className="text-destructive">+∞</span>
+                                    </>
+                                )}
+                                <span className="text-muted-foreground ml-1">% vs mês anterior</span>
                             </p>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Consumo Médio (estimado)</CardTitle>
+                            <CardTitle className="text-sm font-medium">Total de Consumo Médio (estimado)</CardTitle>
                             <Fuel className="h-4 w-4 text-muted-foreground"/>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{stats.mediaCombustivel || "—"}</div>
-                            <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingDown className="h-3 w-3 mr-1 text-success"/> {Math.round(Math.random() * 5)}%
-                                vs mês anterior
+                            <div className="flex items-baseline justify-between">
+                                <div className="text-2xl font-bold">{stats.mediaCombustivel || "—"}</div>
+                                <div className="text-sm text-muted-foreground">Mês atual: <span className="font-medium">{stats.periodTotals?.consumoAtual ?? "—"}</span></div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {Number.isFinite(stats.deltas.consumo) ? (
+                                    stats.deltas.consumo < 0 ? (
+                                        <>
+                                            <TrendingDown className="h-3 w-3 mr-1 text-success inline"/>
+                                            <span className="text-success">{stats.deltas.consumo.toFixed(1)}%</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TrendingUp className="h-3 w-3 mr-1 text-destructive inline"/>
+                                            <span className="text-destructive">+{stats.deltas.consumo.toFixed(1)}%</span>
+                                        </>
+                                    )
+                                ) : (
+                                    <>
+                                        <TrendingUp className="h-3 w-3 mr-1 text-destructive inline"/>
+                                        <span className="text-destructive">+∞</span>
+                                    </>
+                                )}
+                                <span className="ml-1">vs mês anterior</span>
                             </p>
                         </CardContent>
                     </Card>
@@ -745,10 +951,10 @@ export default function VehicleDetails() {
                                     <BarChart
                                         data={(() => {
                                             const counts: Record<string, number> = {};
-                                            manuts.forEach((m) => {
+                                            for (const m of manuts) {
                                                 const t = m.tipo ?? "Outros";
                                                 counts[t] = (counts[t] || 0) + 1;
-                                            });
+                                            }
                                             return Object.entries(counts).map(([type, count]) => ({type, count}));
                                         })()}
                                     >

@@ -7,7 +7,7 @@ import {Badge} from "@/components/ui/badge";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Separator} from "@/components/ui/separator";
 import {Progress} from "@/components/ui/progress";
-import {AlertCircle, ArrowLeft, Calendar, Car, Clock, DollarSign, Mail, MapPin, Phone, TrendingUp} from "lucide-react";
+import {AlertCircle, ArrowLeft, Calendar, Car, Clock, DollarSign, Mail, MapPin, Phone, TrendingUp, TrendingDown} from "lucide-react";
 import {useNavigate, useParams} from "react-router-dom";
 import {
     Bar,
@@ -43,7 +43,6 @@ type Motorista = {
     status?: string | null;
     categoria?: string | null;
 };
-//eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Viagem = {
     id: number;
     veiculoId?: number | null;
@@ -181,11 +180,47 @@ export default function DriverDetails() {
                 }
 
                 // fuels, manuts, vehicles
-                const [fuelsRes, manRes, vRes] = await Promise.all([tryEndpoints[4], tryEndpoints[5], tryEndpoints[6]]);
-                //eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const fuelsArr = (await safeJson(fuelsRes)) as any;
-                //eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const manArr = (await safeJson(manRes)) as any;
+                const vRes = await tryEndpoints[6];
+
+                // fuels: tentar /abastecimentos?userId=driverId, senão /abastecimentos/admin e filtrar
+                let fuelsArr: any = [];
+                try {
+                    const fuelsRes = await tryEndpoints[4];
+                    const fjson = await safeJson(fuelsRes);
+                    if (Array.isArray(fjson) && fjson.length > 0) fuelsArr = fjson;
+                    else {
+                        const fAdminRes = await apiFetch(`/abastecimentos/admin`);
+                        const fall = await safeJson(fAdminRes);
+                        if (Array.isArray(fall)) fuelsArr = fall.filter((f: any) => {
+                            const uid = f.userId ?? (f.user && f.user.id);
+                            return Number(uid) === driverId;
+                        });
+                    }
+                } catch (e) {
+                    console.warn("Erro ao buscar abastecimentos (tentativas múltiplas):", e);
+                    fuelsArr = [];
+                }
+
+                // manuts: mesma estratégia
+                let manArr: any = [];
+                try {
+                    const manRes = await tryEndpoints[5];
+                    const mjson = await safeJson(manRes);
+                    if (Array.isArray(mjson) && mjson.length > 0) manArr = mjson;
+                    else {
+                        const mAdminRes = await apiFetch(`/manutencoes/admin`);
+                        const mall = await safeJson(mAdminRes);
+                        if (Array.isArray(mall)) manArr = mall.filter((m: any) => {
+                            const uid = m.userId ?? (m.user && m.user.id);
+                            return Number(uid) === driverId;
+                        });
+                    }
+                } catch (e) {
+                    console.warn("Erro ao buscar manutenções (tentativas múltiplas):", e);
+                    manArr = [];
+                }
+
+                // vehicles
                 //eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const vArr = (await safeJson(vRes)) as any;
 
@@ -224,8 +259,100 @@ export default function DriverDetails() {
         return m;
     }, [vehicles]);
 
-    // KPIs (mesma lógica sua)
+    // KPIs (com cálculo real de variação)
     const stats = useMemo(() => {
+        // Definir períodos de data
+        const hoje = new Date();
+        const inicioMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        const inicioMesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+        const fimMesAnterior = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+
+        // Função auxiliar para calcular variação percentual
+        const calcularVariacao = (valorAtual: number, valorAnterior: number): number => {
+            // Retorna Infinity quando não há valor anterior e há valor atual (crescimento a partir de zero)
+            if (valorAnterior === 0) {
+                return valorAtual > 0 ? Number.POSITIVE_INFINITY : 0;
+            }
+            return ((valorAtual - valorAnterior) / valorAnterior) * 100;
+        };
+
+        // Calcular totais para período atual (inicioMesAtual até hoje)
+        const triposAtual = trips.filter(t => {
+            if (!t.dataSaida) return false;
+            const data = new Date(t.dataSaida);
+            return data >= inicioMesAtual && data <= hoje;
+        });
+        const viagensAtualCount = triposAtual.length;
+
+        const kmAtual = triposAtual.reduce((acc, t) => {
+            const ki = typeof t.kmInicial === "number" ? t.kmInicial : null;
+            const kf = typeof t.kmFinal === "number" ? t.kmFinal : null;
+            if (ki !== null && kf !== null && kf >= ki) {
+                return acc + (kf - ki);
+            }
+            return acc;
+        }, 0);
+
+        const fuelsAtual = fuels.filter(f => {
+            if (!f.data) return false;
+            const data = new Date(f.data);
+            return data >= inicioMesAtual && data <= hoje;
+        });
+        // Excluir manutenções agendadas: só contar manutenções efetivas (status != AGENDADA)
+        const manutsAtual = manuts.filter(m => {
+            if (!m.data) return false;
+            // considerar apenas manutenções com custo e que não estejam agendadas
+            const status = (m.status ?? "").toString().toUpperCase();
+            if (status === "AGENDADA") return false;
+            const data = new Date(m.data);
+            return data >= inicioMesAtual && data <= hoje;
+        });
+
+        const custoAtual =
+            fuelsAtual.reduce((acc, f) => acc + (f.custoTotal ? Number(f.custoTotal) : 0), 0) +
+            manutsAtual.reduce((acc, m) => acc + (m.custo ? Number(m.custo) : 0), 0);
+
+        // Calcular totais para período anterior (inicioMesAnterior até fimMesAnterior)
+        const tripsAnterior = trips.filter(t => {
+            if (!t.dataSaida) return false;
+            const data = new Date(t.dataSaida);
+            return data >= inicioMesAnterior && data <= fimMesAnterior;
+        });
+        const viagensAnteriorCount = tripsAnterior.length;
+
+        const kmAnterior = tripsAnterior.reduce((acc, t) => {
+            const ki = typeof t.kmInicial === "number" ? t.kmInicial : null;
+            const kf = typeof t.kmFinal === "number" ? t.kmFinal : null;
+            if (ki !== null && kf !== null && kf >= ki) {
+                return acc + (kf - ki);
+            }
+            return acc;
+        }, 0);
+
+        const fuelsAnterior = fuels.filter(f => {
+            if (!f.data) return false;
+            const data = new Date(f.data);
+            return data >= inicioMesAnterior && data <= fimMesAnterior;
+        });
+        // Excluir manutenções agendadas do período anterior também
+        const manutsAnterior = manuts.filter(m => {
+            if (!m.data) return false;
+            const status = (m.status ?? "").toString().toUpperCase();
+            if (status === "AGENDADA") return false;
+            const data = new Date(m.data);
+            return data >= inicioMesAnterior && data <= fimMesAnterior;
+        });
+
+        const custoAnterior =
+            fuelsAnterior.reduce((acc, f) => acc + (f.custoTotal ? Number(f.custoTotal) : 0), 0) +
+            manutsAnterior.reduce((acc, m) => acc + (m.custo ? Number(m.custo) : 0), 0);
+
+        // Calcular variações
+        const deltaViagens = calcularVariacao(viagensAtualCount, viagensAnteriorCount);
+        const deltaKm = calcularVariacao(kmAtual, kmAnterior);
+        const deltaCusto = calcularVariacao(custoAtual, custoAnterior);
+
+        // Totals gerais (todos os dados)
         const totalViagens = trips.length;
         const kmRodados = trips.reduce((acc, t) => {
             const ki = typeof t.kmInicial === "number" ? t.kmInicial : null;
@@ -237,7 +364,11 @@ export default function DriverDetails() {
         }, 0);
         const manutCost = manuts.reduce((acc, m) => acc + (m.custo ? Number(m.custo) : 0), 0);
         const fuelCost = fuels.reduce((acc, f) => acc + (f.custoTotal ? Number(f.custoTotal) : 0), 0);
-        const custoTotal = manutCost + fuelCost;
+        // Excluir manutenções agendadas do custo total geral
+        const manutCostEfetivo = manuts
+            .filter(m => ((m.status ?? "").toString().toUpperCase() !== "AGENDADA"))
+            .reduce((acc, m) => acc + (m.custo ? Number(m.custo) : 0), 0);
+        const custoTotal = manutCostEfetivo + fuelCost;
 
         const viagensCompletadas = trips.filter(t => !!t.dataChegada).length;
         const viagensCanceladas = totalViagens - viagensCompletadas;
@@ -269,7 +400,20 @@ export default function DriverDetails() {
             viagensCompletadas,
             viagensCanceladas,
             tempoMedio,
-            avaliacaoMedia: 0
+            avaliacaoMedia: 0,
+            deltas: {
+                viagens: deltaViagens,
+                km: deltaKm,
+                custo: deltaCusto
+            },
+            periodTotals: {
+                viagensAtual: viagensAtualCount,
+                viagensAnterior: viagensAnteriorCount,
+                kmAtual,
+                kmAnterior,
+                custoAtual,
+                custoAnterior
+            }
         };
     }, [trips, manuts, fuels]);
 
@@ -424,14 +568,33 @@ export default function DriverDetails() {
                             <Car className="h-4 w-4 text-muted-foreground"/>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{stats.totalViagens}</div>
-                            <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingUp className="h-3 w-3 mr-1 text-success"/>
-                                {/* simplistic delta placeholder */}
-                                +{Math.round(Math.random() * 10)}% vs mês anterior
-                            </p>
-                        </CardContent>
-                    </Card>
+                            <div className="flex items-baseline justify-between">
+                                <div className="text-2xl font-bold">{stats.totalViagens}</div>
+                                <div className="text-sm text-muted-foreground">Mês atual: <span className="font-medium">{stats.periodTotals?.viagensAtual ?? 0}</span></div>
+                            </div>
+                            <p className="text-xs flex items-center mt-1">
+                                {Number.isFinite(stats.deltas.viagens) ? (
+                                    stats.deltas.viagens >= 0 ? (
+                                        <>
+                                            <TrendingUp className="h-3 w-3 mr-1 text-success"/>
+                                            <span className="text-success">+{stats.deltas.viagens.toFixed(1)}%</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TrendingDown className="h-3 w-3 mr-1 text-destructive"/>
+                                            <span className="text-destructive">{stats.deltas.viagens.toFixed(1)}%</span>
+                                        </>
+                                    )
+                                ) : (
+                                    <>
+                                        <TrendingUp className="h-3 w-3 mr-1 text-success"/>
+                                        <span className="text-success">+∞</span>
+                                    </>
+                                )}
+                                <span className="text-muted-foreground ml-1">% vs mês anterior</span>
+                             </p>
+                         </CardContent>
+                     </Card>
 
                     <Card className="shadow-card">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -439,10 +602,30 @@ export default function DriverDetails() {
                             <MapPin className="h-4 w-4 text-muted-foreground"/>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{stats.kmRodados.toLocaleString('pt-BR')}</div>
-                            <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingUp className="h-3 w-3 mr-1 text-success"/>
-                                +{Math.round(Math.random() * 10)}% vs mês anterior
+                            <div className="flex items-baseline justify-between">
+                                <div className="text-2xl font-bold">{stats.kmRodados.toLocaleString('pt-BR')}</div>
+                                <div className="text-sm text-muted-foreground">Mês atual: <span className="font-medium">{(stats.periodTotals?.kmAtual ?? 0).toLocaleString('pt-BR')}</span></div>
+                            </div>
+                            <p className="text-xs flex items-center mt-1">
+                                {Number.isFinite(stats.deltas.km) ? (
+                                    stats.deltas.km >= 0 ? (
+                                        <>
+                                            <TrendingUp className="h-3 w-3 mr-1 text-success"/>
+                                            <span className="text-success">+{stats.deltas.km.toFixed(1)}%</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TrendingDown className="h-3 w-3 mr-1 text-destructive"/>
+                                            <span className="text-destructive">{stats.deltas.km.toFixed(1)}%</span>
+                                        </>
+                                    )
+                                ) : (
+                                    <>
+                                        <TrendingUp className="h-3 w-3 mr-1 text-success"/>
+                                        <span className="text-success">+∞</span>
+                                    </>
+                                )}
+                                <span className="text-muted-foreground ml-1">% vs mês anterior</span>
                             </p>
                         </CardContent>
                     </Card>
@@ -453,10 +636,30 @@ export default function DriverDetails() {
                             <DollarSign className="h-4 w-4 text-muted-foreground"/>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(stats.custoTotal)}</div>
-                            <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                <TrendingUp className="h-3 w-3 mr-1 text-destructive"/>
-                                +{Math.round(Math.random() * 10)}% vs mês anterior
+                            <div className="flex items-baseline justify-between">
+                                <div className="text-2xl font-bold">{formatCurrency(stats.custoTotal)}</div>
+                                <div className="text-sm text-muted-foreground">Mês atual: <span className="font-medium">{formatCurrency(stats.periodTotals?.custoAtual ?? 0)}</span></div>
+                            </div>
+                            <p className="text-xs flex items-center mt-1">
+                                {Number.isFinite(stats.deltas.custo) ? (
+                                    stats.deltas.custo > 0 ? (
+                                        <>
+                                            <TrendingUp className="h-3 w-3 mr-1 text-destructive"/>
+                                            <span className="text-destructive">+{stats.deltas.custo.toFixed(1)}%</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TrendingDown className="h-3 w-3 mr-1 text-success"/>
+                                            <span className="text-success">{stats.deltas.custo.toFixed(1)}%</span>
+                                        </>
+                                    )
+                                ) : (
+                                    <>
+                                        <TrendingUp className="h-3 w-3 mr-1 text-destructive"/>
+                                        <span className="text-destructive">+∞</span>
+                                    </>
+                                )}
+                                <span className="text-muted-foreground ml-1">% vs mês anterior</span>
                             </p>
                         </CardContent>
                     </Card>
