@@ -1,3 +1,4 @@
+// backend/routes/manutencoes.js
 import express from "express";
 import pkg from "@prisma/client";
 import {autenticarToken} from "../index.js";
@@ -6,16 +7,7 @@ const {PrismaClient} = pkg;
 const prisma = new PrismaClient();
 const router = express.Router();
 
-/*
-  Rotas:
-  GET    /manutencoes         -> lista (admin: todos; user: só os seus). aceita query: status, from, to, veiculoId, limit
-  GET    /manutencoes/:id     -> detalhe (owner | admin)
-  POST   /manutencoes         -> cria (autenticado)
-  PATCH  /manutencoes/:id     -> atualiza (owner | admin)
-  DELETE /manutencoes/:id     -> deleta (owner | admin)
-*/
-
-// Listar manutenções (com filtros)
+// Listar manutenções
 router.get("/", autenticarToken, async (req, res) => {
     try {
         const {status, from, to, veiculoId, limit} = req.query;
@@ -24,21 +16,15 @@ router.get("/", autenticarToken, async (req, res) => {
         const where = {};
 
         if (!isAdmin) {
-            // usuário normal vê só as manutenções que ele solicitou
             where.userId = Number(req.user.id);
         } else {
-            // admin pode filtrar por veiculo se quiser
             if (veiculoId !== undefined) {
                 const vid = parseInt(String(veiculoId), 10);
                 if (!Number.isNaN(vid)) where.veiculoId = vid;
             }
         }
 
-        if (status) {
-            // aceitar status em maiúsculas ou minúsculas
-            where.status = String(status).toUpperCase();
-        }
-
+        if (status) where.status = String(status).toUpperCase();
         if (from) {
             const d = new Date(String(from));
             if (!Number.isNaN(d.getTime())) where.data = {...(where.data || {}), gte: d};
@@ -48,8 +34,6 @@ router.get("/", autenticarToken, async (req, res) => {
             if (!Number.isNaN(d.getTime())) where.data = {...(where.data || {}), lte: d};
         }
 
-        // Prisma where construction: if we used mixed shape above, ensure shape valid
-        // Simples abordagem: construir um objeto final manualmente
         const prismaWhere = {};
         if (where.userId !== undefined) prismaWhere.userId = where.userId;
         if (where.veiculoId !== undefined) prismaWhere.veiculoId = where.veiculoId;
@@ -60,11 +44,11 @@ router.get("/", autenticarToken, async (req, res) => {
 
         const manutencoes = await prisma.manutencao.findMany({
             where: prismaWhere,
-            orderBy: {data: "asc"},
+            orderBy: {data: "desc"}, // Ajustado para DESC (mais recentes primeiro)
             take,
             include: {
                 veiculo: {select: {id: true, placa: true, modelo: true}},
-                user: {select: {id: true, nome: true, email: true}}
+                user: {select: {id: true, nome: true, email: true}} // Garante o nome na lista
             }
         });
 
@@ -85,7 +69,7 @@ router.get("/:id", autenticarToken, async (req, res) => {
             where: {id},
             include: {
                 veiculo: {select: {id: true, placa: true, modelo: true}},
-                user: {select: {id: true, nome: true, email: true}}
+                user: {select: {id: true, nome: true, email: true}} // Garante o nome no detalhe
             }
         });
         if (!m) return res.status(404).json({error: "Manutenção não encontrada."});
@@ -104,32 +88,30 @@ router.get("/:id", autenticarToken, async (req, res) => {
 router.post("/", autenticarToken, async (req, res) => {
     try {
         const {
-            veiculoId,
-            data,
-            quilometragem,
-            tipo,
-            descricao,
-            custo,
-            local,
-            observacoes,
-            status
+            veiculoId, data, quilometragem, tipo, descricao, custo, local, observacoes, status, userId
         } = req.body;
 
         if (!veiculoId || !data || !quilometragem || !tipo || !descricao) {
             return res.status(400).json({error: "Campos obrigatórios: veiculoId, data, quilometragem, tipo, descricao."});
         }
 
-        // valida veiculoId
         const vid = parseInt(String(veiculoId), 10);
         if (Number.isNaN(vid)) return res.status(400).json({error: "veiculoId inválido."});
 
         const dt = new Date(String(data));
         if (Number.isNaN(dt.getTime())) return res.status(400).json({error: "data inválida."});
 
+        // LÓGICA DE CORREÇÃO: Se for Admin e enviou userId, usa ele. Se não, usa o logado.
+        let targetUserId = req.user.id;
+        if (req.user.role === "ADMIN" && userId) {
+            const parsedId = Number.parseInt(String(userId), 10);
+            if (!Number.isNaN(parsedId)) targetUserId = parsedId;
+        }
+
         const newManut = await prisma.manutencao.create({
             data: {
                 veiculoId: vid,
-                userId: req.user.id,
+                userId: targetUserId, // Usa o ID correto (Motorista ou Admin)
                 data: dt,
                 quilometragem: Number(quilometragem),
                 tipo: String(tipo).toUpperCase(),
@@ -148,7 +130,7 @@ router.post("/", autenticarToken, async (req, res) => {
     }
 });
 
-// Atualizar manutenção (owner ou ADMIN)
+// Atualizar manutenção
 router.patch("/:id", autenticarToken, async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
@@ -161,28 +143,12 @@ router.patch("/:id", autenticarToken, async (req, res) => {
         if (!isAdmin && existing.userId !== req.user.id) return res.status(403).json({error: "Acesso negado."});
 
         const {
-            veiculoId,
-            data,
-            quilometragem,
-            tipo,
-            descricao,
-            custo,
-            local,
-            observacoes,
-            status
+            veiculoId, data, quilometragem, tipo, descricao, custo, local, observacoes, status, userId
         } = req.body;
 
         const updates = {};
-        if (veiculoId !== undefined) {
-            const vid = parseInt(String(veiculoId), 10);
-            if (Number.isNaN(vid)) return res.status(400).json({error: "veiculoId inválido."});
-            updates.veiculoId = vid;
-        }
-        if (data !== undefined) {
-            const dt = new Date(String(data));
-            if (Number.isNaN(dt.getTime())) return res.status(400).json({error: "data inválida."});
-            updates.data = dt;
-        }
+        if (veiculoId !== undefined) updates.veiculoId = parseInt(String(veiculoId), 10);
+        if (data !== undefined) updates.data = new Date(String(data));
         if (quilometragem !== undefined) updates.quilometragem = Number(quilometragem);
         if (tipo !== undefined) updates.tipo = String(tipo).toUpperCase();
         if (descricao !== undefined) updates.descricao = String(descricao);
@@ -190,6 +156,11 @@ router.patch("/:id", autenticarToken, async (req, res) => {
         if (local !== undefined) updates.local = local;
         if (observacoes !== undefined) updates.observacoes = observacoes;
         if (status !== undefined) updates.status = String(status).toUpperCase();
+
+        // Permite Admin reatribuir a manutenção para outro motorista
+        if (isAdmin && userId !== undefined) {
+            updates.userId = Number.parseInt(String(userId), 10);
+        }
 
         const updated = await prisma.manutencao.update({
             where: {id},
@@ -203,7 +174,7 @@ router.patch("/:id", autenticarToken, async (req, res) => {
     }
 });
 
-// Deletar manutenção (owner ou ADMIN)
+// Deletar manutenção
 router.delete("/:id", autenticarToken, async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);

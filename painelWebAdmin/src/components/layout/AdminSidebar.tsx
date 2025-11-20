@@ -6,7 +6,7 @@ import {
     Fuel,
     LayoutDashboard,
     MapPin,
-    Settings,
+    HelpCircle,
     ShieldCheck,
     TriangleAlert,
     Truck,
@@ -47,6 +47,7 @@ export function AdminSidebar({sidebarOpen, setSidebarOpen}: AdminSidebarProps) {
                         <LayoutDashboard className="mr-2 h-4 w-4"/>
                         Dashboard
                     </Button>
+
                     <Button
                         variant="ghost"
                         className="w-full justify-start"
@@ -56,6 +57,7 @@ export function AdminSidebar({sidebarOpen, setSidebarOpen}: AdminSidebarProps) {
                         <Users className="mr-2 h-4 w-4"/>
                         Motoristas
                     </Button>
+
                     <Button
                         variant="ghost"
                         className="w-full justify-start"
@@ -65,24 +67,7 @@ export function AdminSidebar({sidebarOpen, setSidebarOpen}: AdminSidebarProps) {
                         <Car className="mr-2 h-4 w-4"/>
                         Veículos
                     </Button>
-                    <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => navigate("/registrarmotoristas")}
-                        data-active={location.pathname === "/RegistrarMotoristas"}
-                    >
-                        <UserPlus className="mr-2 h-4 w-4"/>
-                        Cadastrar Motorista
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => navigate("/registrarveiculos")}
-                        data-active={location.pathname === "/RegistrarVeiculos"}
-                    >
-                        <CarFront className="mr-2 h-4 w-4"/>
-                        Cadastrar Veículo
-                    </Button>
+
                     <Button
                         variant="ghost"
                         className="w-full justify-start"
@@ -92,6 +77,7 @@ export function AdminSidebar({sidebarOpen, setSidebarOpen}: AdminSidebarProps) {
                         <MapPin className="mr-2 h-4 w-4"/>
                         Viagens
                     </Button>
+
                     <Button
                         variant="ghost"
                         className="w-full justify-start"
@@ -101,24 +87,7 @@ export function AdminSidebar({sidebarOpen, setSidebarOpen}: AdminSidebarProps) {
                         <TriangleAlert className="mr-2 h-4 w-4"/>
                         Alertas
                     </Button>
-                    <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => navigate("/registrarmanutencoes")}
-                        data-active={location.pathname === "/RegistrarManutencoes"}
-                    >
-                        <Wrench className="mr-2 h-4 w-4"/>
-                        Registrar Manutenções
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => navigate("/manutencoes")}
-                        data-active={location.pathname === "/Manutencoes"}
-                    >
-                        <ShieldCheck className="mr-2 h-4 w-4"/>
-                        Manutenções
-                    </Button>
+
                     <Button
                         variant="ghost"
                         className="w-full justify-start"
@@ -128,14 +97,55 @@ export function AdminSidebar({sidebarOpen, setSidebarOpen}: AdminSidebarProps) {
                         <Fuel className="mr-2 h-4 w-4"/>
                         Abastecimentos
                     </Button>
+
                     <Button
                         variant="ghost"
                         className="w-full justify-start"
-                        onClick={() => navigate("/settings")}
-                        data-active={location.pathname === "/settings"}
+                        onClick={() => navigate("/manutencoes")}
+                        data-active={location.pathname === "/Manutencoes"}
                     >
-                        <Settings className="mr-2 h-4 w-4"/>
-                        Configurações
+                        <ShieldCheck className="mr-2 h-4 w-4"/>
+                        Manutenções
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => navigate("/registrarmanutencoes")}
+                        data-active={location.pathname === "/RegistrarManutencoes"}
+                    >
+                        <Wrench className="mr-2 h-4 w-4"/>
+                        Registrar Manutenções
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => navigate("/registrarmotoristas")}
+                        data-active={location.pathname === "/RegistrarMotoristas"}
+                    >
+                        <UserPlus className="mr-2 h-4 w-4"/>
+                        Cadastrar Motorista
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => navigate("/registrarveiculos")}
+                        data-active={location.pathname === "/RegistrarVeiculos"}
+                    >
+                        <CarFront className="mr-2 h-4 w-4"/>
+                        Cadastrar Veículo
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => navigate("/ajuda")}
+                        data-active={location.pathname === "/Ajuda"}
+                    >
+                        <HelpCircle className="mr-2 h-4 w-4"/>
+                        Ajuda
                     </Button>
                 </nav>
             </aside>

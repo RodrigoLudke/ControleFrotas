@@ -163,11 +163,7 @@ export default function Trips() {
 
     // ações: ver, editar, deletar
     const handleView = (id: number) => {
-        navigate(`/registrarviagens/${id}`);
-    };
-
-    const handleEdit = (id: number) => {
-        navigate(`/registrarviagens/${id}`);
+        navigate(`/viagensinfo/${id}`);
     };
 
     const handleDelete = async (id: number) => {
@@ -215,9 +211,9 @@ export default function Trips() {
                             className="pl-10"
                         />
                     </div>
-                    <Button onClick={() => navigate("/registrarviagens")} className="bg-primary hover:bg-primary/90">
-                        <Plus className="mr-2 h-4 w-4"/> Nova Viagem
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="secondary" onClick={fetchTrips}>Atualizar</Button>
+                    </div>
                 </div>
 
                 <Card className="shadow-card">
@@ -321,10 +317,6 @@ export default function Trips() {
                                                             <Button variant="ghost" size="sm"
                                                                     onClick={() => handleView(trip.id)}>
                                                                 <Eye className="h-4 w-4"/>
-                                                            </Button>
-                                                            <Button variant="ghost" size="sm"
-                                                                    onClick={() => handleEdit(trip.id)}>
-                                                                <Edit className="h-4 w-4"/>
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"

@@ -179,7 +179,7 @@ const Manutencoes = () => {
     });
 
     const handleView = (id: number) => {
-        navigate(`/registrarmanutencoes/${id}`);
+        navigate(`/manutencoesinfo/${id}`);
     };
 
     const handleEdit = (id: number) => {
@@ -298,7 +298,7 @@ const Manutencoes = () => {
                                                 <TableCell>{getStatusBadge(m.status)}</TableCell>
 
                                                 <TableCell>
-                                                    <div className="flex items-center space-x-2 justify-end">
+                                                    <div className="flex items-center space-x-2">
                                                         <Button variant="ghost" size="sm"
                                                                 onClick={() => handleView(m.id)}>
                                                             <Eye className="h-4 w-4"/>

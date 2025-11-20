@@ -13,6 +13,7 @@ import abastecimentosRoutes from "./routes/abastecimentos.js";
 import alertas from "./routes/alertas.js";
 import cors from "cors";
 import dotenv from "dotenv";
+import cron from "node-cron";
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -100,6 +101,45 @@ async function gerarRefreshToken(userId) {
 
     return token;
 }
+
+async function atualizarManutencoesAtrasadas() {
+    console.log('[CRON] Executando verificação de manutenções atrasadas...');
+    const agora = new Date();
+
+    try {
+        const { count } = await prisma.manutencao.updateMany({
+            where: {
+                // 1. O status DEVE ser "AGENDADA"
+                status: 'AGENDADA',
+                // 2. A data do agendamento é menor que (no passado) agora
+                data: {
+                    lt: agora // 'lt' = Less Than (menor que)
+                }
+            },
+            data: {
+                // 3. Atualiza o status
+                status: 'CONCLUIDA'
+                // (Se preferir a sua lógica original, troque por 'CONCLUIDA')
+            }
+        });
+
+        if (count > 0) {
+            console.log(`[CRON] ${count} manutenções foram atualizadas para "CONCLUIDA".`);
+        } else {
+            console.log('[CRON] Nenhuma manutenção atrasada encontrada.');
+        }
+
+    } catch (error) {
+        console.error('[CRON] Erro ao atualizar manutenções atrasadas:', error);
+    }
+}
+
+// Agenda a tarefa para rodar
+// Esta string ('0 * * * *') significa "no minuto 0 de toda hora"
+// (ou seja, de hora em hora, 01:00, 02:00, 03:00...)
+cron.schedule('0 * * * *', () => {
+    atualizarManutencoesAtrasadas();
+});
 
 export function autenticarToken(req, res, next) {
     const authHeader = req.headers["authorization"];

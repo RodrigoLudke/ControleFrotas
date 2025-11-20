@@ -157,11 +157,7 @@ export default function Abastecimentos() {
 
     // ações: ver, editar, deletar
     const handleView = (id: number) => {
-        navigate(`/registrarabastecimentos/${id}`);
-    };
-
-    const handleEdit = (id: number) => {
-        navigate(`/registrarabastecimentos/${id}`);
+        navigate(`/abastecimentosinfo/${id}`);
     };
 
     const handleDelete = async (id: number) => {
@@ -239,11 +235,9 @@ export default function Abastecimentos() {
                             className="pl-10"
                         />
                     </div>
-
-                    <Button onClick={() => navigate("/registrarabastecimentos")}
-                            className="bg-primary hover:bg-primary/90">
-                        <Plus className="mr-2 h-4 w-4"/> Novo Abastecimento
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="secondary" onClick={fetchAbastecimentos}>Atualizar</Button>
+                    </div>
                 </div>
 
                 <Card className="shadow-card">
@@ -346,10 +340,6 @@ export default function Abastecimentos() {
                                                             <Button variant="ghost" size="sm"
                                                                     onClick={() => handleView(a.id)}>
                                                                 <Eye className="h-4 w-4"/>
-                                                            </Button>
-                                                            <Button variant="ghost" size="sm"
-                                                                    onClick={() => handleEdit(a.id)}>
-                                                                <Edit className="h-4 w-4"/>
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"

@@ -187,7 +187,17 @@ router.get("/:id", autenticarToken, async (req, res) => {
         if (!isValidInteger(req.params.id)) return res.status(400).json({error: "ID inválido."});
         const id = parseInt(req.params.id, 10);
 
-        const viagem = await prisma.viagem.findUnique({where: {id}});
+        const viagem = await prisma.viagem.findUnique({
+            where: { id },
+            include: {
+                veiculo: {
+                    select: { id: true, placa: true, modelo: true }
+                },
+                user: {
+                    select: { id: true, nome: true, email: true }
+                }
+            }
+        });
         if (!viagem) return res.status(404).json({error: "Viagem não encontrada."});
         return res.json(viagem);
     } catch (error) {
