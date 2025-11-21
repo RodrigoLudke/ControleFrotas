@@ -3,7 +3,7 @@
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
-import {AlertTriangle, Clock, MapPin, Settings, TrendingUp, Truck, Users} from "lucide-react";
+import {AlertTriangle, Clock, MapPin, HelpCircle, Wrench, Truck, Users} from "lucide-react";
 import {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {apiFetch} from "@/services/api";
@@ -298,8 +298,8 @@ export default function Dashboard() {
     const quickActions = [
         {label: "Adicionar Veículo", icon: Truck, variant: "secondary" as const, to: "/registrarveiculos"},
         {label: "Adicionar Motorista", icon: Users, variant: "secondary" as const, to: "/registrarmotoristas"},
-        {label: "Relatórios", icon: TrendingUp, variant: "secondary" as const, to: "/"},
-        {label: "Configurações", icon: Settings, variant: "secondary" as const, to: "/"}
+        {label: "Adicionar Manutenção", icon: Wrench, variant: "secondary" as const, to: "/registrarmanutencoes"},
+        {label: "Ajuda", icon: HelpCircle, variant: "secondary" as const, to: "/ajuda"}
     ];
 
     return (
