@@ -12,11 +12,8 @@ import {startTracking} from "@/services/locationService";
 import {apiFetch} from "@/services/api";
 
 /**
- * Dashboard (Home) - sincroniza com backend para exibir:
- * - Minhas Viagens (este mês)
- * - KM Rodados (soma kmFinal - kmInicial)
- * - Solicitações de manutenção pendentes (APENAS alertas)
- * - Abastecimentos este mês
+ * Dashboard (Home) - Otimizado
+ * - Viagens e KMs agora garantidamente mostram apenas dados do mês atual.
  */
 
 export default function Home() {
@@ -25,10 +22,12 @@ export default function Home() {
     const theme = Colors[colorScheme];
 
     const [loading, setLoading] = useState(false);
+    // Estados de dados brutos (se precisar usar em outro lugar)
     const [viagens, setViagens] = useState<any[]>([]);
     const [abastecimentos, setAbastecimentos] = useState<any[]>([]);
-    const [alertas, setAlertas] = useState<any[] | null>(null); // null = rota não disponível / não testada
+    const [alertas, setAlertas] = useState<any[] | null>(null);
 
+    // Estado das estatísticas calculadas
     const [stats, setStats] = useState({
         viagensEsteMes: 0,
         kmRodados: 0,
@@ -41,8 +40,12 @@ export default function Home() {
         startTracking();
     }, []);
 
-    const isSameMonth = (d: Date, ref = new Date()) => d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth();
+    // Helper para verificar se a data é do mês atual
+    const isSameMonth = (d: Date, ref = new Date()) => {
+        return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth();
+    };
 
+    // Helper para converter valores numéricos com segurança
     const toNumberSafe = (v: any) => {
         if (v === undefined || v === null) return 0;
         const n = Number(v);
@@ -52,86 +55,75 @@ export default function Home() {
     const fetchAll = useCallback(async () => {
         setLoading(true);
         try {
-            // fetch paralelo: viagens, abastecimentos, alertas (sem manutenções)
+            // Fetch paralelo
             const [viagensRes, abastecRes, alertasRes] = await Promise.allSettled([
                 apiFetch("/viagens"),
                 apiFetch("/abastecimentos"),
                 apiFetch("/alertas")
             ]);
 
-            // viagens
+            // --- Processamento Viagens ---
             let viagensArr: any[] = [];
             if (viagensRes.status === "fulfilled" && viagensRes.value.ok) {
                 try {
                     viagensArr = await viagensRes.value.json();
-                } catch (e) {
-                    viagensArr = [];
-                }
+                } catch (e) { viagensArr = []; }
             } else {
                 console.warn("Falha ao buscar viagens:", viagensRes);
-                viagensArr = [];
             }
 
-            // abastecimentos
+            // --- Processamento Abastecimentos ---
             let abastecArr: any[] = [];
             if (abastecRes.status === "fulfilled" && abastecRes.value.ok) {
                 try {
                     abastecArr = await abastecRes.value.json();
-                } catch (e) {
-                    abastecArr = [];
-                }
+                } catch (e) { abastecArr = []; }
             } else {
                 console.warn("Falha ao buscar abastecimentos:", abastecRes);
-                abastecArr = [];
             }
 
-            // alertas (somente para contar solicitações pendentes)
+            // --- Processamento Alertas ---
             let alertArr: any[] | null = null;
-            if (alertasRes && alertasRes.status === "fulfilled") {
-                if (alertasRes.value.ok) {
-                    try {
-                        alertArr = await alertasRes.value.json();
-                    } catch (e) {
-                        alertArr = [];
-                    }
-                } else {
-                    console.warn("Rota /alertas retornou não-ok:", alertasRes.value?.status);
-                    alertArr = [];
-                }
+            if (alertasRes.status === "fulfilled" && alertasRes.value.ok) {
+                try {
+                    alertArr = await alertasRes.value.json();
+                } catch (e) { alertArr = []; }
             } else {
-                // rota não existe / token não permitido / erro de rede -> manter null para indicar indisponível
-                console.warn("Falha ao buscar alertas (rota pode não existir ou token):", alertasRes);
+                console.warn("Falha ao buscar alertas:", alertasRes);
                 alertArr = null;
             }
 
-            // salvar estados
+            // Atualiza estados brutos
             setViagens(Array.isArray(viagensArr) ? viagensArr : []);
             setAbastecimentos(Array.isArray(abastecArr) ? abastecArr : []);
             setAlertas(Array.isArray(alertArr) ? alertArr : null);
 
-            // calcular estatísticas
+            // --- CÁLCULO DE ESTATÍSTICAS (OTIMIZADO) ---
             const now = new Date();
 
-            const viagensEsteMes = (Array.isArray(viagensArr) ? viagensArr : []).filter((v: any) => {
+            // 1. Filtra viagens deste mês (uma única vez)
+            const viagensDoMes = (Array.isArray(viagensArr) ? viagensArr : []).filter((v: any) => {
                 if (!v?.dataSaida) return false;
                 const d = new Date(v.dataSaida);
                 return isSameMonth(d, now);
-            }).length;
+            });
 
-            const kmRodados = (Array.isArray(viagensArr) ? viagensArr : []).reduce((acc: number, v: any) => {
+            // 2. Soma KM usando APENAS as viagens filtradas do mês
+            const kmRodadosDoMes = viagensDoMes.reduce((acc: number, v: any) => {
                 const ki = toNumberSafe(v.kmInicial);
                 const kf = toNumberSafe(v.kmFinal);
                 if (ki > 0 && kf >= ki) return acc + (kf - ki);
                 return acc;
             }, 0);
 
-            const abastecimentosEsteMes = (Array.isArray(abastecArr) ? abastecArr : []).filter((a: any) => {
+            // 3. Filtra abastecimentos deste mês
+            const abastecimentosDoMes = (Array.isArray(abastecArr) ? abastecArr : []).filter((a: any) => {
                 if (!a?.data) return false;
                 const d = new Date(a.data);
                 return isSameMonth(d, now);
-            }).length;
+            });
 
-            // solicitações de manutenção pendentes = alertas tipo SOLICITACAO e status PENDENTE
+            // 4. Solicitações pendentes (não depende de data, apenas status)
             let solicitacoesPendentes = 0;
             if (alertArr !== null) {
                 solicitacoesPendentes = (alertArr ?? []).filter((a: any) => {
@@ -139,17 +131,15 @@ export default function Home() {
                     const status = (a.status ?? "").toString().toUpperCase();
                     return tipo === "SOLICITACAO" && status === "PENDENTE";
                 }).length;
-            } else {
-                // rota /alertas indisponível -> mostra 0 (ou você pode querer sinalizar ao usuário)
-                solicitacoesPendentes = 0;
             }
 
             setStats({
-                viagensEsteMes,
-                kmRodados,
+                viagensEsteMes: viagensDoMes.length,
+                kmRodados: kmRodadosDoMes,
                 solicitacoesManutencaoPendentes: solicitacoesPendentes,
-                abastecimentosEsteMes
+                abastecimentosEsteMes: abastecimentosDoMes.length
             });
+
         } catch (err) {
             console.error("Erro ao carregar dashboard:", err);
             Alert.alert("Erro", "Não foi possível carregar as estatísticas. Verifique sua conexão.");
@@ -179,7 +169,7 @@ export default function Home() {
 
                 {loading ? (
                     <View style={{padding: 20, alignItems: "center"}}>
-                        <ActivityIndicator/>
+                        <ActivityIndicator size="large" color={theme.text} />
                     </View>
                 ) : (
                     <View style={styles.grid}>
@@ -187,8 +177,9 @@ export default function Home() {
                             <View style={styles.cardRow}>
                                 <View>
                                     <ThemedText style={styles.cardTitle}>Minhas Viagens</ThemedText>
-                                    <ThemedText type="title"
-                                                style={styles.cardNumber}>{stats.viagensEsteMes}</ThemedText>
+                                    <ThemedText type="title" style={styles.cardNumber}>
+                                        {stats.viagensEsteMes}
+                                    </ThemedText>
                                     <ThemedText style={styles.cardNote}>Este mês</ThemedText>
                                 </View>
                                 <View style={styles.iconWrap}>
@@ -201,8 +192,9 @@ export default function Home() {
                             <View style={styles.cardRow}>
                                 <View>
                                     <ThemedText style={styles.cardTitle}>KM Rodados</ThemedText>
-                                    <ThemedText type="title"
-                                                style={styles.cardNumber}>{stats.kmRodados.toLocaleString()}</ThemedText>
+                                    <ThemedText type="title" style={styles.cardNumber}>
+                                        {stats.kmRodados.toLocaleString()}
+                                    </ThemedText>
                                     <ThemedText style={styles.cardNote}>Este mês</ThemedText>
                                 </View>
                                 <View style={styles.iconWrap}>
@@ -215,8 +207,9 @@ export default function Home() {
                             <View style={styles.cardRow}>
                                 <View>
                                     <ThemedText style={styles.cardTitle}>Meus Alertas</ThemedText>
-                                    <ThemedText type="title"
-                                                style={styles.cardNumber}>{stats.solicitacoesManutencaoPendentes}</ThemedText>
+                                    <ThemedText type="title" style={styles.cardNumber}>
+                                        {stats.solicitacoesManutencaoPendentes}
+                                    </ThemedText>
                                     <ThemedText style={styles.cardNote}>Pendentes</ThemedText>
                                 </View>
                                 <View style={styles.iconWrap}>
@@ -229,8 +222,9 @@ export default function Home() {
                             <View style={styles.cardRow}>
                                 <View>
                                     <ThemedText style={styles.cardTitle}>Abastecimentos</ThemedText>
-                                    <ThemedText type="title"
-                                                style={styles.cardNumber}>{stats.abastecimentosEsteMes}</ThemedText>
+                                    <ThemedText type="title" style={styles.cardNumber}>
+                                        {stats.abastecimentosEsteMes}
+                                    </ThemedText>
                                     <ThemedText style={styles.cardNote}>Este mês</ThemedText>
                                 </View>
                                 <View style={styles.iconWrap}>
@@ -246,8 +240,7 @@ export default function Home() {
                     <ThemedText style={styles.actionsSubtitle}>O que você deseja fazer?</ThemedText>
 
                     <View style={styles.actionsRow}>
-                        <Pressable style={[styles.actionBtn, {borderColor: theme.border}]}
-                                   onPress={goToRegistrarViagem}>
+                        <Pressable style={[styles.actionBtn, {borderColor: theme.border}]} onPress={goToRegistrarViagem}>
                             <View style={styles.actionInner}>
                                 <MaterialCommunityIcons name="map-marker-plus" size={22} color="#2b6cb0"/>
                                 <ThemedText style={styles.actionText}>Nova Viagem</ThemedText>
@@ -271,8 +264,7 @@ export default function Home() {
                             </View>
                         </Pressable>
 
-                        <Pressable style={[styles.actionBtn, {borderColor: theme.border}]}
-                                   onPress={goToRegistrarAbastecimento}>
+                        <Pressable style={[styles.actionBtn, {borderColor: theme.border}]} onPress={goToRegistrarAbastecimento}>
                             <View style={styles.actionInner}>
                                 <FontAwesome5 name="gas-pump" size={22} color="#38a169"/>
                                 <ThemedText style={styles.actionText}>Novo Abastecimento</ThemedText>

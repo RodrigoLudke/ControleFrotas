@@ -16,6 +16,18 @@ export default function LoginPage() {
     const router = useNavigate();
     const {toast} = useToast();
 
+    // Lógica do botão de contato (Suporte)
+    const handleContact = () => {
+        // Tenta pegar do .env (Vite usa import.meta.env, CRA/Next usa process.env)
+        // Se não tiver configurado, usa o número fixo como fallback
+        const supportPhone = import.meta.env.VITE_SUPPORT_PHONE || "5511999999999";
+
+        const message = encodeURIComponent("Olá, preciso de ajuda com o Painel Administrativo.");
+
+        // Abre em nova aba (_blank)
+        window.open(`https://wa.me/${supportPhone}?text=${message}`, "_blank");
+    };
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -132,11 +144,15 @@ export default function LoginPage() {
                             <p className="text-destructive text-sm text-center mt-3">{error}</p>
                         )}
 
-                        <div className="mt-6 text-center">
+                        <div className="text-center mt-8 space-y-2">
+                            {/* Link de Suporte */}
                             <p className="text-sm text-muted-foreground">
-                                Esqueceu sua senha?{" "}
-                                <button className="text-primary hover:underline">
-                                    Recuperar acesso
+                                Problemas para acessar?{" "}
+                                <button
+                                    onClick={handleContact}
+                                    className="text-primary hover:underline font-semibold"
+                                >
+                                    Entre em contato
                                 </button>
                             </p>
                         </div>

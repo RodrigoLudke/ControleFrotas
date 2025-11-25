@@ -11,6 +11,7 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    Linking,
 } from "react-native";
 import {useRouter} from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -29,6 +30,22 @@ export default function LoginScreen() {
 
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? "light"];
+
+    const handleSupport = async () => {
+        // OPÇÃO A: WhatsApp (Recomendado)
+        const SUPPORT_PHONE = process.env.EXPO_PUBLIC_SUPPORT_PHONE;
+        const message = "Olá, estou com problemas para acessar o App de Frotas.";
+        const url = `whatsapp://send?phone=${SUPPORT_PHONE}&text=${encodeURIComponent(message)}`;
+
+        const supported = await Linking.canOpenURL(url);
+
+        if (supported) {
+            await Linking.openURL(url);
+        } else {
+            // Se não tiver o app instalado, abre o link web ou tenta e-mail
+            await Linking.openURL(`https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent(message)}`);
+        }
+    };
 
     const handleLogin = async () => {
         try {
@@ -142,7 +159,7 @@ export default function LoginScreen() {
                     <View style={styles.footer}>
                         <Text style={[styles.footerText, {color: theme.iconBack}]}>
                             Problemas para acessar?{" "}
-                            <Text style={[styles.footerLink, {color: theme.textBack}]}>
+                            <Text style={[styles.footerLink, {color: theme.textBack}]} onPress={handleSupport}>
                                 Entre em contato
                             </Text>
                         </Text>
