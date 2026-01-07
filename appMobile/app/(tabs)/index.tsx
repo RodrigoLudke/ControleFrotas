@@ -8,7 +8,7 @@ import {ThemedText} from "@/components/ThemedText";
 import {Colors} from "@/constants/Colors";
 import {useColorScheme} from "@/hooks/useColorScheme";
 import {FontAwesome5, Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
-import {startTracking} from "@/services/locationService";
+import {startTracking, stopTracking, isTrackingActive} from "@/services/locationService";
 import {apiFetch} from "@/services/api";
 
 /**
@@ -35,10 +35,28 @@ export default function Home() {
         abastecimentosEsteMes: 0
     });
 
+    // NOVO ESTADO PARA O RASTREAMENTO
+    const [isTracking, setIsTracking] = useState(false);
+
+    // Verifica se já estava rastreando ao abrir o app (ex: motorista fechou e abriu o app de novo)
     useEffect(() => {
-        console.log("Iniciando serviço de localização na Home...");
-        startTracking();
+        isTrackingActive().then(setIsTracking);
     }, []);
+
+    // FUNÇÃO DO BOTÃO
+    const toggleRastreamento = async () => {
+        if (isTracking) {
+            await stopTracking();
+            setIsTracking(false);
+            Alert.alert("Jornada Pausada", "O rastreamento foi interrompido.");
+        } else {
+            await startTracking();
+            // Verificamos novamente se iniciou de fato (pode ter falhado a permissão)
+            const active = await isTrackingActive();
+            setIsTracking(active);
+            if(active) Alert.alert("Jornada Iniciada", "Sua localização está sendo enviada em segundo plano.");
+        }
+    };
 
     // Helper para verificar se a data é do mês atual
     const isSameMonth = (d: Date, ref = new Date()) => {
@@ -234,6 +252,54 @@ export default function Home() {
                         </View>
                     </View>
                 )}
+
+                {/* --- AQUI VEM O NOVO BOTÃO DE JORNADA (ESTILIZADO) --- */}
+                <View style={[styles.actionsCard, { backgroundColor: theme.card, marginBottom: 10 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 15 }}>
+                        {/* Ícone de Status */}
+                        <View style={[
+                            styles.iconWrap,
+                            {
+                                backgroundColor: isTracking ? "rgba(56, 161, 105, 0.15)" : "rgba(229, 62, 62, 0.1)",
+                                padding: 12
+                            }
+                        ]}>
+                            <FontAwesome5
+                                name={isTracking ? "satellite-dish" : "power-off"}
+                                size={24}
+                                color={isTracking ? "#38a169" : "#e53e3e"}
+                            />
+                        </View>
+
+                        {/* Texto descritivo */}
+                        <View style={{ flex: 1 }}>
+                            <ThemedText style={{ fontWeight: 'bold', fontSize: 16 }}>
+                                {isTracking ? "Jornada Ativa" : "Jornada Parada"}
+                            </ThemedText>
+                            <ThemedText style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+                                {isTracking ? "GPS enviando dados..." : "Toque para iniciar."}
+                            </ThemedText>
+                        </View>
+
+                        {/* Botão de Ação */}
+                        <Pressable
+                            onPress={toggleRastreamento}
+                            style={({ pressed }) => ({
+                                backgroundColor: isTracking ? "#e53e3e" : "#38a169",
+                                paddingVertical: 10,
+                                paddingHorizontal: 20,
+                                borderRadius: 8,
+                                opacity: pressed ? 0.8 : 1,
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            })}
+                        >
+                            <ThemedText style={{ color: "#fff", fontWeight: "bold", fontSize: 14 }}>
+                                {isTracking ? "Parar" : "Iniciar"}
+                            </ThemedText>
+                        </Pressable>
+                    </View>
+                </View>
 
                 <View style={[styles.actionsCard, {backgroundColor: theme.card}]}>
                     <ThemedText style={styles.actionsTitle}>Ações Rápidas</ThemedText>

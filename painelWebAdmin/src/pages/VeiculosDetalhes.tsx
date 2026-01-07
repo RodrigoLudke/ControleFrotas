@@ -960,7 +960,7 @@ export default function VehicleDetails() {
                                     >
                                         <CartesianGrid strokeDasharray="3 3"/>
                                         <XAxis dataKey="type"/>
-                                        <YAxis/>
+                                        <YAxis allowDecimals={false}/>
                                         <Tooltip/>
                                         <Bar dataKey="count" fill={COLORS[0]} name="Quantidade"/>
                                     </BarChart>

@@ -7,7 +7,7 @@ import {Badge} from "@/components/ui/badge";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Separator} from "@/components/ui/separator";
 import {Progress} from "@/components/ui/progress";
-import {AlertCircle, ArrowLeft, Calendar, Car, Clock, DollarSign, Mail, MapPin, Phone, TrendingUp, TrendingDown} from "lucide-react";
+import {ArrowLeft, Calendar, Car, DollarSign, Mail, MapPin, Phone, TrendingUp, TrendingDown, Clock, Timer} from "lucide-react";
 import {useNavigate, useParams} from "react-router-dom";
 import {
     Bar,
@@ -276,6 +276,24 @@ export default function DriverDetails() {
             return ((valorAtual - valorAnterior) / valorAnterior) * 100;
         };
 
+        // Helper para obter duração em ms
+        const getDurationMs = (t: Viagem) => {
+            if (t.dataSaida && t.dataChegada) {
+                const s = new Date(t.dataSaida).getTime();
+                const e = new Date(t.dataChegada).getTime();
+                if (!isNaN(s) && !isNaN(e) && e > s) return e - s;
+            }
+            return 0;
+        };
+
+        // Helper para formatar duração
+        const formatDur = (ms: number) => {
+            if (!ms) return "0h 00min";
+            const h = Math.floor(ms / (1000 * 60 * 60));
+            const m = Math.round((ms % (1000 * 60 * 60)) / (1000 * 60));
+            return `${h}h ${String(m).padStart(2, "0")}min`;
+        };
+
         // Calcular totais para período atual (inicioMesAtual até hoje)
         const triposAtual = trips.filter(t => {
             if (!t.dataSaida) return false;
@@ -293,15 +311,20 @@ export default function DriverDetails() {
             return acc;
         }, 0);
 
+        // Tempo viagens (Mês Atual)
+        const durationsAtual = triposAtual.map(getDurationMs).filter(d => d > 0);
+        const avgAtualMs = durationsAtual.length > 0
+            ? durationsAtual.reduce((a, b) => a + b, 0) / durationsAtual.length
+            : 0;
+
         const fuelsAtual = fuels.filter(f => {
             if (!f.data) return false;
             const data = new Date(f.data);
             return data >= inicioMesAtual && data <= hoje;
         });
-        // Excluir manutenções agendadas: só contar manutenções efetivas (status != AGENDADA)
+        // Excluir manutenções agendadas
         const manutsAtual = manuts.filter(m => {
             if (!m.data) return false;
-            // considerar apenas manutenções com custo e que não estejam agendadas
             const status = (m.status ?? "").toString().toUpperCase();
             if (status === "AGENDADA") return false;
             const data = new Date(m.data);
@@ -329,12 +352,17 @@ export default function DriverDetails() {
             return acc;
         }, 0);
 
+        // Tempo viagens (Mês Anterior)
+        const durationsAnterior = tripsAnterior.map(getDurationMs).filter(d => d > 0);
+        const avgAnteriorMs = durationsAnterior.length > 0
+            ? durationsAnterior.reduce((a, b) => a + b, 0) / durationsAnterior.length
+            : 0;
+
         const fuelsAnterior = fuels.filter(f => {
             if (!f.data) return false;
             const data = new Date(f.data);
             return data >= inicioMesAnterior && data <= fimMesAnterior;
         });
-        // Excluir manutenções agendadas do período anterior também
         const manutsAnterior = manuts.filter(m => {
             if (!m.data) return false;
             const status = (m.status ?? "").toString().toUpperCase();
@@ -351,6 +379,7 @@ export default function DriverDetails() {
         const deltaViagens = calcularVariacao(viagensAtualCount, viagensAnteriorCount);
         const deltaKm = calcularVariacao(kmAtual, kmAnterior);
         const deltaCusto = calcularVariacao(custoAtual, custoAnterior);
+        const deltaTempoMedio = calcularVariacao(avgAtualMs, avgAnteriorMs);
 
         // Totals gerais (todos os dados)
         const totalViagens = trips.length;
@@ -362,57 +391,38 @@ export default function DriverDetails() {
             }
             return acc;
         }, 0);
+
+        // Tempo Total Geral
+        const allDurations = trips.map(getDurationMs).filter(d => d > 0);
+        const totalDurationMs = allDurations.reduce((a, b) => a + b, 0);
+
         const manutCost = manuts.reduce((acc, m) => acc + (m.custo ? Number(m.custo) : 0), 0);
         const fuelCost = fuels.reduce((acc, f) => acc + (f.custoTotal ? Number(f.custoTotal) : 0), 0);
-        // Excluir manutenções agendadas do custo total geral
+
         const manutCostEfetivo = manuts
             .filter(m => ((m.status ?? "").toString().toUpperCase() !== "AGENDADA"))
             .reduce((acc, m) => acc + (m.custo ? Number(m.custo) : 0), 0);
         const custoTotal = manutCostEfetivo + fuelCost;
 
-        const viagensCompletadas = trips.filter(t => !!t.dataChegada).length;
-        const viagensCanceladas = totalViagens - viagensCompletadas;
-
-        let tempoMedio = "—";
-        try {
-            const durations: number[] = trips.map(t => {
-                if (t.dataSaida && t.dataChegada) {
-                    const s = new Date(t.dataSaida).getTime();
-                    const e = new Date(t.dataChegada).getTime();
-                    if (!isNaN(s) && !isNaN(e) && e > s) return e - s;
-                }
-                return 0;
-            }).filter(d => d > 0);
-            if (durations.length > 0) {
-                const avgMs = durations.reduce((a, b) => a + b, 0) / durations.length;
-                const hours = Math.floor(avgMs / (1000 * 60 * 60));
-                const minutes = Math.round((avgMs % (1000 * 60 * 60)) / (1000 * 60));
-                tempoMedio = `${hours}h ${String(minutes).padStart(2, "0")}min`;
-            }
-        } catch (e) {
-            tempoMedio = "—";
-        }
-
         return {
             totalViagens,
             kmRodados,
             custoTotal,
-            viagensCompletadas,
-            viagensCanceladas,
-            tempoMedio,
-            avaliacaoMedia: 0,
+            tempoTotalGeral: formatDur(totalDurationMs),
+            medias: {
+                tempoAtual: formatDur(avgAtualMs),
+                tempoAnterior: formatDur(avgAnteriorMs)
+            },
             deltas: {
                 viagens: deltaViagens,
                 km: deltaKm,
-                custo: deltaCusto
+                custo: deltaCusto,
+                tempo: deltaTempoMedio
             },
             periodTotals: {
                 viagensAtual: viagensAtualCount,
-                viagensAnterior: viagensAnteriorCount,
                 kmAtual,
-                kmAnterior,
                 custoAtual,
-                custoAnterior
             }
         };
     }, [trips, manuts, fuels]);
@@ -592,9 +602,9 @@ export default function DriverDetails() {
                                     </>
                                 )}
                                 <span className="text-muted-foreground ml-1">% vs mês anterior</span>
-                             </p>
-                         </CardContent>
-                     </Card>
+                            </p>
+                        </CardContent>
+                    </Card>
 
                     <Card className="shadow-card">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -668,41 +678,59 @@ export default function DriverDetails() {
 
                 {/* Performance & Distribution */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* NOVO CARD: Tempo em Viagem (Substituindo Taxa de Conclusão) */}
                     <Card className="shadow-card">
                         <CardHeader>
-                            <CardTitle>Taxa de Conclusão</CardTitle>
-                            <CardDescription>Performance nas viagens realizadas</CardDescription>
+                            <CardTitle className="flex items-center gap-2">
+                                <Timer className="h-4 w-4 text-primary" />
+                                Tempo em Viagem
+                            </CardTitle>
+                            <CardDescription>Análise da duração das viagens realizadas</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-6">
+                            {/* Total Acumulado */}
                             <div>
-                                <div className="flex justify-between text-sm mb-2">
-                                    <span>Viagens Completadas</span>
-                                    <span className="font-medium">{stats.viagensCompletadas}/{stats.totalViagens}</span>
-                                </div>
-                                <Progress value={(stats.viagensCompletadas / Math.max(1, stats.totalViagens)) * 100}
-                                          className="h-2"/>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    {((stats.viagensCompletadas / Math.max(1, stats.totalViagens)) * 100).toFixed(1)}%
-                                    de conclusão
-                                </p>
+                                <div className="text-sm text-muted-foreground mb-1">Tempo Total Acumulado</div>
+                                <div className="text-3xl font-bold text-foreground">{stats.tempoTotalGeral}</div>
                             </div>
 
-                            <Separator/>
+                            <Separator />
 
+                            {/* Comparativo de Médias Mensais */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Clock className="h-4 w-4 text-muted-foreground"/>
-                                        <span className="text-sm text-muted-foreground">Tempo Médio</span>
+                                    <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
+                                        <Calendar className="h-3 w-3" /> Média (Mês Atual)
                                     </div>
-                                    <p className="text-xl font-bold">{stats.tempoMedio}</p>
+                                    <div className="text-xl font-bold">{stats.medias.tempoAtual}</div>
+
+                                    <div className="flex items-center text-xs mt-1">
+                                        {Number.isFinite(stats.deltas.tempo) ? (
+                                            stats.deltas.tempo > 0 ? (
+                                                <>
+                                                    <TrendingUp className="h-3 w-3 mr-1 text-blue-600" />
+                                                    <span className="text-blue-600 font-medium">+{stats.deltas.tempo.toFixed(1)}%</span>
+                                                </>
+                                            ) : stats.deltas.tempo < 0 ? (
+                                                <>
+                                                    <TrendingDown className="h-3 w-3 mr-1 text-blue-600" />
+                                                    <span className="text-blue-600 font-medium">{stats.deltas.tempo.toFixed(1)}%</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-muted-foreground">0%</span>
+                                            )
+                                        ) : (
+                                            <span className="text-muted-foreground">—</span>
+                                        )}
+                                        <span className="text-muted-foreground ml-1">vs mês anterior</span>
+                                    </div>
                                 </div>
+
                                 <div>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <AlertCircle className="h-4 w-4 text-muted-foreground"/>
-                                        <span className="text-sm text-muted-foreground">Canceladas</span>
+                                    <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
+                                        <Clock className="h-3 w-3" /> Média (Mês Anterior)
                                     </div>
-                                    <p className="text-xl font-bold text-destructive">{stats.viagensCanceladas}</p>
+                                    <div className="text-xl font-bold text-muted-foreground">{stats.medias.tempoAnterior}</div>
                                 </div>
                             </div>
                         </CardContent>
@@ -764,24 +792,24 @@ export default function DriverDetails() {
                 </Card>
 
                 {/* Veículos Mais Usados */}
-                <Card className="shadow-card">
-                    <CardHeader>
-                        <CardTitle>Veículos Mais Utilizados</CardTitle>
-                        <CardDescription>Ranking de veículos por número de viagens</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={vehiclesUsed}>
-                                <CartesianGrid strokeDasharray="3 3"/>
-                                <XAxis dataKey="veiculo"/>
-                                <YAxis/>
-                                <Tooltip/>
-                                <Legend/>
-                                <Bar dataKey="viagens" fill={COLORS[0]} name="Número de Viagens"/>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </CardContent>
-                </Card>
+                {/*<Card className="shadow-card">*/}
+                {/*    <CardHeader>*/}
+                {/*        <CardTitle>Veículos Mais Utilizados</CardTitle>*/}
+                {/*        <CardDescription>Ranking de veículos por número de viagens</CardDescription>*/}
+                {/*    </CardHeader>*/}
+                {/*    <CardContent>*/}
+                {/*        <ResponsiveContainer width="100%" height={300}>*/}
+                {/*            <BarChart data={vehiclesUsed}>*/}
+                {/*                <CartesianGrid strokeDasharray="3 3"/>*/}
+                {/*                <XAxis dataKey="veiculo"/>*/}
+                {/*                <YAxis/>*/}
+                {/*                <Tooltip/>*/}
+                {/*                <Legend/>*/}
+                {/*                <Bar dataKey="viagens" fill={COLORS[0]} name="Número de Viagens"/>*/}
+                {/*            </BarChart>*/}
+                {/*        </ResponsiveContainer>*/}
+                {/*    </CardContent>*/}
+                {/*</Card>*/}
 
                 {/* Histórico de Abastecimentos */}
                 <Card className="shadow-card">

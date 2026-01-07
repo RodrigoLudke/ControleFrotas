@@ -38,10 +38,6 @@ export function AdminLayout({children, title}: AdminLayoutProps) {
                     </div>
 
                     <div className="flex items-center space-x-4">
-                        <Avatar>
-                            <AvatarImage src="/placeholder-avatar.jpg"/>
-                            <AvatarFallback>AD</AvatarFallback>
-                        </Avatar>
                         <Button
                             variant="ghost"
                             size="sm"
