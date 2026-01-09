@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {Card, CardContent, CardFooter, CardHeader, CardTitle} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Droplet, User, Truck, Calendar, Gauge, DollarSign, MapPin, Fuel } from "lucide-react";
+import {ArrowLeft, Droplet, User, Truck, Calendar, Gauge, DollarSign, MapPin, Fuel, Clock} from "lucide-react";
 import { apiFetch } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -24,6 +24,8 @@ interface AbastecimentoData {
     posto?: string | null;
     veiculo?: { placa?: string; modelo?: string };
     user?: { nome?: string; email?: string };
+    createdAt: string;
+    updatedAt: string;
 }
 
 export default function AbastecimentosDetalhes() {
@@ -64,6 +66,15 @@ export default function AbastecimentosDetalhes() {
 
     const formatNumber = (val: number | string, decimals: number = 2) => {
         return Number(val).toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    };
+
+    const formatData = (iso: string) => {
+        if (!iso) return "—";
+        try {
+            return format(new Date(iso), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR });
+        } catch {
+            return iso;
+        }
     };
 
     return (
@@ -167,6 +178,12 @@ export default function AbastecimentosDetalhes() {
                                         <p className="text-sm text-muted-foreground">Quilometragem</p>
                                         <p className="text-2xl font-bold">{formatNumber(item.quilometragem, 0)} km</p>
                                     </CardContent>
+
+                                    <CardFooter className="bg-muted/50 flex justify-between text-xs text-muted-foreground py-3">
+                                        <span className="flex items-center"><Clock className="h-3 w-3 mr-1"/> Criado em: {formatData(item.createdAt)}</span>
+                                        <span className="flex items-center"><Clock className="h-3 w-3 mr-1"/> Atualizado em: {formatData(item.updatedAt)}</span>
+                                    </CardFooter>
+
                                 </Card>
                             </div>
                         </div>

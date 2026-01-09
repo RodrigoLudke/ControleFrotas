@@ -1,11 +1,23 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {Card, CardContent, CardFooter, CardHeader, CardTitle} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Wrench, User, Truck, Calendar, Gauge, DollarSign, MapPin, ClipboardList, Info } from "lucide-react";
+import {
+    ArrowLeft,
+    Wrench,
+    User,
+    Truck,
+    Calendar,
+    Gauge,
+    DollarSign,
+    MapPin,
+    ClipboardList,
+    Info,
+    Clock
+} from "lucide-react";
 import { apiFetch } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -25,6 +37,8 @@ interface ManutencaoData {
     status: string; // Enum
     veiculo?: { placa?: string; modelo?: string };
     user?: { nome?: string; email?: string };
+    createdAt: string;
+    updatedAt: string;
 }
 
 export default function ManutencoesDetalhes() {
@@ -69,6 +83,15 @@ export default function ManutencoesDetalhes() {
             em_andamento: "bg-orange-500 hover:bg-orange-600"
         };
         return <Badge className={map[s] || "bg-gray-500"}>{status.replace('_', ' ').toUpperCase()}</Badge>;
+    };
+
+    const formatData = (iso: string) => {
+        if (!iso) return "—";
+        try {
+            return format(new Date(iso), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR });
+        } catch {
+            return iso;
+        }
     };
 
     return (
@@ -170,6 +193,12 @@ export default function ManutencoesDetalhes() {
                             </div>
                         )}
                     </CardContent>
+
+                    <CardFooter className="bg-muted/50 flex justify-between text-xs text-muted-foreground py-3">
+                        <span className="flex items-center"><Clock className="h-3 w-3 mr-1"/> Criado em: {formatData(item.createdAt)}</span>
+                        <span className="flex items-center"><Clock className="h-3 w-3 mr-1"/> Atualizado em: {formatData(item.updatedAt)}</span>
+                    </CardFooter>
+
                 </Card>
             </div>
         </AdminLayout>

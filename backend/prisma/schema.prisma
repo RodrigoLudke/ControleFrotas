@@ -1,3 +1,5 @@
+// backend/prisma/schema.prisma
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -7,146 +9,286 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-    id              Int       @id @default(autoincrement())
-    email           String    @unique
-    senha           String
-    nome            String?
-    cpf             String?   @unique
-    rg              String?   @unique
-    cnh             String?   @unique
-    validadeCnh     DateTime?
-    telefone        String?
-    endereco        String?
-    dataContratacao DateTime?
-    salario         Decimal?  @db.Decimal(10, 2)
-    observacoes     String?
-    categoria       CNHCategory[] @default([])
-    status          String    @default("ativo")
-    dataNascimento  DateTime?
+// ------------------------------------------------------
+// MULTI-TENANCY CORE
+// ------------------------------------------------------
 
-    latitude        Float?
-    longitude       Float?
-    lastLocationUpdate DateTime?
-
-    veiculos      UserVeiculo[]
-    viagens       Viagem[]
-    manutencoes   Manutencao[]
-    abastecimentos Abastecimento[]
-    alertas       Alerta[]
-    refreshTokens RefreshToken[]
-    role          Role          @default(USER)
+model Company {
+  id             Int             @id @default(autoincrement())
+  nome           String
+  cnpj           String?         @unique // CNPJ único no sistema
+  users          User[]
+  veiculos       Veiculo[]
+  viagens        Viagem[]
+  manutencoes    Manutencao[]
+  abastecimentos Abastecimento[]
+  alertas        Alerta[]
+  refreshTokens  RefreshToken[]
+  
+  isActive       Boolean         @default(true) // Se a empresa parar de pagar, false
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
+
+// ------------------------------------------------------
+// USUÁRIOS E MOTORISTAS
+// ------------------------------------------------------
+
+model User {
+  id              Int       @id @default(autoincrement())
+  
+  // Vínculo Multi-tenant
+  companyId       Int
+  company         Company   @relation(fields: [companyId], references: [id])
+
+  email           String    @unique
+  senha           String
+  nome            String?
+  avatarUrl       String?   // Foto do perfil/motorista
+  
+  // Dados Pessoais
+  cpf             String?   @unique
+  rg              String?
+  cnh             String?   @unique
+  validadeCnh     DateTime?
+  categoria       CNHCategory[] @default([])
+  dataNascimento  DateTime?
+  
+  // Dados Contratuais
+  telefone        String?
+  endereco        String?
+  dataContratacao DateTime?
+  salario         Decimal?  @db.Decimal(10, 2)
+  observacoes     String?   @db.Text
+  
+  // Sistema
+  role            Role      @default(USER)
+  status          String    @default("ativo")
+  
+  // Geolocalização (App Mobile)
+  latitude           Float?
+  longitude          Float?
+  lastLocationUpdate DateTime?
+
+  // Auditoria
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime? // Soft Delete: se preenchido, o usuário foi "excluído"
+
+  // Relações
+  veiculos       UserVeiculo[]
+  viagens        Viagem[]
+  manutencoes    Manutencao[]
+  abastecimentos Abastecimento[]
+  alertas        Alerta[]
+  refreshTokens  RefreshToken[]
+
+  @@index([companyId]) // Performance para filtrar por empresa
+}
+
+// ------------------------------------------------------
+// VEÍCULOS
+// ------------------------------------------------------
 
 model Veiculo {
-    id               Int            @id @default(autoincrement())
-    placa            String         @unique
-    marca            String?
-    modelo           String
-    ano              Int
-    cor              String
-    chassi           String         @unique
-    renavam          String         @unique
-    capacidade       Int
-    quilometragem    Int
-    combustivel      Combustivel
-    valorCompra      Decimal        @db.Decimal(10, 2)
-    dataCompra       DateTime
-    seguradora       String?
-    apoliceSeguro    String?
-    validadeSeguro   DateTime?
-    observacoes      String?
-    status           VeiculoStatus  @default(disponivel)
+  id               Int            @id @default(autoincrement())
+  
+  companyId        Int
+  company          Company        @relation(fields: [companyId], references: [id])
 
-    categoria        CNHCategory?
+  // Identificação
+  placa            String         @unique
+  chassi           String?        @unique
+  renavam          String?        @unique
+  
+  // Características
+  marca            String?
+  modelo           String
+  anoFabricacao    Int            // Ex: 2023
+  anoModelo        Int            // Ex: 2024
+  cor              String
+  capacidade       Int            // Passageiros
+  combustivel      Combustivel
+  categoria        CNHCategory?   // Categoria necessária para dirigir
+  
+  // Estado Atual
+  quilometragem    Int            // Hodômetro atual
+  status           VeiculoStatus  @default(disponivel)
+  
+  // Financeiro / Administrativo
+  valorCompra      Decimal?       @db.Decimal(10, 2)
+  dataCompra       DateTime?
+  seguradora       String?
+  apoliceSeguro    String?
+  validadeSeguro   DateTime?
+  observacoes      String?        @db.Text
 
-    usuarios  UserVeiculo[]
-    viagens   Viagem[]
-    manutencoes   Manutencao[]
-    abastecimentos Abastecimento[]
-    alertas   Alerta[]
+  // Auditoria
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  deletedAt        DateTime?      // Soft Delete para carros vendidos
+
+  // Relações
+  usuarios         UserVeiculo[]
+  viagens          Viagem[]
+  manutencoes      Manutencao[]
+  abastecimentos   Abastecimento[]
+  alertas          Alerta[]
+
+  @@index([companyId])
 }
 
+// Tabela de ligação: Motoristas autorizados para x Veículo
+// (Muitos para Muitos explícito para permitir metadados futuros se precisar)
 model UserVeiculo {
-  id        Int   @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   userId    Int
   veiculoId Int
+  
+  // Opcional: data que ele começou a usar esse carro fixo
+  assignedAt DateTime @default(now()) 
 
-  user     User    @relation(fields: [userId], references: [id])
-  veiculo  Veiculo @relation(fields: [veiculoId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  veiculo   Veiculo  @relation(fields: [veiculoId], references: [id])
+
+  @@unique([userId, veiculoId]) // Impede duplicar a mesma relação
 }
+
+// ------------------------------------------------------
+// OPERAÇÃO
+// ------------------------------------------------------
 
 model Viagem {
   id             Int      @id @default(autoincrement())
+  companyId      Int
+  company        Company  @relation(fields: [companyId], references: [id])
+  
   userId         Int
   veiculoId      Int
 
+  // Dados da Viagem
   dataSaida      DateTime
-  dataChegada    DateTime
-
-  finalidade     String
+  dataChegada    DateTime? // Pode ser nulo se a viagem ainda está em andamento
+  
   kmInicial      Int
-  kmFinal        Int
+  kmFinal        Int?      // Pode ser nulo se não acabou
+  
+  origem         String?   // Ex: "Garagem Central"
+  destino        String?   // Ex: "Cliente X"
+  finalidade     String?   @db.Text // "Entrega de mercadoria"
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  // Auditoria
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  user     User    @relation(fields: [userId], references: [id])
-  veiculo  Veiculo @relation(fields: [veiculoId], references: [id])
+  user           User      @relation(fields: [userId], references: [id])
+  veiculo        Veiculo   @relation(fields: [veiculoId], references: [id])
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([veiculoId])
 }
 
 model Abastecimento {
   id            Int         @id @default(autoincrement())
+  companyId     Int
+  company       Company     @relation(fields: [companyId], references: [id])
+
   veiculoId     Int
-  veiculo       Veiculo     @relation(fields: [veiculoId], references: [id])
-  userId   Int
-  user     User        @relation(fields: [userId], references: [id])
+  userId        Int // Quem abasteceu
+  
   data          DateTime
-  quilometragem Int
+  quilometragem Int         // Hodômetro na hora do abastecimento (CRUCIAL p/ média)
+  
+  // Dados do Combustível
   litros        Decimal     @db.Decimal(10, 3)
   valorPorLitro Decimal     @db.Decimal(10, 3)
   custoTotal    Decimal     @db.Decimal(10, 2)
-  combustivel   Combustivel // Reutilizando o enum que você já tem
-  posto         String?     // Nome do posto de combustível
+  combustivel   Combustivel
+  posto         String?
+
+  comprovanteUrl String?    // Foto da nota fiscal
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  veiculo       Veiculo     @relation(fields: [veiculoId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
+
+  @@index([companyId])
 }
 
 model Manutencao {
   id            Int                @id @default(autoincrement())
+  companyId     Int
+  company       Company            @relation(fields: [companyId], references: [id])
+
   veiculoId     Int
-  veiculo       Veiculo            @relation(fields: [veiculoId], references: [id])
-  userId   Int? // Motorista que solicitou ou realizou
-  user     User?              @relation(fields: [userId], references: [id])
+  userId        Int?               // Motorista responsável (opcional)
+  
   data          DateTime
   quilometragem Int
-  tipo          TipoManutencao     // Preventiva, Corretiva
+  tipo          TipoManutencao
+  
   descricao     String             @db.Text
+  local         String?            // Oficina
+  nfNumero      String?            // Número da Nota Fiscal
   custo         Decimal?           @db.Decimal(10, 2)
-  local         String?            // Nome da oficina
+  comprovanteUrl String?           // Foto da nota/serviço
+  
   observacoes   String?            @db.Text
-  status        StatusManutencao   // Agendada, Em Andamento, Concluída
-}
+  status        StatusManutencao
+  
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
-model RefreshToken {
-  id        Int      @id @default(autoincrement())
-  token     String   @unique
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-  expiresAt DateTime
+  veiculo       Veiculo            @relation(fields: [veiculoId], references: [id])
+  user          User?              @relation(fields: [userId], references: [id])
+
+  @@index([companyId])
 }
 
 model Alerta {
-  id         Int       @id @default(autoincrement())
+  id         Int          @id @default(autoincrement())
+  companyId  Int
+  company    Company      @relation(fields: [companyId], references: [id])
+
   userId     Int
   veiculoId  Int
-  mensagem   String    @db.Text
-  tipo       AlertaTipo @default(SOLICITACAO) // SOLICITACAO | REGISTRO_RAPIDO
-  status     AlertaStatus @default(PENDENTE)  // PENDENTE | APROVADO | REPROVADO
-  createdAt  DateTime  @default(now())
+  
+  mensagem   String       @db.Text
+  tipo       AlertaTipo   @default(SOLICITACAO)
+  status     AlertaStatus @default(PENDENTE)
+  
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt // Saber quando foi aprovado/rejeitado
 
-  user     User    @relation(fields: [userId], references: [id])
-  veiculo  Veiculo @relation(fields: [veiculoId], references: [id])
+  user       User         @relation(fields: [userId], references: [id])
+  veiculo    Veiculo      @relation(fields: [veiculoId], references: [id])
+
+  @@index([companyId])
 }
+
+// ------------------------------------------------------
+// AUTH
+// ------------------------------------------------------
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id])
+
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// ------------------------------------------------------
+// ENUMS (Mantidos iguais)
+// ------------------------------------------------------
 
 enum AlertaTipo {
   SOLICITACAO
@@ -170,7 +312,6 @@ enum StatusManutencao {
   CONCLUIDA
   CANCELADA
 }
-
 
 enum Role {
   ADMIN
@@ -201,5 +342,3 @@ enum CNHCategory {
   D
   E
 }
-
-

@@ -1,4 +1,4 @@
-// routes/motoristas.js
+// backend/routes/motoristas.js
 import express from "express";
 import pkg from "@prisma/client";
 import bcrypt from "bcrypt";
@@ -25,8 +25,14 @@ function expandCategories(selected = []) {
 // Listar todos os motoristas (ADMIN)
 router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
+        const companyId = req.user.companyId;
+
         const motoristas = await prisma.user.findMany({
-            where: {role: "USER"},
+            where: {
+                role: "USER",
+                companyId: companyId, // <--- Filtro por empresa
+                deletedAt: null       // <--- Filtro Soft Delete (não traz os excluídos)
+            },
             select: {
                 id: true, nome: true, cpf: true, cnh: true, validadeCnh: true,
                 telefone: true, email: true, endereco: true, dataContratacao: true,
@@ -45,14 +51,22 @@ router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
 router.post("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
         const {email, senha} = req.body;
+        const companyId = req.user.companyId;
+
         if (!email || !senha) return res.status(400).json({error: "Email e senha são obrigatórios."});
 
         const usuarioExistente = await prisma.user.findUnique({where: {email}});
         if (usuarioExistente) return res.status(409).json({error: "Este email já está em uso."});
 
         const senhaHash = await bcrypt.hash(senha, 10);
+
         const novoMotorista = await prisma.user.create({
-            data: {email, senha: senhaHash, role: "USER"}
+            data: {
+                companyId: companyId, // <--- Vincula à empresa
+                email,
+                senha: senhaHash,
+                role: "USER"
+            }
         });
         res.status(201).json({message: "Motorista cadastrado com sucesso!", motorista: novoMotorista});
     } catch (error) {
@@ -61,22 +75,29 @@ router.post("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     }
 });
 
-// Cadastro detalhado (mantive /cadastrar)
-router.post("/cadastrar", async (req, res) => {
+// Cadastro detalhado (Adicionei autenticação para garantir companyId)
+router.post("/cadastrar", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
         const {
             email, senha, nome, cpf, rg, cnh, validadeCnh, telefone, endereco,
             dataContratacao, salario, observacoes, categoria, dataNascimento
         } = req.body;
 
+        const companyId = req.user.companyId;
+
         if (!email || !senha || !nome || !cpf || !cnh) {
             return res.status(400).json({error: 'Campos obrigatórios faltando.'});
         }
+
+        // Verifica duplicidade de email
+        const userCheck = await prisma.user.findUnique({ where: { email } });
+        if (userCheck) return res.status(409).json({ error: "Email já cadastrado." });
 
         const hashedPassword = await bcrypt.hash(senha, 10);
 
         const novoMotorista = await prisma.user.create({
             data: {
+                companyId: companyId, // <--- Vincula à empresa
                 email, senha: hashedPassword, nome, cpf, rg,
                 cnh, validadeCnh: new Date(validadeCnh), telefone, endereco,
                 dataContratacao: dataContratacao ? new Date(dataContratacao) : null,
@@ -89,13 +110,21 @@ router.post("/cadastrar", async (req, res) => {
             }
         });
 
-        // associa veículos conforme categorias
+        // Associação automática de veículos conforme categorias
         const selectedCategories = Array.isArray(categoria) ? categoria : (categoria ? [categoria] : []);
         const expanded = expandCategories(selectedCategories);
+
         if (expanded.length > 0) {
+            // Busca apenas veículos DA MESMA EMPRESA que batem com a categoria
             const veiculosPermitidos = await prisma.veiculo.findMany({
-                where: {categoria: {in: expanded}}, select: {id: true}
+                where: {
+                    categoria: {in: expanded},
+                    companyId: companyId,     // <--- Segurança Importante
+                    deletedAt: null           // <--- Não associa carros excluídos
+                },
+                select: {id: true}
             });
+
             if (veiculosPermitidos.length > 0) {
                 const createManyData = veiculosPermitidos.map(v => ({userId: novoMotorista.id, veiculoId: v.id}));
                 await prisma.userVeiculo.createMany({data: createManyData, skipDuplicates: true});
@@ -104,7 +133,7 @@ router.post("/cadastrar", async (req, res) => {
 
         res.status(201).json(novoMotorista);
     } catch (error) {
-        if (error?.code === 'P2002') return res.status(409).json({error: 'Dados duplicados.'});
+        if (error?.code === 'P2002') return res.status(409).json({error: 'Dados (CPF, CNH ou RG) já cadastrados.'});
         console.error("Erro ao cadastrar motorista:", error);
         res.status(500).json({error: 'Erro interno do servidor.'});
     }
@@ -114,14 +143,20 @@ router.post("/cadastrar", async (req, res) => {
 router.post("/localizacao", autenticarToken, async (req, res) => {
     try {
         const userId = req.user?.id;
+        const companyId = req.user?.companyId;
         const {latitude, longitude} = req.body;
 
         if (latitude == null || longitude == null) {
             return res.status(400).json({error: "Localização inválida."});
         }
 
-        await prisma.user.update({
-            where: {id: Number(userId)},
+        // Garante que o usuário só atualiza a si mesmo e dentro da empresa correta
+        // (Embora userId venha do token, findMany/updateMany é mais seguro em multi-tenant)
+        await prisma.user.updateMany({
+            where: {
+                id: Number(userId),
+                companyId: companyId
+            },
             data: {
                 latitude: parseFloat(latitude),
                 longitude: parseFloat(longitude),
@@ -142,16 +177,18 @@ router.post("/localizacao", autenticarToken, async (req, res) => {
 
 // Buscar 1 motorista por id
 router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
-    if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({error: "ID inválido. O ID deve ser um número inteiro."});
-    }
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
-    try {
-        const id = parseInt(req.params.id, 10);
-        if (Number.isNaN(id)) return res.status(400).json({error: "ID inválido."});
+    const companyId = req.user.companyId;
 
-        const motorista = await prisma.user.findUnique({
-            where: {id},
+    try {
+        // CORREÇÃO: Usar findFirst com filtros de segurança
+        const motorista = await prisma.user.findFirst({
+            where: {
+                id: id,
+                companyId: companyId, // <--- Segurança
+                deletedAt: null       // <--- Ignora excluídos
+            },
             select: {
                 id: true, nome: true, email: true, cpf: true, rg: true, telefone: true,
                 endereco: true, cnh: true, validadeCnh: true, categoria: true,
@@ -169,14 +206,11 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
 
 // Atualizar motorista (APENAS ADMIN)
 router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
-    if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({error: "ID inválido. O ID deve ser um número inteiro."});
-    }
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
-    try {
-        const id = parseInt(req.params.id, 10);
-        if (Number.isNaN(id)) return res.status(400).json({error: "ID inválido."});
+    const companyId = req.user.companyId;
 
+    try {
         const {
             nome, email, cpf, telefone, endereco, validadeCnh, categoria, status, senha, salario
         } = req.body;
@@ -193,23 +227,19 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
         if (salario !== undefined) updates.salario = Number(salario);
         if (senha !== undefined) updates.senha = await bcrypt.hash(String(senha), 10);
 
-        const motoristaExistente = await prisma.user.findUnique({where: {id}});
+        // Verifica existência com segurança
+        const motoristaExistente = await prisma.user.findFirst({
+            where: { id, companyId, deletedAt: null }
+        });
+
         if (!motoristaExistente) return res.status(404).json({error: "Motorista não encontrado."});
 
         const motoristaAtualizado = await prisma.user.update({
             where: {id},
             data: updates,
             select: {
-                id: true,
-                nome: true,
-                email: true,
-                cpf: true,
-                telefone: true,
-                endereco: true,
-                categoria: true,
-                status: true,
-                validadeCnh: true,
-                salario: true
+                id: true, nome: true, email: true, cpf: true, telefone: true,
+                endereco: true, categoria: true, status: true, validadeCnh: true, salario: true
             }
         });
 
@@ -221,20 +251,34 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
     }
 });
 
-// Deletar motorista (APENAS ADMIN)
+// Deletar motorista (SOFT DELETE)
 router.delete("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
-    if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({error: "ID inválido. O ID deve ser um número inteiro."});
-    }
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
-    try {
-        const id = parseInt(req.params.id, 10);
-        if (Number.isNaN(id)) return res.status(400).json({error: "ID inválido."});
+    const companyId = req.user.companyId;
 
-        const motoristaExistente = await prisma.user.findUnique({where: {id}});
+    try {
+        // 1. Verifica se o motorista existe, pertence à empresa e não está deletado
+        const motoristaExistente = await prisma.user.findFirst({
+            where: {
+                id: id,
+                companyId: companyId,
+                deletedAt: null
+            }
+        });
+
         if (!motoristaExistente) return res.status(404).json({error: "Motorista não encontrado."});
 
-        await prisma.user.delete({where: {id}});
+        // 2. SOFT DELETE: Atualiza o deletedAt e muda status para inativo
+        // Não apagamos de verdade para não quebrar Viagens, Abastecimentos, etc.
+        await prisma.user.update({
+            where: { id },
+            data: {
+                deletedAt: new Date(),
+                status: "inativo" // Bloqueia login imediatamente
+            }
+        });
+
         res.json({message: "Motorista deletado com sucesso."});
     } catch (error) {
         console.error("Erro ao deletar motorista:", error);

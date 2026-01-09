@@ -34,7 +34,6 @@ const corsOptions = {
     }
 };
 
-
 const prisma = new PrismaClient();
 const app = express();
 
@@ -51,50 +50,110 @@ app.use("/manutencoes", manutencoesRoutes);
 app.use("/abastecimentos", abastecimentosRoutes);
 app.use("/alertas", alertas);
 
-// Rota de cadastro (para testes, idealmente só ADMIN pode criar motoristas)
+// -------------------------------------------------------------------
+// ROTA DE CADASTRO DE NOVA EMPRESA (SIGN UP)
+// Cria a Empresa + O primeiro Usuário (Admin)
+// -------------------------------------------------------------------
 app.post("/register", async (req, res) => {
-    const {email, senha, role} = req.body;
-    if (!email || !senha) return res.status(400).json({error: "Dados inválidos"});
+    // Agora pedimos o nome da empresa também
+    const { nomeEmpresa, nomeUser, email, senha } = req.body;
 
-    const senhaHash = await bcrypt.hash(senha, 10);
+    if (!nomeEmpresa || !email || !senha) {
+        return res.status(400).json({ error: "Nome da empresa, email e senha são obrigatórios." });
+    }
 
-    const user = await prisma.user.create({
-        data: {email, senha: senhaHash, role: role === "ADMIN" ? "ADMIN" : "USER"},
-    });
+    try {
+        // Verifica se o email já existe globalmente
+        const userExists = await prisma.user.findUnique({ where: { email } });
+        if (userExists) return res.status(409).json({ error: "Email já cadastrado." });
 
-    res.json({message: "Usuário cadastrado", user});
+        const senhaHash = await bcrypt.hash(senha, 10);
+
+        // TRANSACTION: Cria Empresa e Usuário juntos
+        const resultado = await prisma.$transaction(async (tx) => {
+            // 1. Cria a Empresa
+            const novaEmpresa = await tx.company.create({
+                data: {
+                    nome: nomeEmpresa,
+                    isActive: true
+                }
+            });
+
+            // 2. Cria o Usuário Admin vinculado a essa empresa
+            const novoUsuario = await tx.user.create({
+                data: {
+                    companyId: novaEmpresa.id, // <--- VÍNCULO IMPORTANTE
+                    nome: nomeUser || "Admin",
+                    email,
+                    senha: senhaHash,
+                    role: "ADMIN",
+                    status: "ativo"
+                }
+            });
+
+            return { empresa: novaEmpresa, usuario: novoUsuario };
+        });
+
+        res.status(201).json({
+            message: "Empresa e Administrador cadastrados com sucesso!",
+            company: resultado.empresa.nome,
+            user: resultado.usuario.email
+        });
+
+    } catch (error) {
+        console.error("Erro no registro:", error);
+        res.status(500).json({ error: "Erro interno ao registrar empresa." });
+    }
 });
 
-// 🔹 Nova rota de login
+// -------------------------------------------------------------------
+// ROTA DE LOGIN
+// -------------------------------------------------------------------
 app.post("/index", async (req, res) => {
     const {email, senha} = req.body;
 
     const user = await prisma.user.findUnique({where: {email}});
     if (!user) return res.status(400).json({error: "Usuário não encontrado"});
 
+    // Verifica se a empresa está ativa (Opcional, mas recomendado para SaaS)
+    /* const empresa = await prisma.company.findUnique({ where: { id: user.companyId } });
+    if (!empresa || !empresa.isActive) return res.status(403).json({ error: "Empresa bloqueada/inativa." });
+    */
+
     const senhaValida = await bcrypt.compare(senha, user.senha);
     if (!senhaValida) return res.status(401).json({error: "Senha inválida"});
 
     const accessToken = gerarAccessToken(user);
-    const refreshToken = await gerarRefreshToken(user.id);
+    // CORREÇÃO: Passar o companyId para o refresh token
+    const refreshToken = await gerarRefreshToken(user.id, user.companyId);
 
     res.json({message: "Login realizado", accessToken, refreshToken});
 });
 
 function gerarAccessToken(user) {
-    return jwt.sign({id: user.id, email: user.email, role: user.role}, process.env.JWT_SECRET, {
-        expiresIn: "30m", // expira rápido
-    });
+    // CORREÇÃO: Incluir companyId no payload do JWT
+    return jwt.sign(
+        {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            companyId: user.companyId // <--- FUNDAMENTAL PARA O SISTEMA FUNCIONAR
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "30m" }
+    );
 }
 
-async function gerarRefreshToken(userId) {
-    const token = randomBytes(40).toString("hex"); // string aleatória segura
+// CORREÇÃO: Receber companyId
+async function gerarRefreshToken(userId, companyId) {
+    const token = randomBytes(40).toString("hex");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
 
     await prisma.refreshToken.create({
         data: {
             token,
             userId,
+            companyId, // <--- OBRIGATÓRIO NO NOVO SCHEMA
             expiresAt,
         },
     });
@@ -102,24 +161,24 @@ async function gerarRefreshToken(userId) {
     return token;
 }
 
+// -------------------------------------------------------------------
+// CRON JOBS
+// -------------------------------------------------------------------
 async function atualizarManutencoesAtrasadas() {
     console.log('[CRON] Executando verificação de manutenções atrasadas...');
     const agora = new Date();
 
     try {
+        // Isso pode rodar globalmente para todas as empresas sem problemas
         const { count } = await prisma.manutencao.updateMany({
             where: {
-                // 1. O status DEVE ser "AGENDADA"
                 status: 'AGENDADA',
-                // 2. A data do agendamento é menor que (no passado) agora
                 data: {
-                    lt: agora // 'lt' = Less Than (menor que)
+                    lt: agora
                 }
             },
             data: {
-                // 3. Atualiza o status
                 status: 'CONCLUIDA'
-                // (Se preferir a sua lógica original, troque por 'CONCLUIDA')
             }
         });
 
@@ -134,12 +193,13 @@ async function atualizarManutencoesAtrasadas() {
     }
 }
 
-// Agenda a tarefa para rodar
-// Esta string ('0 * * * *') significa "no minuto 0 de toda hora"
-// (ou seja, de hora em hora, 01:00, 02:00, 03:00...)
 cron.schedule('0 * * * *', () => {
     atualizarManutencoesAtrasadas();
 });
+
+// -------------------------------------------------------------------
+// MIDDLEWARES DE AUTH (Exportados para uso nas rotas)
+// -------------------------------------------------------------------
 
 export function autenticarToken(req, res, next) {
     const authHeader = req.headers["authorization"];
@@ -149,7 +209,7 @@ export function autenticarToken(req, res, next) {
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) return res.sendStatus(401);
-        req.user = user;
+        req.user = user; // Agora req.user tem { id, role, companyId }
         next();
     });
 }
@@ -170,6 +230,7 @@ export function autorizarRoles(...rolesPermitidos) {
 
 
 app.get("/dados-protegidos", autenticarToken, (req, res) => {
+    // Agora você verá o companyId aqui no retorno
     res.json({message: "Aqui estão os dados secretos", user: req.user});
 });
 

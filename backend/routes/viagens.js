@@ -30,11 +30,11 @@ const parseIntSafe = (v) => {
    CRIAR VIAGEM (motorista que tem permissão para o veículo)
    ------------------------- */
 router.post("/", autenticarToken, async (req, res) => {
-    // <-- 'kmInicial' foi REMOVIDO daqui. Ele será calculado.
     const {veiculoId, dataSaida, dataChegada, finalidade, kmFinal} = req.body;
     const userId = parseIntSafe(req.user?.id);
+    const companyId = req.user.companyId; // <--- OBRIGATÓRIO
 
-    // --- Validações Iniciais (Mantidas) ---
+    // --- Validações Iniciais ---
     if (!isValidInteger(veiculoId)) return res.status(400).json({error: "veiculoId inválido."});
     if (!dataSaida || !dataChegada) return res.status(400).json({error: "dataSaida e dataChegada são obrigatórios."});
     if (finalidade === undefined) return res.status(400).json({error: "finalidade é obrigatória."});
@@ -48,31 +48,37 @@ router.post("/", autenticarToken, async (req, res) => {
     const veiculoIdNum = Number(veiculoId);
     const kmFinalNum = Number(kmFinal);
 
-    // --- Início da Lógica de Transação ---
     try {
-        // <-- Usa $transaction para garantir consistência
+        // --- Início da Transação ---
         const novaViagem = await prisma.$transaction(async (tx) => {
 
-            // 1. garante que o veículo exista
-            const veiculo = await tx.veiculo.findUnique({where: {id: veiculoIdNum}});
+            // 1. Garante que o veículo exista E PERTENCE À EMPRESA
+            // CORREÇÃO: findUnique -> findFirst com companyId
+            const veiculo = await tx.veiculo.findFirst({
+                where: {
+                    id: veiculoIdNum,
+                    companyId: companyId // <--- Segurança
+                }
+            });
+
             if (!veiculo) {
-                // <-- Lança erro para causar rollback
-                throw new Error("Veículo não encontrado.");
+                throw new Error("Veículo não encontrado ou não pertence à sua empresa.");
             }
 
-            // 2. valida se o usuário pode dirigir o veículo
+            // 2. Valida se o usuário pode dirigir o veículo
             const permitido = await tx.userVeiculo.findFirst({
                 where: {userId: userId, veiculoId: veiculoIdNum},
             });
             if (!permitido) {
-                // <-- Lança erro para causar rollback
                 throw new Error("Você não tem permissão para dirigir este veículo.");
             }
 
-            // 3. busca a última viagem (cronologicamente)
+            // 3. Busca a última viagem (cronologicamente) DESTE VEÍCULO
             const ultimaViagem = await tx.viagem.findFirst({
-                where: {veiculoId: veiculoIdNum},
-                // <-- CORRIGIDO: Ordenar por dataChegada para achar a última real
+                where: {
+                    veiculoId: veiculoIdNum,
+                    companyId: companyId // Redundante mas seguro
+                },
                 orderBy: {dataChegada: "desc"},
             });
 
@@ -81,13 +87,10 @@ router.post("/", autenticarToken, async (req, res) => {
             if (ultimaViagem) {
                 // 4a. Valida se a nova viagem começa DEPOIS da última
                 if (inicioViagem <= new Date(ultimaViagem.dataChegada)) {
-                    // <-- CORRIGIDO: Compara com dataChegada
                     throw new Error(`A data/hora de saída não pode ser anterior ou igual à chegada da última viagem (${ultimaViagem.dataChegada.toISOString()}).`);
                 }
-
                 // 5a. O kmInicial é o kmFinal da última viagem
                 kmInicialCalculado = ultimaViagem.kmFinal;
-
             } else {
                 // 5b. Se for a primeira viagem, usa a quilometragem base do veículo
                 kmInicialCalculado = veiculo.quilometragem;
@@ -101,26 +104,25 @@ router.post("/", autenticarToken, async (req, res) => {
             // 7. Criar a nova viagem
             const viagemCriada = await tx.viagem.create({
                 data: {
+                    companyId: companyId, // <--- Vincula à empresa
                     userId: userId,
                     veiculoId: veiculoIdNum,
                     dataSaida: inicioViagem,
                     dataChegada: fimViagem,
                     finalidade: String(finalidade),
-                    kmInicial: kmInicialCalculado, // <-- ADICIONADO: O valor que calculamos
+                    kmInicial: kmInicialCalculado,
                     kmFinal: kmFinalNum,
                 },
             });
 
-            // 8. ATUALIZAR O HODÔMETRO PRINCIPAL DO VEÍCULO
+            // 8. Atualizar o hodômetro principal do veículo
             await tx.veiculo.update({
                 where: {id: veiculoIdNum},
                 data: {quilometragem: kmFinalNum},
             });
 
-            // 9. Retorna a viagem (isso "commita" a transação)
             return viagemCriada;
         });
-
         // --- Fim da Transação ---
 
         return res.status(201).json(novaViagem);
@@ -128,7 +130,6 @@ router.post("/", autenticarToken, async (req, res) => {
     } catch (error) {
         console.error("POST /viagens error:", error);
 
-        // <-- Trata os erros que lançamos dentro da transação
         if (error.message.includes("Veículo não encontrado")) {
             return res.status(404).json({error: error.message});
         }
@@ -139,7 +140,6 @@ router.post("/", autenticarToken, async (req, res) => {
             return res.status(400).json({error: error.message});
         }
 
-        // Erro genérico
         return res.status(500).json({error: "Erro ao registrar viagem."});
     }
 });
@@ -150,10 +150,15 @@ router.post("/", autenticarToken, async (req, res) => {
 router.get("/", autenticarToken, async (req, res) => {
     try {
         const userId = parseIntSafe(req.user?.id);
+        const companyId = req.user.companyId;
+
         if (userId === null) return res.status(400).json({error: "Usuário inválido."});
 
         const viagens = await prisma.viagem.findMany({
-            where: {userId},
+            where: {
+                userId: userId,
+                companyId: companyId // <--- Filtro da empresa
+            },
             orderBy: {dataSaida: "desc"},
         });
 
@@ -169,8 +174,17 @@ router.get("/", autenticarToken, async (req, res) => {
    ------------------------- */
 router.get("/admin", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
+        const companyId = req.user.companyId;
+
         const viagens = await prisma.viagem.findMany({
+            where: {
+                companyId: companyId // <--- Admin só vê da sua empresa
+            },
             orderBy: {dataSaida: "desc"},
+            include: {
+                user: { select: { id: true, nome: true, email: true } },
+                veiculo: { select: { id: true, placa: true, modelo: true } }
+            }
         });
         return res.json(viagens);
     } catch (error) {
@@ -186,9 +200,14 @@ router.get("/:id", autenticarToken, async (req, res) => {
     try {
         if (!isValidInteger(req.params.id)) return res.status(400).json({error: "ID inválido."});
         const id = parseInt(req.params.id, 10);
+        const companyId = req.user.companyId;
 
-        const viagem = await prisma.viagem.findUnique({
-            where: { id },
+        // CORREÇÃO: findFirst com companyId
+        const viagem = await prisma.viagem.findFirst({
+            where: {
+                id: id,
+                companyId: companyId
+            },
             include: {
                 veiculo: {
                     select: { id: true, placa: true, modelo: true }
@@ -198,6 +217,7 @@ router.get("/:id", autenticarToken, async (req, res) => {
                 }
             }
         });
+
         if (!viagem) return res.status(404).json({error: "Viagem não encontrada."});
         return res.json(viagem);
     } catch (error) {
@@ -208,17 +228,21 @@ router.get("/:id", autenticarToken, async (req, res) => {
 
 /* -------------------------
    ATUALIZAR VIAGEM (dono da viagem ou ADMIN)
-   -> aceita PATCH parcial: finalidade, dataSaida, dataChegada, kmFinal
    ------------------------- */
 router.patch("/:id", autenticarToken, async (req, res) => {
     try {
         if (!isValidInteger(req.params.id)) return res.status(400).json({error: "ID inválido."});
         const id = parseInt(req.params.id, 10);
+        const companyId = req.user.companyId;
 
         const userIdLogado = parseIntSafe(req.user?.id);
         const userRole = req.user?.role;
 
-        const viagem = await prisma.viagem.findUnique({where: {id}});
+        // CORREÇÃO: Busca segura
+        const viagem = await prisma.viagem.findFirst({
+            where: { id, companyId }
+        });
+
         if (!viagem) return res.status(404).json({error: "Viagem não encontrada."});
 
         // autorização: dono ou admin
@@ -242,7 +266,7 @@ router.patch("/:id", autenticarToken, async (req, res) => {
             updates.dataChegada = d;
         }
 
-        // valida datas se ambos foram enviados (ou comparando com valores existentes)
+        // valida datas
         const newDataSaida = updates.dataSaida ?? new Date(viagem.dataSaida);
         const newDataChegada = updates.dataChegada ?? new Date(viagem.dataChegada);
         if (newDataSaida >= newDataChegada) {
@@ -253,10 +277,13 @@ router.patch("/:id", autenticarToken, async (req, res) => {
             const novoKm = parseIntSafe(kmFinal);
             if (novoKm === null) return res.status(400).json({error: "kmFinal inválido."});
 
-            // buscar maior kmFinal de outras viagens do mesmo veículo (excluindo esta)
+            // buscar maior kmFinal de outras viagens do mesmo veículo
+            // Como o veículo é da empresa, as viagens dele também são, então o filtro companyId é implícito pelo veiculoId,
+            // mas podemos adicionar para ser explícito.
             const ultimaOutra = await prisma.viagem.findFirst({
                 where: {
                     veiculoId: viagem.veiculoId,
+                    companyId: companyId, // <--- Seguro
                     id: {not: viagem.id}
                 },
                 orderBy: {kmFinal: "desc"}
@@ -291,11 +318,16 @@ router.delete("/:id", autenticarToken, async (req, res) => {
     try {
         if (!isValidInteger(req.params.id)) return res.status(400).json({error: "ID inválido."});
         const id = parseInt(req.params.id, 10);
+        const companyId = req.user.companyId;
 
         const userIdLogado = parseIntSafe(req.user?.id);
         const userRole = req.user?.role;
 
-        const viagem = await prisma.viagem.findUnique({where: {id}});
+        // CORREÇÃO: Busca segura
+        const viagem = await prisma.viagem.findFirst({
+            where: { id, companyId }
+        });
+
         if (!viagem) return res.status(404).json({error: "Viagem não encontrada."});
 
         if (userRole !== "ADMIN" && viagem.userId !== userIdLogado) {

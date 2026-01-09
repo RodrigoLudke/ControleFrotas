@@ -20,6 +20,7 @@ router.get("/", autenticarToken, async (req, res) => {
     try {
         const {veiculoId, from, to, limit} = req.query;
         const isAdmin = req.user && req.user.role === "ADMIN";
+        const companyId = req.user.companyId;
 
         const where = {};
 
@@ -41,7 +42,9 @@ router.get("/", autenticarToken, async (req, res) => {
             if (!Number.isNaN(d.getTime())) where.data = {...(where.data || {}), lte: d};
         }
 
-        const prismaWhere = {};
+        const prismaWhere = {
+            companyId: companyId
+        };
         if (where.userId !== undefined) prismaWhere.userId = where.userId;
         if (where.veiculoId !== undefined) prismaWhere.veiculoId = where.veiculoId;
         if (where.data !== undefined) prismaWhere.data = where.data;
@@ -69,10 +72,14 @@ router.get("/", autenticarToken, async (req, res) => {
 router.get("/:id", autenticarToken, async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
+    const companyId = req.user.companyId;
 
     try {
-        const a = await prisma.abastecimento.findUnique({
-            where: {id},
+        const a = await prisma.abastecimento.findFirst({
+            where: {
+                id: id,
+                companyId: companyId
+            },
             include: {
                 veiculo: {select: {id: true, placa: true, modelo: true}},
                 user: {select: {id: true, nome: true, email: true}}
@@ -100,8 +107,11 @@ router.post("/", autenticarToken, async (req, res) => {
             litros,
             valorPorLitro,
             combustivel,
-            posto
+            posto,
+            comprovanteUrl
         } = req.body;
+
+        const companyId = req.user.companyId;
 
         if (!veiculoId || !data || quilometragem === undefined || litros === undefined || valorPorLitro === undefined || !combustivel) {
             return res.status(400).json({error: "Campos obrigatórios: veiculoId, data, quilometragem, litros, valorPorLitro, combustivel."});
@@ -109,6 +119,15 @@ router.post("/", autenticarToken, async (req, res) => {
 
         const vid = parseInt(String(veiculoId), 10);
         if (Number.isNaN(vid)) return res.status(400).json({error: "veiculoId inválido."});
+
+        // SEGURANÇA: Verificar se o veículo pertence à empresa
+        const veiculoValido = await prisma.veiculo.findFirst({
+            where: { id: vid, companyId: companyId }
+        });
+
+        if (!veiculoValido) {
+            return res.status(404).json({ error: "Veículo não encontrado ou não pertence à sua empresa." });
+        }
 
         const dt = new Date(String(data));
         if (Number.isNaN(dt.getTime())) return res.status(400).json({error: "data inválida."});
@@ -121,6 +140,7 @@ router.post("/", autenticarToken, async (req, res) => {
 
         const novo = await prisma.abastecimento.create({
             data: {
+                companyId: companyId,
                 veiculoId: vid,
                 userId: req.user.id,
                 data: dt,
@@ -129,7 +149,8 @@ router.post("/", autenticarToken, async (req, res) => {
                 valorPorLitro: valorNum,
                 custoTotal: Number(custoTotal.toFixed(2)),
                 combustivel: String(combustivel),
-                posto: posto ?? null
+                posto: posto ?? null,
+                comprovanteUrl: comprovanteUrl ?? null
             }
         });
 
@@ -144,9 +165,10 @@ router.post("/", autenticarToken, async (req, res) => {
 router.patch("/:id", autenticarToken, async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
+    const companyId = req.user.companyId;
 
     try {
-        const existing = await prisma.abastecimento.findUnique({where: {id}});
+        const existing = await prisma.abastecimento.findFirst({where: {id, companyId}});
         if (!existing) return res.status(404).json({error: "Abastecimento não encontrado."});
 
         const isAdmin = req.user && req.user.role === "ADMIN";
@@ -159,13 +181,21 @@ router.patch("/:id", autenticarToken, async (req, res) => {
             litros,
             valorPorLitro,
             combustivel,
-            posto
+            posto,
+            comprovanteUrl
         } = req.body;
 
         const updates = {};
         if (veiculoId !== undefined) {
             const vid = parseInt(String(veiculoId), 10);
             if (Number.isNaN(vid)) return res.status(400).json({error: "veiculoId inválido."});
+            // Verifica se o NOVO veículo também pertence à empresa
+            const veiculoValido = await prisma.veiculo.findFirst({
+                where: { id: vid, companyId: companyId }
+            });
+            if (!veiculoValido) {
+                return res.status(400).json({ error: "O veículo informado não pertence à sua empresa." });
+            }
             updates.veiculoId = vid;
         }
         if (data !== undefined) {
@@ -183,6 +213,7 @@ router.patch("/:id", autenticarToken, async (req, res) => {
         }
         if (combustivel !== undefined) updates.combustivel = combustivel;
         if (posto !== undefined) updates.posto = posto;
+        if (comprovanteUrl !== undefined) updates.comprovanteUrl = comprovanteUrl;
 
         const updated = await prisma.abastecimento.update({
             where: {id},
@@ -200,9 +231,12 @@ router.patch("/:id", autenticarToken, async (req, res) => {
 router.delete("/:id", autenticarToken, async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) return res.status(400).json({error: "ID inválido."});
     const id = parseInt(req.params.id, 10);
+    const companyId = req.user.companyId;
 
     try {
-        const existing = await prisma.abastecimento.findUnique({where: {id}});
+        const existing = await prisma.abastecimento.findFirst({
+            where: { id, companyId }
+        });
         if (!existing) return res.status(404).json({error: "Abastecimento não encontrado."});
 
         const isAdmin = req.user && req.user.role === "ADMIN";

@@ -1,9 +1,9 @@
 // backend/routes/alertas.js
 import express from "express";
 import pkg from "@prisma/client";
-import {autenticarToken, autorizarRoles} from "../index.js";
+import { autenticarToken, autorizarRoles } from "../index.js";
 
-const {PrismaClient} = pkg;
+const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -15,176 +15,212 @@ const router = express.Router();
 router.post("/", autenticarToken, async (req, res) => {
     try {
         const userId = req.user?.id;
-        const {veiculoId, mensagem, tipo} = req.body;
+        const companyId = req.user?.companyId; // <--- Pega da sessão
+        const { veiculoId, mensagem, tipo } = req.body;
 
         if (!mensagem || String(mensagem).trim().length === 0) {
-            return res.status(400).json({error: "Mensagem é obrigatória."});
+            return res.status(400).json({ error: "Mensagem é obrigatória." });
+        }
+
+        // Se informou veículo, valida se pertence à empresa
+        if (veiculoId) {
+            const vid = Number(veiculoId);
+            const veiculoValido = await prisma.veiculo.findFirst({
+                where: { id: vid, companyId: companyId }
+            });
+            if (!veiculoValido) {
+                return res.status(400).json({ error: "Veículo inválido ou não pertence à sua empresa." });
+            }
         }
 
         const alerta = await prisma.alerta.create({
             data: {
+                companyId: companyId, // <--- Vincula à empresa
                 userId,
-                veiculoId: veiculoId ?? null,
+                veiculoId: veiculoId ? Number(veiculoId) : null,
                 mensagem,
                 tipo: tipo === "REGISTRO_RAPIDO" ? "REGISTRO_RAPIDO" : "SOLICITACAO",
                 status: "PENDENTE",
             },
             include: {
-                user: {select: {id: true, nome: true, email: true}},
+                user: { select: { id: true, nome: true, email: true } },
             },
         });
 
         return res.status(201).json(alerta);
     } catch (err) {
         console.error("Erro POST /alertas:", err);
-        res.status(500).json({error: "Erro interno ao criar alerta."});
+        res.status(500).json({ error: "Erro interno ao criar alerta." });
     }
 });
 
-/* GET / Alertas
+/* GET /
     Motorista autenticado lista seus próprios alertas
  */
-
 router.get("/", autenticarToken, async (req, res) => {
     try {
         const userId = req.user?.id;
+        const companyId = req.user?.companyId;
 
         const alertas = await prisma.alerta.findMany({
-            where: {userId},
-            orderBy: {createdAt: "desc"},
+            where: {
+                userId,
+                companyId: companyId // <--- Segurança extra (filtro por empresa)
+            },
+            orderBy: { createdAt: "desc" },
             include: {
-                veiculo: {select: {id: true, placa: true, modelo: true}},
+                veiculo: { select: { id: true, placa: true, modelo: true } },
             },
         });
 
         res.json(alertas);
     } catch (err) {
         console.error("Erro GET /alertas/meus:", err);
-        res.status(500).json({error: "Erro ao buscar seus alertas."});
+        res.status(500).json({ error: "Erro ao buscar seus alertas." });
     }
 });
 
 /*
-   GET /alertas
-   Admin: lista alertas (padrão: pendentes). Pode passar ?status=APROVADO|PENDENTE|REPROVADO
+   GET /admin
+   Admin: lista alertas DA SUA EMPRESA (padrão: todos ou filtro por status)
  */
 router.get("/admin", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
-        const {status} = req.query;
-        const where = status ? {status: String(status)} : undefined;
+        const { status } = req.query;
+        const companyId = req.user.companyId;
+
+        const where = {
+            companyId: companyId // <--- Filtro OBRIGATÓRIO
+        };
+
+        if (status) {
+            where.status = String(status);
+        }
 
         const alertas = await prisma.alerta.findMany({
             where,
-            orderBy: {createdAt: "desc"},
+            orderBy: { createdAt: "desc" },
             include: {
-                user: {select: {id: true, nome: true, email: true}},
-                veiculo: {select: {id: true, placa: true, modelo: true}},
+                user: { select: { id: true, nome: true, email: true } },
+                veiculo: { select: { id: true, placa: true, modelo: true } },
             },
         });
 
         res.json(alertas);
     } catch (err) {
-        console.error("Erro GET /alertas:", err);
-        res.status(500).json({error: "Erro ao buscar alertas."});
+        console.error("Erro GET /alertas/admin:", err);
+        res.status(500).json({ error: "Erro ao buscar alertas." });
     }
 });
 
 /*
-   GET /alertas/:id
-   Admin: detalhe do alerta
+   GET /:id
+   Admin: detalhe do alerta (seguro por empresa)
  */
 router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
-        if (Number.isNaN(id)) return res.status(400).json({error: "ID inválido."});
+        const companyId = req.user.companyId;
 
-        const alerta = await prisma.alerta.findUnique({
-            where: {id},
+        if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido." });
+
+        // CORREÇÃO: findFirst com companyId
+        const alerta = await prisma.alerta.findFirst({
+            where: {
+                id: id,
+                companyId: companyId
+            },
             include: {
-                user: {select: {id: true, nome: true, email: true}},
-                veiculo: {select: {id: true, placa: true, modelo: true}},
+                user: { select: { id: true, nome: true, email: true } },
+                veiculo: { select: { id: true, placa: true, modelo: true } },
             },
         });
 
-        if (!alerta) return res.status(404).json({error: "Alerta não encontrado."});
+        if (!alerta) return res.status(404).json({ error: "Alerta não encontrado." });
         res.json(alerta);
     } catch (err) {
         console.error("Erro GET /alertas/:id:", err);
-        res.status(500).json({error: "Erro interno."});
+        res.status(500).json({ error: "Erro interno." });
     }
 });
 
 /*
-   POST /alertas/:id/decidir
-   Admin aprova ou reprova. body: { action: "accept"|"reject", agendar?: { data?: string, quilometragem?: number } }
-   Se action == "accept", opcionalmente cria uma manutenção e atualiza status do veículo para 'manutencao'.
+   POST /:id/decidir
+   Admin aprova ou reprova.
+   Se aceitar e mandar agendar, cria manutenção (vinculada à empresa).
  */
 router.post("/:id/decidir", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
-        if (Number.isNaN(id)) return res.status(400).json({error: "ID inválido."});
+        const companyId = req.user.companyId;
 
-        const {action, agendar} = req.body;
+        if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido." });
+
+        const { action, agendar } = req.body;
         if (!action || !["accept", "reject"].includes(action)) {
-            return res.status(400).json({error: "Ação inválida. Use 'accept' ou 'reject'."});
+            return res.status(400).json({ error: "Ação inválida. Use 'accept' ou 'reject'." });
         }
 
-        const alerta = await prisma.alerta.findUnique({where: {id}});
-        if (!alerta) return res.status(404).json({error: "Alerta não encontrado."});
+        // 1. Busca alerta com segurança da empresa
+        const alerta = await prisma.alerta.findFirst({
+            where: { id, companyId }
+        });
+
+        if (!alerta) return res.status(404).json({ error: "Alerta não encontrado." });
 
         if (action === "reject") {
-            const updated = await prisma.alerta.update({where: {id}, data: {status: "REPROVADO"}});
-            return res.json({message: "Alerta reprovado.", alerta: updated});
+            const updated = await prisma.alerta.update({
+                where: { id },
+                data: { status: "REPROVADO" }
+            });
+            return res.json({ message: "Alerta reprovado.", alerta: updated });
         }
 
         // action === "accept"
-        // marca alerta como aprovado
-        const updatedAlerta = await prisma.alerta.update({where: {id}, data: {status: "APROVADO"}});
+        const updatedAlerta = await prisma.alerta.update({
+            where: { id },
+            data: { status: "APROVADO" }
+        });
 
-        // se o admin enviar dados para agendar, criamos manutenção
         let manutencaoCriada = null;
         if (agendar) {
-            // agendar pode conter data e/ou quilometragem e tipo/opcional
-            const {data: dataAgendamento, quilometragem, tipo = "CORRETIVA", descricao} = agendar;
-
-            // definimos o status da manutenção: AGENDADA ou CONCLUIDA (se admin marcar já realizada)
+            const { data: dataAgendamento, quilometragem, tipo = "CORRETIVA", descricao } = agendar;
             const statusManut = agendar?.status === "CONCLUIDA" ? "CONCLUIDA" : "AGENDADA";
 
-            const manutData = {
-                veiculoId: alerta.veiculoId ?? (agendar.veiculoId ?? null),
-                userId: agendar.userId ?? alerta.userId ?? null,
-                data: dataAgendamento ? new Date(dataAgendamento) : new Date(),
-                quilometragem: quilometragem ?? undefined,
-                tipo: tipo === "PREVENTIVA" ? "PREVENTIVA" : "CORRETIVA",
-                descricao: descricao ?? alerta.mensagem ?? "Manutenção agendada a partir de alerta",
-                custo: agendar.custo ?? undefined,
-                local: agendar.local ?? undefined,
-                observacoes: agendar.observacoes ?? undefined,
-                status: statusManut
-            };
+            const veiculoIdFinal = alerta.veiculoId ?? (agendar.veiculoId ? Number(agendar.veiculoId) : null);
 
-            // criar manutenção (garantir campos obrigatórios)
-            manutencaoCriada = await prisma.manutencao.create({
-                data: {
-                    veiculoId: manutData.veiculoId,
-                    userId: manutData.userId,
-                    data: manutData.data,
-                    quilometragem: manutData.quilometragem ?? 0,
-                    tipo: manutData.tipo,
-                    descricao: manutData.descricao,
-                    custo: manutData.custo ?? undefined,
-                    local: manutData.local ?? undefined,
-                    observacoes: manutData.observacoes ?? undefined,
-                    status: statusManut === "CONCLUIDA" ? "CONCLUIDA" : "AGENDADA"
-                }
-            });
+            // Validação extra: se o veiculoId vier do 'agendar' (manual) e não do alerta,
+            // verificar se pertence à empresa
+            if (!alerta.veiculoId && veiculoIdFinal) {
+                const vCheck = await prisma.veiculo.findFirst({ where: { id: veiculoIdFinal, companyId }});
+                if (!vCheck) return res.status(400).json({ error: "Veículo informado no agendamento não pertence à empresa." });
+            }
 
-            // opcional: atualizar status do veículo para 'manutencao'
-            if (alerta.veiculoId) {
+            if (!veiculoIdFinal) {
+                // Se não tiver veículo no alerta nem no agendamento, não dá pra criar manutenção
+                // (Depende da regra de negócio, mas geralmente manutenção precisa de veículo)
+            } else {
+                manutencaoCriada = await prisma.manutencao.create({
+                    data: {
+                        companyId: companyId, // <--- OBRIGATÓRIO
+                        veiculoId: veiculoIdFinal,
+                        userId: agendar.userId ?? alerta.userId ?? null,
+                        data: dataAgendamento ? new Date(dataAgendamento) : new Date(),
+                        quilometragem: quilometragem ? Number(quilometragem) : 0,
+                        tipo: tipo === "PREVENTIVA" ? "PREVENTIVA" : "CORRETIVA",
+                        descricao: descricao ?? alerta.mensagem ?? "Manutenção agendada a partir de alerta",
+                        custo: agendar.custo ? Number(agendar.custo) : undefined,
+                        local: agendar.local ?? undefined,
+                        observacoes: agendar.observacoes ?? undefined,
+                        status: statusManut
+                    }
+                });
+
+                // Atualizar status do veículo para 'manutencao' se necessário
                 try {
                     await prisma.veiculo.update({
-                        where: {id: alerta.veiculoId},
-                        data: {status: "manutencao"}
+                        where: { id: veiculoIdFinal }, // Seguro pois validamos acima
+                        data: { status: "manutencao" }
                     });
                 } catch (e) {
                     console.warn("Não foi possível atualizar status do veículo:", e);
@@ -192,10 +228,10 @@ router.post("/:id/decidir", autenticarToken, autorizarRoles("ADMIN"), async (req
             }
         }
 
-        return res.json({message: "Alerta aprovado.", alerta: updatedAlerta, manutencao: manutencaoCriada});
+        return res.json({ message: "Alerta aprovado.", alerta: updatedAlerta, manutencao: manutencaoCriada });
     } catch (err) {
         console.error("Erro POST /alertas/:id/decidir:", err);
-        res.status(500).json({error: "Erro interno ao processar decisão."});
+        res.status(500).json({ error: "Erro interno ao processar decisão." });
     }
 });
 

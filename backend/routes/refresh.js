@@ -1,13 +1,15 @@
+// backend/routes/refresh.js
 import express from "express";
-import {PrismaClient} from "@prisma/client";
+import pkg from "@prisma/client"; // Ajuste na importação do Prisma (padrão que usamos nos outros arquivos)
 import jwt from "jsonwebtoken";
 import {randomBytes} from "crypto";
 
+const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const ACCESS_TOKEN_EXPIRES = "15m"; // expiração curta
+const ACCESS_TOKEN_EXPIRES = "15m";
 
 // rota de refresh
 router.post("/", async (req, res) => {
@@ -30,32 +32,38 @@ router.post("/", async (req, res) => {
 
         // verificar se expirou
         if (dbToken.expiresAt < new Date()) {
-            // opcional: apagar do banco se expirado
             await prisma.refreshToken.delete({where: {id: dbToken.id}});
             return res.status(401).json({error: "Refresh token expirado"});
         }
 
-        // gerar novo access token
+        // 1. CORREÇÃO: Incluir companyId no Payload do novo Access Token
         const accessToken = jwt.sign(
-            {id: dbToken.user.id, email: dbToken.user.email, role: dbToken.user.role},
+            {
+                id: dbToken.user.id,
+                email: dbToken.user.email,
+                role: dbToken.user.role,
+                companyId: dbToken.user.companyId
+            },
             JWT_SECRET,
             {expiresIn: ACCESS_TOKEN_EXPIRES}
         );
 
-        // opcional: gerar novo refresh token para renovar continuamente
+        // gerar novo refresh token
         const newRefreshToken = randomBytes(40).toString("hex");
         const refreshExpiry = new Date();
-        refreshExpiry.setDate(refreshExpiry.getDate() + 7); // 7 dias
+        refreshExpiry.setDate(refreshExpiry.getDate() + 7);
 
+        // 2. CORREÇÃO: Salvar o companyId na tabela RefreshToken
         await prisma.refreshToken.create({
             data: {
                 token: newRefreshToken,
                 userId: dbToken.user.id,
+                companyId: dbToken.user.companyId,
                 expiresAt: refreshExpiry,
             },
         });
 
-        // deletar o velho refresh token (melhor segurança)
+        // deletar o velho refresh token
         await prisma.refreshToken.delete({where: {id: dbToken.id}});
 
         return res.json({
@@ -68,13 +76,16 @@ router.post("/", async (req, res) => {
     }
 });
 
-export default router;
-
-
 router.post("/logout", async (req, res) => {
-    const {refreshToken} = req.body;
-
-    await prisma.refreshToken.deleteMany({where: {token: refreshToken}});
-
-    res.json({message: "Logout realizado com sucesso"});
+    try {
+        const {refreshToken} = req.body;
+        if (refreshToken) {
+            await prisma.refreshToken.deleteMany({where: {token: refreshToken}});
+        }
+        res.json({message: "Logout realizado com sucesso"});
+    } catch (error) {
+        res.status(500).json({error: "Erro no logout"});
+    }
 });
+
+export default router;

@@ -32,8 +32,14 @@ function getRequiredDriverCategories(vehicleCategory) {
 // Listar veiculos disponíveis para motoristas (USER)
 router.get("/disponiveis", autenticarToken, autorizarRoles("USER"), async (req, res) => {
     try {
+        const companyId = req.user.companyId;
+
         const veiculos = await prisma.veiculo.findMany({
-            where: {status: "disponivel"},
+            where: {
+                status: "disponivel",
+                companyId: companyId, // <--- Filtro por empresa
+                deletedAt: null       // <--- Filtro Soft Delete
+            },
             select: {
                 id: true,
                 placa: true,
@@ -68,7 +74,13 @@ router.get("/disponiveis", autenticarToken, autorizarRoles("USER"), async (req, 
 // Listar todos os veículos (ADMIN)
 router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
+        const companyId = req.user.companyId;
+
         const veiculos = await prisma.veiculo.findMany({
+            where: {
+                companyId: companyId, // <--- Filtro por empresa
+                deletedAt: null       // <--- Filtro Soft Delete
+            },
             select: {
                 id: true,
                 placa: true,
@@ -103,25 +115,12 @@ router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
 // Handler reutilizável para criação (POST / e POST /cadastrar)
 async function createVehicleHandler(req, res) {
     try {
+        const companyId = req.user.companyId; // <--- OBRIGATÓRIO
+
         const {
-            placa,
-            marca,
-            modelo,
-            ano,
-            cor,
-            chassi,
-            renavam,
-            capacidade,
-            quilometragem,
-            combustivel,
-            valorCompra,
-            dataCompra,
-            seguradora,
-            apoliceSeguro,
-            validadeSeguro,
-            observacoes,
-            status,
-            categoria
+            placa, marca, modelo, ano, cor, chassi, renavam, capacidade,
+            quilometragem, combustivel, valorCompra, dataCompra, seguradora,
+            apoliceSeguro, validadeSeguro, observacoes, status, categoria
         } = req.body;
 
         // validações básicas
@@ -129,8 +128,12 @@ async function createVehicleHandler(req, res) {
             return res.status(400).json({error: "Campos obrigatórios: placa, modelo e ano."});
         }
 
+        // Verifica duplicidade de PLACA dentro da empresa ou global (depende da regra de negócio)
+        // Geralmente Placa é única globalmente, o prisma schema já tem @unique, então vai dar erro se duplicar.
+
         const novo = await prisma.veiculo.create({
             data: {
+                companyId: companyId, // <--- Vincula à empresa
                 placa,
                 marca: marca ?? null,
                 modelo,
@@ -140,13 +143,8 @@ async function createVehicleHandler(req, res) {
                 renavam: renavam ?? null,
                 capacidade: capacidade !== undefined && capacidade !== null ? Number(capacidade) : null,
                 quilometragem: quilometragem !== undefined && quilometragem !== null ? Number(quilometragem) : 0,
-                combustivel: combustivel ?? undefined, // deve corresponder ao enum
-                valorCompra:
-                    valorCompra !== undefined && valorCompra !== null
-                        ? typeof valorCompra === "string"
-                            ? parseFloat(valorCompra)
-                            : Number(valorCompra)
-                        : null,
+                combustivel: combustivel ?? undefined,
+                valorCompra: valorCompra !== undefined && valorCompra !== null ? Number(valorCompra) : null,
                 dataCompra: dataCompra ? new Date(dataCompra) : new Date(),
                 seguradora: seguradora ?? null,
                 apoliceSeguro: apoliceSeguro ?? null,
@@ -158,25 +156,25 @@ async function createVehicleHandler(req, res) {
         });
 
         // LÓGICA DE ASSOCIAÇÃO
-        const newVehicleCategory = novo.categoria; // Categoria do veículo recém-criado
+        const newVehicleCategory = novo.categoria;
 
         if (newVehicleCategory) {
-            // Descobre quais CNHs (incluindo "AB") podem dirigir este veículo
             const requiredDriverCats = getRequiredDriverCategories(newVehicleCategory);
 
             if (requiredDriverCats.length > 0) {
-                // Encontra motoristas (Users) que tenham PELO MENOS UMA das categorias necessárias
+                // CORREÇÃO: Busca apenas motoristas da MESMA EMPRESA
                 const motoristasPermitidos = await prisma.user.findMany({
                     where: {
+                        companyId: companyId, // <--- Segurança
                         role: "USER",
+                        deletedAt: null,      // <--- Apenas ativos
                         categoria: {
-                            hasSome: requiredDriverCats // 'hasSome' verifica se o array contém algum dos itens
+                            hasSome: requiredDriverCats
                         }
                     },
                     select: {id: true}
                 });
 
-                // Se encontrou motoristas, cria a associação
                 if (motoristasPermitidos.length > 0) {
                     const createManyData = motoristasPermitidos.map(motorista => ({
                         userId: motorista.id,
@@ -185,7 +183,7 @@ async function createVehicleHandler(req, res) {
 
                     await prisma.userVeiculo.createMany({
                         data: createManyData,
-                        skipDuplicates: true // Não dá erro se a associação já existir
+                        skipDuplicates: true
                     });
                 }
             }
@@ -214,10 +212,16 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
         return res.status(400).json({error: "ID inválido. Deve ser um número inteiro."});
     }
     const id = parseInt(req.params.id, 10);
+    const companyId = req.user.companyId;
 
     try {
-        const veiculo = await prisma.veiculo.findUnique({
-            where: {id},
+        // CORREÇÃO: findFirst com companyId e deletedAt
+        const veiculo = await prisma.veiculo.findFirst({
+            where: {
+                id: id,
+                companyId: companyId,
+                deletedAt: null
+            },
             select: {
                 id: true,
                 placa: true,
@@ -238,7 +242,6 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
                 observacoes: true,
                 status: true,
                 categoria: true,
-                // relations podem ser incluídas se quiser: manutencoes, abastecimentos, usuarios, viagens...
             }
         });
 
@@ -256,27 +259,13 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
         return res.status(400).json({error: "ID inválido. Deve ser um número inteiro."});
     }
     const id = parseInt(req.params.id, 10);
+    const companyId = req.user.companyId;
 
     try {
         const {
-            placa,
-            marca,
-            modelo,
-            ano,
-            cor,
-            chassi,
-            renavam,
-            capacidade,
-            quilometragem,
-            combustivel,
-            valorCompra,
-            dataCompra,
-            seguradora,
-            apoliceSeguro,
-            validadeSeguro,
-            observacoes,
-            status,
-            categoria
+            placa, marca, modelo, ano, cor, chassi, renavam, capacidade,
+            quilometragem, combustivel, valorCompra, dataCompra, seguradora,
+            apoliceSeguro, validadeSeguro, observacoes, status, categoria
         } = req.body;
 
         const updates = {};
@@ -299,32 +288,17 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
         if (categoria !== undefined) updates.categoria = categoria;
         if (status !== undefined) updates.status = status;
 
-        const existing = await prisma.veiculo.findUnique({where: {id}});
+        // CORREÇÃO: findFirst seguro
+        const existing = await prisma.veiculo.findFirst({
+            where: { id, companyId, deletedAt: null }
+        });
         if (!existing) return res.status(404).json({error: "Veículo não encontrado."});
 
         const updated = await prisma.veiculo.update({
             where: {id},
             data: updates,
             select: {
-                id: true,
-                placa: true,
-                marca: true,
-                modelo: true,
-                ano: true,
-                cor: true,
-                chassi: true,
-                renavam: true,
-                capacidade: true,
-                quilometragem: true,
-                combustivel: true,
-                valorCompra: true,
-                dataCompra: true,
-                seguradora: true,
-                apoliceSeguro: true,
-                validadeSeguro: true,
-                observacoes: true,
-                status: true,
-                categoria: true
+                id: true, placa: true, modelo: true, status: true
             }
         });
 
@@ -336,18 +310,30 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
     }
 });
 
-// Deletar veículo (APENAS ADMIN)
+// Deletar veículo (SOFT DELETE)
 router.delete("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) {
         return res.status(400).json({error: "ID inválido. Deve ser um número inteiro."});
     }
     const id = parseInt(req.params.id, 10);
+    const companyId = req.user.companyId;
 
     try {
-        const existing = await prisma.veiculo.findUnique({where: {id}});
+        const existing = await prisma.veiculo.findFirst({
+            where: { id, companyId, deletedAt: null }
+        });
+
         if (!existing) return res.status(404).json({error: "Veículo não encontrado."});
 
-        await prisma.veiculo.delete({where: {id}});
+        // SOFT DELETE: Apenas marca deletedAt e muda status para inativo
+        await prisma.veiculo.update({
+            where: { id },
+            data: {
+                deletedAt: new Date(),
+                status: "inativo"
+            }
+        });
+
         res.json({message: "Veículo deletado com sucesso."});
     } catch (error) {
         console.error("Erro ao deletar veículo:", error);

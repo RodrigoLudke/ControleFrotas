@@ -165,6 +165,7 @@ export default function ViagensDetalhes() {
                         <span className="flex items-center"><Clock className="h-3 w-3 mr-1"/> Criado em: {formatData(trip.createdAt)}</span>
                         <span className="flex items-center"><Clock className="h-3 w-3 mr-1"/> Atualizado em: {formatData(trip.updatedAt)}</span>
                     </CardFooter>
+
                 </Card>
             </div>
         </AdminLayout>
