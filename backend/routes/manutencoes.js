@@ -131,7 +131,9 @@ router.post("/", autenticarToken, async (req, res) => {
 
         const newManut = await prisma.manutencao.create({
             data: {
-                companyId: companyId, // <--- Vincula à empresa
+                company: {
+                    connect: { id: companyId }
+                },
                 veiculoId: vid,
                 userId: targetUserId,
                 data: dt,

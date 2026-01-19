@@ -35,7 +35,9 @@ router.post("/", autenticarToken, async (req, res) => {
 
         const alerta = await prisma.alerta.create({
             data: {
-                companyId: companyId, // <--- Vincula à empresa
+                company: {
+                    connect: { id: companyId }
+                },
                 userId,
                 veiculoId: veiculoId ? Number(veiculoId) : null,
                 mensagem,
@@ -202,7 +204,9 @@ router.post("/:id/decidir", autenticarToken, autorizarRoles("ADMIN"), async (req
             } else {
                 manutencaoCriada = await prisma.manutencao.create({
                     data: {
-                        companyId: companyId, // <--- OBRIGATÓRIO
+                        company: {
+                            connect: { id: companyId }
+                        },
                         veiculoId: veiculoIdFinal,
                         userId: agendar.userId ?? alerta.userId ?? null,
                         data: dataAgendamento ? new Date(dataAgendamento) : new Date(),

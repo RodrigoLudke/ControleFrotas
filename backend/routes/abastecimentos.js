@@ -140,7 +140,9 @@ router.post("/", autenticarToken, async (req, res) => {
 
         const novo = await prisma.abastecimento.create({
             data: {
-                companyId: companyId,
+                company: {
+                    connect: { id: companyId }
+                },
                 veiculoId: vid,
                 userId: req.user.id,
                 data: dt,

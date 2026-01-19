@@ -62,7 +62,9 @@ router.post("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
 
         const novoMotorista = await prisma.user.create({
             data: {
-                companyId: companyId, // <--- Vincula à empresa
+                company: {
+                    connect: { id: companyId }
+                },
                 email,
                 senha: senhaHash,
                 role: "USER"
@@ -97,7 +99,9 @@ router.post("/cadastrar", autenticarToken, autorizarRoles("ADMIN"), async (req, 
 
         const novoMotorista = await prisma.user.create({
             data: {
-                companyId: companyId, // <--- Vincula à empresa
+                company: {
+                    connect: { id: companyId }
+                },
                 email, senha: hashedPassword, nome, cpf, rg,
                 cnh, validadeCnh: new Date(validadeCnh), telefone, endereco,
                 dataContratacao: dataContratacao ? new Date(dataContratacao) : null,

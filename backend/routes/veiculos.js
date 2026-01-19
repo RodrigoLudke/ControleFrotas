@@ -1,9 +1,9 @@
 // backend/routes/veiculos.js
 import express from "express";
 import pkg from "@prisma/client";
-import {autenticarToken, autorizarRoles} from "../index.js";
+import { autenticarToken, autorizarRoles } from "../index.js";
 
-const {PrismaClient} = pkg;
+const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -37,15 +37,16 @@ router.get("/disponiveis", autenticarToken, autorizarRoles("USER"), async (req, 
         const veiculos = await prisma.veiculo.findMany({
             where: {
                 status: "disponivel",
-                companyId: companyId, // <--- Filtro por empresa
-                deletedAt: null       // <--- Filtro Soft Delete
+                companyId: companyId,
+                deletedAt: null
             },
             select: {
                 id: true,
                 placa: true,
                 marca: true,
                 modelo: true,
-                ano: true,
+                anoFabricacao: true,
+                anoModelo: true,
                 cor: true,
                 chassi: true,
                 renavam: true,
@@ -61,13 +62,13 @@ router.get("/disponiveis", autenticarToken, autorizarRoles("USER"), async (req, 
                 status: true,
                 categoria: true
             },
-            orderBy: {modelo: "asc"}
+            orderBy: { modelo: "asc" }
         });
 
         res.json(veiculos);
     } catch (error) {
         console.error("Erro ao listar veículos disponíveis:", error);
-        res.status(500).json({error: "Erro interno do servidor."});
+        res.status(500).json({ error: "Erro interno do servidor." });
     }
 });
 
@@ -78,15 +79,16 @@ router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
 
         const veiculos = await prisma.veiculo.findMany({
             where: {
-                companyId: companyId, // <--- Filtro por empresa
-                deletedAt: null       // <--- Filtro Soft Delete
+                companyId: companyId,
+                deletedAt: null
             },
             select: {
                 id: true,
                 placa: true,
                 marca: true,
                 modelo: true,
-                ano: true,
+                anoFabricacao: true,
+                anoModelo: true,
                 cor: true,
                 chassi: true,
                 renavam: true,
@@ -102,21 +104,23 @@ router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
                 status: true,
                 categoria: true
             },
-            orderBy: {modelo: "asc"}
+            orderBy: { modelo: "asc" }
         });
 
         res.json(veiculos);
     } catch (error) {
         console.error("Erro ao listar veículos:", error);
-        res.status(500).json({error: "Erro interno do servidor."});
+        res.status(500).json({ error: "Erro interno do servidor." });
     }
 });
 
 // Handler reutilizável para criação (POST / e POST /cadastrar)
 async function createVehicleHandler(req, res) {
     try {
-        const companyId = req.user.companyId; // <--- OBRIGATÓRIO
+        const companyId = req.user.companyId;
 
+        // CORREÇÃO: Recebendo anoFabricacao e anoModelo
+        // Se o seu frontend ainda mandar apenas "ano", você pode fazer: const anoFabricacao = req.body.ano;
         const {
             placa, marca, modelo, ano, cor, chassi, renavam, capacidade,
             quilometragem, combustivel, valorCompra, dataCompra, seguradora,
@@ -124,20 +128,20 @@ async function createVehicleHandler(req, res) {
         } = req.body;
 
         // validações básicas
-        if (!placa || !modelo || !ano) {
-            return res.status(400).json({error: "Campos obrigatórios: placa, modelo e ano."});
+        if (!placa || !modelo) {
+            return res.status(400).json({ error: "Campos obrigatórios: placa e modelo." });
         }
-
-        // Verifica duplicidade de PLACA dentro da empresa ou global (depende da regra de negócio)
-        // Geralmente Placa é única globalmente, o prisma schema já tem @unique, então vai dar erro se duplicar.
 
         const novo = await prisma.veiculo.create({
             data: {
-                companyId: companyId, // <--- Vincula à empresa
+                company: {
+                    connect: { id: companyId }
+                },
                 placa,
                 marca: marca ?? null,
                 modelo,
-                ano: Number(ano),
+                anoFabricacao: ano ? Number(ano) : null,
+                anoModelo: ano ? Number(ano) : null,
                 cor: cor ?? null,
                 chassi: chassi ?? null,
                 renavam: renavam ?? null,
@@ -162,17 +166,16 @@ async function createVehicleHandler(req, res) {
             const requiredDriverCats = getRequiredDriverCategories(newVehicleCategory);
 
             if (requiredDriverCats.length > 0) {
-                // CORREÇÃO: Busca apenas motoristas da MESMA EMPRESA
                 const motoristasPermitidos = await prisma.user.findMany({
                     where: {
-                        companyId: companyId, // <--- Segurança
+                        companyId: companyId,
                         role: "USER",
-                        deletedAt: null,      // <--- Apenas ativos
+                        deletedAt: null,
                         categoria: {
                             hasSome: requiredDriverCats
                         }
                     },
-                    select: {id: true}
+                    select: { id: true }
                 });
 
                 if (motoristasPermitidos.length > 0) {
@@ -192,14 +195,13 @@ async function createVehicleHandler(req, res) {
     } catch (error) {
         console.error("Erro ao cadastrar veículo:", error);
         if (error?.code === "P2002") {
-            return res.status(409).json({error: "Dados duplicados (placa, chassi ou renavam)."});
+            return res.status(409).json({ error: "Dados duplicados (placa, chassi ou renavam)." });
         }
-        res.status(500).json({error: "Erro interno ao cadastrar veículo."});
+        res.status(500).json({ error: "Erro interno ao cadastrar veículo." });
     }
 }
 
 router.post("/", autenticarToken, autorizarRoles("ADMIN"), createVehicleHandler);
-// compatibilidade
 router.post("/cadastrar", autenticarToken, autorizarRoles("ADMIN"), createVehicleHandler);
 
 /* -------------------------
@@ -209,13 +211,12 @@ router.post("/cadastrar", autenticarToken, autorizarRoles("ADMIN"), createVehicl
 // Buscar 1 veículo por id
 router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({error: "ID inválido. Deve ser um número inteiro."});
+        return res.status(400).json({ error: "ID inválido. Deve ser um número inteiro." });
     }
     const id = parseInt(req.params.id, 10);
     const companyId = req.user.companyId;
 
     try {
-        // CORREÇÃO: findFirst com companyId e deletedAt
         const veiculo = await prisma.veiculo.findFirst({
             where: {
                 id: id,
@@ -227,7 +228,9 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
                 placa: true,
                 marca: true,
                 modelo: true,
-                ano: true,
+                // CORREÇÃO: Selects corrigidos
+                anoFabricacao: true,
+                anoModelo: true,
                 cor: true,
                 chassi: true,
                 renavam: true,
@@ -245,25 +248,26 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
             }
         });
 
-        if (!veiculo) return res.status(404).json({error: "Veículo não encontrado."});
+        if (!veiculo) return res.status(404).json({ error: "Veículo não encontrado." });
         res.json(veiculo);
     } catch (error) {
         console.error("GET /veiculos/:id error:", error);
-        res.status(500).json({error: "Erro interno ao buscar veículo."});
+        res.status(500).json({ error: "Erro interno ao buscar veículo." });
     }
 });
 
 // Atualizar veículo (APENAS ADMIN)
 router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({error: "ID inválido. Deve ser um número inteiro."});
+        return res.status(400).json({ error: "ID inválido. Deve ser um número inteiro." });
     }
     const id = parseInt(req.params.id, 10);
     const companyId = req.user.companyId;
 
     try {
+        // CORREÇÃO: Recebendo campos novos
         const {
-            placa, marca, modelo, ano, cor, chassi, renavam, capacidade,
+            placa, marca, modelo, anoFabricacao, anoModelo, cor, chassi, renavam, capacidade,
             quilometragem, combustivel, valorCompra, dataCompra, seguradora,
             apoliceSeguro, validadeSeguro, observacoes, status, categoria
         } = req.body;
@@ -272,7 +276,10 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
         if (placa !== undefined) updates.placa = placa;
         if (marca !== undefined) updates.marca = marca;
         if (modelo !== undefined) updates.modelo = modelo;
-        if (ano !== undefined) updates.ano = ano !== null ? Number(ano) : null;
+        // CORREÇÃO: Updates mapeados corretamente
+        if (anoFabricacao !== undefined) updates.anoFabricacao = anoFabricacao !== null ? Number(anoFabricacao) : null;
+        if (anoModelo !== undefined) updates.anoModelo = anoModelo !== null ? Number(anoModelo) : null;
+
         if (cor !== undefined) updates.cor = cor;
         if (chassi !== undefined) updates.chassi = chassi;
         if (renavam !== undefined) updates.renavam = renavam;
@@ -288,32 +295,31 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
         if (categoria !== undefined) updates.categoria = categoria;
         if (status !== undefined) updates.status = status;
 
-        // CORREÇÃO: findFirst seguro
         const existing = await prisma.veiculo.findFirst({
             where: { id, companyId, deletedAt: null }
         });
-        if (!existing) return res.status(404).json({error: "Veículo não encontrado."});
+        if (!existing) return res.status(404).json({ error: "Veículo não encontrado." });
 
         const updated = await prisma.veiculo.update({
-            where: {id},
+            where: { id },
             data: updates,
             select: {
                 id: true, placa: true, modelo: true, status: true
             }
         });
 
-        res.json({message: "Veículo atualizado com sucesso.", veiculo: updated});
+        res.json({ message: "Veículo atualizado com sucesso.", veiculo: updated });
     } catch (error) {
         console.error("Erro ao atualizar veículo:", error);
-        if (error?.code === "P2002") return res.status(409).json({error: "Dados duplicados."});
-        res.status(500).json({error: "Erro interno ao atualizar veículo."});
+        if (error?.code === "P2002") return res.status(409).json({ error: "Dados duplicados." });
+        res.status(500).json({ error: "Erro interno ao atualizar veículo." });
     }
 });
 
 // Deletar veículo (SOFT DELETE)
 router.delete("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({error: "ID inválido. Deve ser um número inteiro."});
+        return res.status(400).json({ error: "ID inválido. Deve ser um número inteiro." });
     }
     const id = parseInt(req.params.id, 10);
     const companyId = req.user.companyId;
@@ -323,9 +329,8 @@ router.delete("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res)
             where: { id, companyId, deletedAt: null }
         });
 
-        if (!existing) return res.status(404).json({error: "Veículo não encontrado."});
+        if (!existing) return res.status(404).json({ error: "Veículo não encontrado." });
 
-        // SOFT DELETE: Apenas marca deletedAt e muda status para inativo
         await prisma.veiculo.update({
             where: { id },
             data: {
@@ -334,10 +339,10 @@ router.delete("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res)
             }
         });
 
-        res.json({message: "Veículo deletado com sucesso."});
+        res.json({ message: "Veículo deletado com sucesso." });
     } catch (error) {
         console.error("Erro ao deletar veículo:", error);
-        res.status(500).json({error: "Erro interno ao deletar veículo."});
+        res.status(500).json({ error: "Erro interno ao deletar veículo." });
     }
 });
 

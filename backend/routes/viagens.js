@@ -104,7 +104,9 @@ router.post("/", autenticarToken, async (req, res) => {
             // 7. Criar a nova viagem
             const viagemCriada = await tx.viagem.create({
                 data: {
-                    companyId: companyId, // <--- Vincula à empresa
+                    company: {
+                        connect: { id: companyId }
+                    },
                     userId: userId,
                     veiculoId: veiculoIdNum,
                     dataSaida: inicioViagem,
