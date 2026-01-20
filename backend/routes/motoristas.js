@@ -87,21 +87,132 @@ router.post("/cadastrar", autenticarToken, autorizarRoles("ADMIN"), async (req, 
 
         const companyId = req.user.companyId;
 
+        // Validação básica
         if (!email || !senha || !nome || !cpf || !cnh) {
             return res.status(400).json({error: 'Campos obrigatórios faltando.'});
         }
 
-        // Verifica duplicidade de email
-        const userCheck = await prisma.user.findUnique({ where: { email } });
-        if (userCheck) return res.status(409).json({ error: "Email já cadastrado." });
+        // ------------------------------------------------------------------
+        // PASSO 1: Busca Global por CPF (procura em TODAS as empresas)
+        // ------------------------------------------------------------------
+        const usuarioExistente = await prisma.user.findFirst({
+            where: { cpf: cpf }
+        });
+
+        // Validação de E-mail Global (para login único)
+        const emailCheck = await prisma.user.findUnique({ where: { email } });
+        if (emailCheck) {
+            // Se o email existe e não pertence ao usuário que encontramos pelo CPF...
+            if (!usuarioExistente || (usuarioExistente.id !== emailCheck.id)) {
+                return res.status(409).json({ error: "Este e-mail já está em uso por outra pessoa." });
+            }
+        }
 
         const hashedPassword = await bcrypt.hash(senha, 10);
 
+        // ==================================================================
+        // CENÁRIO: O MOTORISTA JÁ EXISTE NO SISTEMA
+        // ==================================================================
+        if (usuarioExistente) {
+
+            // Lógica de Vínculo com Carros (Função Auxiliar para não repetir código)
+            const associarCarros = async (userId) => {
+                const selectedCategories = Array.isArray(categoria) ? categoria : (categoria ? [categoria] : []);
+                const expanded = expandCategories(selectedCategories);
+                if (expanded.length > 0) {
+                    const veiculosPermitidos = await prisma.veiculo.findMany({
+                        where: { categoria: {in: expanded}, companyId: companyId, deletedAt: null },
+                        select: {id: true}
+                    });
+                    if (veiculosPermitidos.length > 0) {
+                        const createManyData = veiculosPermitidos.map(v => ({ userId, veiculoId: v.id }));
+                        await prisma.userVeiculo.createMany({data: createManyData, skipDuplicates: true});
+                    }
+                }
+            };
+
+            // CASO A: ELE É DE OUTRA EMPRESA
+            if (usuarioExistente.companyId !== companyId) {
+
+                // 1. Removemos vínculos com os carros da empresa ANTIGA
+                await prisma.userVeiculo.deleteMany({
+                    where: { userId: usuarioExistente.id }
+                });
+
+                // 2. Trazemos o motorista para a NOSSA empresa e atualizamos tudo
+                const motoristaTransferido = await prisma.user.update({
+                    where: { id: usuarioExistente.id },
+                    data: {
+                        companyId: companyId,   // <--- MUDANÇA DE EMPRESA
+                        deletedAt: null,        // Garante que não está excluído
+                        status: "ativo",        // Ativa o cadastro
+
+                        // Atualiza dados pessoais
+                        senha: hashedPassword,
+                        nome, rg, cnh, email,
+                        validadeCnh: new Date(validadeCnh),
+                        telefone, endereco,
+                        dataContratacao: dataContratacao ? new Date(dataContratacao) : null,
+                        salario: salario !== undefined ? parseFloat(salario) : null,
+                        observacoes: observacoes || "",
+                        categoria: Array.isArray(categoria) ? categoria : (categoria ? [categoria] : undefined),
+                        dataNascimento: dataNascimento ? new Date(dataNascimento) : null,
+                        role: "USER"
+                    }
+                });
+
+                // 3. Associa aos carros da NOVA empresa
+                await associarCarros(motoristaTransferido.id);
+
+                return res.status(200).json({
+                    message: "Motorista transferido de outra empresa com sucesso.",
+                    motorista: motoristaTransferido
+                });
+            }
+
+            // CASO B: ELE É DA MESMA EMPRESA (Recontratação)
+            if (usuarioExistente.companyId === companyId) {
+                // Se já está ativo, erro.
+                if (!usuarioExistente.deletedAt) {
+                    return res.status(409).json({ error: "Motorista já cadastrado e ativo nesta empresa." });
+                }
+
+                // Se estava demitido (soft delete), reativa.
+                const motoristaReativado = await prisma.user.update({
+                    where: { id: usuarioExistente.id },
+                    data: {
+                        deletedAt: null,
+                        status: "ativo",
+                        senha: hashedPassword,
+                        nome, rg, cnh, email,
+                        validadeCnh: new Date(validadeCnh),
+                        telefone, endereco,
+                        dataContratacao: dataContratacao ? new Date(dataContratacao) : null,
+                        salario: salario !== undefined ? parseFloat(salario) : null,
+                        observacoes: observacoes || "",
+                        categoria: Array.isArray(categoria) ? categoria : (categoria ? [categoria] : undefined),
+                        dataNascimento: dataNascimento ? new Date(dataNascimento) : null,
+                        role: "USER"
+                    }
+                });
+
+                // Re-associa carros da empresa atual
+                await associarCarros(motoristaReativado.id);
+
+                return res.status(200).json({
+                    message: "Motorista reativado com sucesso (Recontratação).",
+                    motorista: motoristaReativado
+                });
+            }
+        }
+
+        // ==================================================================
+        // CENÁRIO: MOTORISTA NOVO (NUNCA EXISTIU)
+        // ==================================================================
+
         const novoMotorista = await prisma.user.create({
             data: {
-                company: {
-                    connect: { id: companyId }
-                },
+                company: { connect: { id: companyId } },
                 email, senha: hashedPassword, nome, cpf, rg,
                 cnh, validadeCnh: new Date(validadeCnh), telefone, endereco,
                 dataContratacao: dataContratacao ? new Date(dataContratacao) : null,
@@ -114,17 +225,16 @@ router.post("/cadastrar", autenticarToken, autorizarRoles("ADMIN"), async (req, 
             }
         });
 
-        // Associação automática de veículos conforme categorias
+        // Associação de veículos
         const selectedCategories = Array.isArray(categoria) ? categoria : (categoria ? [categoria] : []);
         const expanded = expandCategories(selectedCategories);
 
         if (expanded.length > 0) {
-            // Busca apenas veículos DA MESMA EMPRESA que batem com a categoria
             const veiculosPermitidos = await prisma.veiculo.findMany({
                 where: {
                     categoria: {in: expanded},
-                    companyId: companyId,     // <--- Segurança Importante
-                    deletedAt: null           // <--- Não associa carros excluídos
+                    companyId: companyId,
+                    deletedAt: null
                 },
                 select: {id: true}
             });
@@ -136,8 +246,11 @@ router.post("/cadastrar", autenticarToken, autorizarRoles("ADMIN"), async (req, 
         }
 
         res.status(201).json(novoMotorista);
+
     } catch (error) {
-        if (error?.code === 'P2002') return res.status(409).json({error: 'Dados (CPF, CNH ou RG) já cadastrados.'});
+        if (error?.code === 'P2002') {
+            return res.status(409).json({error: 'Dados únicos (CPF, CNH ou Email) já cadastrados.'});
+        }
         console.error("Erro ao cadastrar motorista:", error);
         res.status(500).json({error: 'Erro interno do servidor.'});
     }
@@ -246,6 +359,42 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
                 endereco: true, categoria: true, status: true, validadeCnh: true, salario: true
             }
         });
+
+        if (categoria !== undefined) {
+            // A. Removemos TODAS as permissões atuais desse motorista (limpeza)
+            await prisma.userVeiculo.deleteMany({
+                where: { userId: id }
+            });
+
+            // B. Recalculamos quais carros ele pode dirigir agora
+            const selectedCategories = Array.isArray(categoria) ? categoria : [categoria];
+            const expanded = expandCategories(selectedCategories); // Usa sua função auxiliar
+
+            if (expanded.length > 0) {
+                // Busca veículos da empresa compatíveis
+                const veiculosPermitidos = await prisma.veiculo.findMany({
+                    where: {
+                        categoria: { in: expanded },
+                        companyId: companyId,
+                        deletedAt: null
+                    },
+                    select: { id: true }
+                });
+
+                // C. Cria os novos vínculos
+                if (veiculosPermitidos.length > 0) {
+                    const createManyData = veiculosPermitidos.map(v => ({
+                        userId: id,
+                        veiculoId: v.id
+                    }));
+
+                    await prisma.userVeiculo.createMany({
+                        data: createManyData,
+                        skipDuplicates: true
+                    });
+                }
+            }
+        }
 
         res.json({message: "Motorista atualizado com sucesso.", motorista: motoristaAtualizado});
     } catch (error) {
