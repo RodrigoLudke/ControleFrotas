@@ -3,7 +3,7 @@
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
-import {AlertTriangle, Clock, MapPin, HelpCircle, Wrench, Truck, Users} from "lucide-react";
+import {AlertTriangle, Clock, MapPin, HelpCircle, Wrench, Truck, Users, CalendarDays, FileText, Shield} from "lucide-react";
 import {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {apiFetch} from "@/services/api";
@@ -50,7 +50,6 @@ interface Alerta {
 
 // --- NOVA INTERFACE ---
 // Interface para os dados do motorista com localização
-// (Baseada na sua rota /motoristas que modificamos no passo anterior)
 interface DriverLocation {
     id: number;
     nome: string;
@@ -59,6 +58,19 @@ interface DriverLocation {
     lastLocationUpdate: string | null;
 }
 
+// --- INTERFACES PARA VENCIMENTOS ---
+interface CnhVencendo {
+    id: number;
+    nome: string;
+    validadeCnh: string;
+}
+
+interface SeguroVencendo {
+    id: number;
+    placa: string;
+    modelo: string;
+    validadeSeguro: string;
+}
 // --- FIM DA NOVA INTERFACE ---
 
 export default function Dashboard() {
@@ -77,59 +89,43 @@ export default function Dashboard() {
     const [manutencoesUpcoming, setManutencoesUpcoming] = useState<Manutencao[]>([]);
     const [loadingManutencoes, setLoadingManutencoes] = useState<boolean>(true);
 
+    // --- ESTADOS PARA VENCIMENTOS ---
+    const [cnhExpiring, setCnhExpiring] = useState<CnhVencendo[]>([]);
+    const [insuranceExpiring, setInsuranceExpiring] = useState<SeguroVencendo[]>([]);
+    const [loadingVencimentos, setLoadingVencimentos] = useState<boolean>(true);
+
 
     // --- NOVO HOOK useQuery para o MAPA ---
     // Busca os motoristas e suas localizações
-    // Note que isso agora busca os motoristas *separadamente* do useEffect principal
-    // para poder ter seu próprio polling (refetchInterval)
     const {data: motoristasComLocalizacao, isLoading: isLoadingMotoristasLocalizacao} = useQuery<DriverLocation[]>({
-        queryKey: ['motoristasLocalizacao'], // Chave única para esta query
+        queryKey: ['motoristasLocalizacao'],
         queryFn: async () => {
-            // Assume que sua rota /motoristas agora retorna os campos de localização
             const res = await apiFetch("/motoristas");
             if (!res.ok) {
                 console.error("Falha ao buscar localização dos motoristas");
-                // Lança um erro para o react-query tratar
                 throw new Error("Erro ao buscar motoristas para o mapa");
             }
             const data = await res.json();
             return Array.isArray(data) ? data : [];
         },
-        refetchInterval: 10000, // Atualiza os dados do mapa a cada 10 segundos
-        staleTime: 5000, // Considera os dados "velhos" após 5 segundos
+        refetchInterval: 10000,
+        staleTime: 5000,
     });
 
     // --- LÓGICA DE FILTRO ATUALIZADA ---
-
-    // Defina o tempo máximo (em milissegundos) que uma localização é considerada "válida"
-    // 60 * 1000 = 1 minuto. (Ajuste conforme necessário)
     const LOCATION_TIMEOUT_MS = 60 * 1000;
     const now = Date.now();
 
-    // Filtra motoristas que têm localização válida E recente
     const motoristasNoMapa = motoristasComLocalizacao?.filter(
         m => {
-            // 1. Precisa ter coordenadas
-            if (m.latitude == null || m.longitude == null) {
-                return false;
-            }
-
-            // 2. Precisa ter uma data de atualização
-            if (!m.lastLocationUpdate) {
-                return false; // Se nunca atualizou, não mostra
-            }
+            if (m.latitude == null || m.longitude == null) return false;
+            if (!m.lastLocationUpdate) return false;
 
             try {
-                // 3. Verifica se a atualização é recente
                 const updateTime = new Date(m.lastLocationUpdate).getTime();
-                const age = now - updateTime; // Idade da coordenada em MS
-
-                // Se a atualização for mais antiga que o tempo limite,
-                // (age > TIMEOUT), o filtro retorna 'false' e o motorista some.
+                const age = now - updateTime;
                 return age < LOCATION_TIMEOUT_MS;
-
             } catch (error) {
-                // Caso a data esteja em formato inválido
                 console.warn(`Data de localização inválida para motorista ${m.id}`);
                 return false;
             }
@@ -141,16 +137,12 @@ export default function Dashboard() {
         const fetchAll = async () => {
             setLoading(true);
             try {
-                // Viagens admin (limit handled later)
                 const resTrips = await apiFetch("/viagens/admin");
                 const tripsData: Viagem[] = resTrips.ok ? await resTrips.json() : [];
 
-                // Alertas
                 const resAlerts = await apiFetch("/alertas/admin");
                 const alertsData: Alerta[] = resAlerts.ok ? await resAlerts.json() : [];
 
-                // Veículos e Motoristas em paralelo
-                // (Mantemos essa busca para popular os contadores e os maps existentes)
                 const [resVeic, resMotor] = await Promise.allSettled([apiFetch("/veiculos"), apiFetch("/motoristas")]);
 
                 const vMap: Record<number, string> = {};
@@ -192,7 +184,6 @@ export default function Dashboard() {
                 setVehiclesMap(vMap);
                 setDriversMap(dMap);
 
-                // organiza viagens: ordenar por dataSaida desc e manter (por ex) 5 para o card
                 const sortedTrips = Array.isArray(tripsData)
                     ? tripsData.slice().sort((a, b) => {
                         const da = a.dataSaida ? new Date(a.dataSaida).getTime() : 0;
@@ -211,7 +202,6 @@ export default function Dashboard() {
                     : [];
                 setAlertas(sortedAlerts);
 
-                // contadores
                 //eslint-disable-next-line @typescript-eslint/no-explicit-any
                 setCountVehiclesActive(vehiclesList.filter((v: any) => (v.status ?? "").toString() === "disponivel").length);
                 setCountDrivers(driversList.length);
@@ -227,7 +217,6 @@ export default function Dashboard() {
             try {
                 const res = await apiFetch("/manutencoes");
                 if (!res.ok) {
-                    // backend pode não ter rota — trata silenciosamente
                     console.warn("manutencoes fetch falhou:", await res.text().catch(() => "no body"));
                     setManutencoesUpcoming([]);
                     return;
@@ -259,16 +248,43 @@ export default function Dashboard() {
             }
         };
 
+        // --- FETCH DE VENCIMENTOS (CNH e SEGURO) ---
+        const fetchVencimentos = async () => {
+            setLoadingVencimentos(true);
+            try {
+                // Chama as rotas específicas em paralelo
+                const [resCnh, resSeguro] = await Promise.all([
+                    apiFetch("/motoristas/cnh-vencendo"),
+                    apiFetch("/veiculos/seguro-vencendo")
+                ]);
+
+                if (resCnh.ok) {
+                    const dataCnh = await resCnh.json();
+                    setCnhExpiring(Array.isArray(dataCnh) ? dataCnh : []);
+                }
+
+                if (resSeguro.ok) {
+                    const dataSeguro = await resSeguro.json();
+                    setInsuranceExpiring(Array.isArray(dataSeguro) ? dataSeguro : []);
+                }
+
+            } catch (error) {
+                console.error("Erro ao buscar vencimentos:", error);
+            } finally {
+                setLoadingVencimentos(false);
+            }
+        };
+
         fetchAll();
         fetchManutencoes();
-    }, []); // O hook do mapa (useQuery) é independente deste useEffect
+        fetchVencimentos(); // <--- Inicia a busca
+    }, []);
 
     const fleetStats = [
         {
             title: "Veículos Ativos",
             value: String(countVehiclesActive),
             icon: Truck,
-            // Defina as classes completas que o Tailwind pode ler
             bgColorClass: "bg-fleet-success/10",
             textColorClass: "text-fleet-success"
         },
@@ -295,12 +311,10 @@ export default function Dashboard() {
         }
     ];
 
-    const quickActions = [
-        {label: "Adicionar Veículo", icon: Truck, variant: "secondary" as const, to: "/registrarveiculos"},
-        {label: "Adicionar Motorista", icon: Users, variant: "secondary" as const, to: "/registrarmotoristas"},
-        {label: "Adicionar Manutenção", icon: Wrench, variant: "secondary" as const, to: "/registrarmanutencoes"},
-        {label: "Ajuda", icon: HelpCircle, variant: "secondary" as const, to: "/ajuda"}
-    ];
+    // Helper para data vencida
+    const isExpired = (dateString: string) => {
+        return new Date(dateString).getTime() < Date.now();
+    };
 
     return (
         <AdminLayout title="Dashboard">
@@ -382,26 +396,77 @@ export default function Dashboard() {
                 </Card>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Quick Actions */}
-                    <Card className="shadow-card">
+
+                    {/* --- CARD SUBSTITUÍDO: PRÓXIMOS VENCIMENTOS (CNH / SEGURO) --- */}
+                    <Card className="shadow-card h-full">
                         <CardHeader>
-                            <CardTitle>Ações Rápidas</CardTitle>
-                            <CardDescription>Acesso rápido às funcionalidades principais</CardDescription>
+                            <CardTitle>Próximos Vencimentos</CardTitle>
+                            <CardDescription>CNH e Seguros vencendo em 30 dias</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                            {quickActions.map((action, index) => (
-                                <Button
-                                    key={index}
-                                    variant={action.variant}
-                                    className="w-full justify-start"
-                                    onClick={() => navigate(action.to)}
-                                >
-                                    <action.icon className="mr-2 h-4 w-4"/>
-                                    {action.label}
-                                </Button>
-                            ))}
+                        <CardContent className="space-y-4">
+                            {loadingVencimentos ? (
+                                <div className="text-center py-6 text-muted-foreground">Verificando documentos...</div>
+                            ) : (cnhExpiring.length === 0 && insuranceExpiring.length === 0) ? (
+                                <div className="text-center py-6 text-muted-foreground flex flex-col items-center">
+                                    <CalendarDays className="h-10 w-10 mb-2 opacity-20" />
+                                    <p>Nenhum vencimento próximo.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                                    {/* Lista de CNHs */}
+                                    {cnhExpiring.length > 0 && (
+                                        <div className="space-y-2">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">CNH Motoristas</p>
+                                            {cnhExpiring.map((cnh) => (
+                                                <div key={`cnh-${cnh.id}`} className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-muted">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                                                            <FileText className="h-4 w-4" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium">{cnh.nome}</p>
+                                                            <p className="text-xs text-muted-foreground">CNH</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <Badge variant={isExpired(cnh.validadeCnh) ? "destructive" : "outline"} className={!isExpired(cnh.validadeCnh) ? "text-amber-600 border-amber-200 bg-amber-50" : ""}>
+                                                            {new Date(cnh.validadeCnh).toLocaleDateString("pt-BR")}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Lista de Seguros */}
+                                    {insuranceExpiring.length > 0 && (
+                                        <div className="space-y-2">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Seguro Veículos</p>
+                                            {insuranceExpiring.map((seg) => (
+                                                <div key={`seg-${seg.id}`} className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-muted">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                                                            <Shield className="h-4 w-4" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium">{seg.placa}</p>
+                                                            <p className="text-xs text-muted-foreground">{seg.modelo}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <Badge variant={isExpired(seg.validadeSeguro) ? "destructive" : "outline"} className={!isExpired(seg.validadeSeguro) ? "text-amber-600 border-amber-200 bg-amber-50" : ""}>
+                                                            {new Date(seg.validadeSeguro).toLocaleDateString("pt-BR")}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
+                    {/* --- FIM DO CARD --- */}
 
                     {/* Próximas Manutenções Agendadas */}
                     <Card className="lg:col-span-2 shadow-card">

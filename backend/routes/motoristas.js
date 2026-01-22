@@ -288,6 +288,42 @@ router.post("/localizacao", autenticarToken, async (req, res) => {
     }
 });
 
+// Rota para buscar CNHs vencendo nos próximos 30 dias
+router.get("/cnh-vencendo", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
+    try {
+        const companyId = req.user.companyId;
+        const hoje = new Date();
+        const daqui30Dias = new Date();
+        daqui30Dias.setDate(hoje.getDate() + 30);
+
+        const motoristas = await prisma.user.findMany({
+            where: {
+                companyId: companyId,
+                deletedAt: null,
+                status: "ativo", // Apenas motoristas ativos
+                validadeCnh: {
+                    lte: daqui30Dias, // Menor ou igual a data limite (pega vencidos também)
+                    not: null         // Garante que tem data cadastrada
+                }
+            },
+            select: {
+                id: true,
+                nome: true,
+                validadeCnh: true,
+                email: true // Opcional, caso queira contactar
+            },
+            orderBy: {
+                validadeCnh: 'asc' // Os que vencem primeiro aparecem no topo
+            }
+        });
+
+        res.json(motoristas);
+    } catch (error) {
+        console.error("Erro ao buscar vencimentos de CNH:", error);
+        res.status(500).json({ error: "Erro interno ao buscar CNHs." });
+    }
+});
+
 /* -------------------------
    ROTAS POR ID (SOMENTE NÚMEROS)
    ------------------------- */

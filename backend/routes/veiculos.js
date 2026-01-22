@@ -114,6 +114,43 @@ router.get("/", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     }
 });
 
+// Rota para buscar Seguros vencendo nos próximos 30 dias
+router.get("/seguro-vencendo", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
+    try {
+        const companyId = req.user.companyId;
+        const hoje = new Date();
+        const daqui30Dias = new Date();
+        daqui30Dias.setDate(hoje.getDate() + 30);
+
+        const veiculos = await prisma.veiculo.findMany({
+            where: {
+                companyId: companyId,
+                deletedAt: null,
+                status: { not: "inativo" }, // Ignora veículos inativos
+                validadeSeguro: {
+                    lte: daqui30Dias,
+                    not: null
+                }
+            },
+            select: {
+                id: true,
+                placa: true,
+                modelo: true,
+                validadeSeguro: true,
+                seguradora: true // Opcional
+            },
+            orderBy: {
+                validadeSeguro: 'asc'
+            }
+        });
+
+        res.json(veiculos);
+    } catch (error) {
+        console.error("Erro ao buscar vencimentos de seguro:", error);
+        res.status(500).json({ error: "Erro interno ao buscar seguros." });
+    }
+});
+
 // Handler reutilizável para criação (POST / e POST /cadastrar)
 async function createVehicleHandler(req, res) {
     try {
