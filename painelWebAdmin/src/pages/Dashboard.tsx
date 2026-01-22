@@ -3,19 +3,16 @@
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
-import {AlertTriangle, Clock, MapPin, HelpCircle, Wrench, Truck, Users, CalendarDays, FileText, Shield} from "lucide-react";
+// Certifique-se de que 'Edit' está importado aqui
+import {AlertTriangle, Clock, MapPin, HelpCircle, Wrench, Truck, Users, CalendarDays, FileText, Shield, Edit} from "lucide-react";
 import {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {apiFetch} from "@/services/api";
 import {AdminLayout} from "@/components/layout/AdminLayout";
-
-// --- NOVOS IMPORTS ---
 import {useQuery} from "@tanstack/react-query";
 import {MapContainer, Marker, Popup, TileLayer} from 'react-leaflet';
-// Lembre-se de importar 'leaflet/dist/leaflet.css' no seu main.tsx!
-// --- FIM DOS NOVOS IMPORTS ---
 
-
+// --- INTERFACES ---
 interface Viagem {
     id: number;
     userId: number;
@@ -48,8 +45,6 @@ interface Alerta {
     lido: boolean;
 }
 
-// --- NOVA INTERFACE ---
-// Interface para os dados do motorista com localização
 interface DriverLocation {
     id: number;
     nome: string;
@@ -58,7 +53,6 @@ interface DriverLocation {
     lastLocationUpdate: string | null;
 }
 
-// --- INTERFACES PARA VENCIMENTOS ---
 interface CnhVencendo {
     id: number;
     nome: string;
@@ -71,7 +65,7 @@ interface SeguroVencendo {
     modelo: string;
     validadeSeguro: string;
 }
-// --- FIM DA NOVA INTERFACE ---
+// --- FIM INTERFACES ---
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -85,18 +79,14 @@ export default function Dashboard() {
     const [countVehiclesActive, setCountVehiclesActive] = useState<number>(0);
     const [countDrivers, setCountDrivers] = useState<number>(0);
 
-    // próximas manutenções agendadas
     const [manutencoesUpcoming, setManutencoesUpcoming] = useState<Manutencao[]>([]);
     const [loadingManutencoes, setLoadingManutencoes] = useState<boolean>(true);
 
-    // --- ESTADOS PARA VENCIMENTOS ---
     const [cnhExpiring, setCnhExpiring] = useState<CnhVencendo[]>([]);
     const [insuranceExpiring, setInsuranceExpiring] = useState<SeguroVencendo[]>([]);
     const [loadingVencimentos, setLoadingVencimentos] = useState<boolean>(true);
 
-
-    // --- NOVO HOOK useQuery para o MAPA ---
-    // Busca os motoristas e suas localizações
+    // --- MAPA QUERY ---
     const {data: motoristasComLocalizacao, isLoading: isLoadingMotoristasLocalizacao} = useQuery<DriverLocation[]>({
         queryKey: ['motoristasLocalizacao'],
         queryFn: async () => {
@@ -112,7 +102,6 @@ export default function Dashboard() {
         staleTime: 5000,
     });
 
-    // --- LÓGICA DE FILTRO ATUALIZADA ---
     const LOCATION_TIMEOUT_MS = 60 * 1000;
     const now = Date.now();
 
@@ -120,18 +109,15 @@ export default function Dashboard() {
         m => {
             if (m.latitude == null || m.longitude == null) return false;
             if (!m.lastLocationUpdate) return false;
-
             try {
                 const updateTime = new Date(m.lastLocationUpdate).getTime();
                 const age = now - updateTime;
                 return age < LOCATION_TIMEOUT_MS;
             } catch (error) {
-                console.warn(`Data de localização inválida para motorista ${m.id}`);
                 return false;
             }
         }
     ) ?? [];
-    // --- FIM DA LÓGICA DE FILTRO ---
 
     useEffect(() => {
         const fetchAll = async () => {
@@ -159,8 +145,6 @@ export default function Dashboard() {
                     } catch (e) {
                         console.warn("Erro ao parsear /veiculos", e);
                     }
-                } else {
-                    console.warn("Falha fetch /veiculos", resVeic);
                 }
 
                 const dMap: Record<number, string> = {};
@@ -177,8 +161,6 @@ export default function Dashboard() {
                     } catch (e) {
                         console.warn("Erro ao parsear /motoristas", e);
                     }
-                } else {
-                    console.warn("Falha fetch /motoristas", resMotor);
                 }
 
                 setVehiclesMap(vMap);
@@ -217,7 +199,6 @@ export default function Dashboard() {
             try {
                 const res = await apiFetch("/manutencoes");
                 if (!res.ok) {
-                    console.warn("manutencoes fetch falhou:", await res.text().catch(() => "no body"));
                     setManutencoesUpcoming([]);
                     return;
                 }
@@ -248,11 +229,9 @@ export default function Dashboard() {
             }
         };
 
-        // --- FETCH DE VENCIMENTOS (CNH e SEGURO) ---
         const fetchVencimentos = async () => {
             setLoadingVencimentos(true);
             try {
-                // Chama as rotas específicas em paralelo
                 const [resCnh, resSeguro] = await Promise.all([
                     apiFetch("/motoristas/cnh-vencendo"),
                     apiFetch("/veiculos/seguro-vencendo")
@@ -277,7 +256,7 @@ export default function Dashboard() {
 
         fetchAll();
         fetchManutencoes();
-        fetchVencimentos(); // <--- Inicia a busca
+        fetchVencimentos();
     }, []);
 
     const fleetStats = [
@@ -311,7 +290,14 @@ export default function Dashboard() {
         }
     ];
 
-    // Helper para data vencida
+    const quickActions = [
+        {label: "Adicionar Veículo", icon: Truck, variant: "secondary" as const, to: "/registrarveiculos"},
+        {label: "Adicionar Motorista", icon: Users, variant: "secondary" as const, to: "/registrarmotoristas"},
+        {label: "Adicionar Manutenção", icon: Wrench, variant: "secondary" as const, to: "/registrarmanutencoes"},
+        {label: "Ajuda", icon: HelpCircle, variant: "secondary" as const, to: "/ajuda"}
+    ];
+
+    // Helper
     const isExpired = (dateString: string) => {
         return new Date(dateString).getTime() < Date.now();
     };
@@ -331,8 +317,7 @@ export default function Dashboard() {
                                         </p>
                                         <p className="text-2xl font-bold">{stat.value}</p>
                                     </div>
-                                    <div
-                                        className={`w-12 h-12 rounded-lg flex items-center justify-center ${stat.bgColorClass}`}>
+                                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${stat.bgColorClass}`}>
                                         <stat.icon className={`h-6 w-6 ${stat.textColorClass}`} />
                                     </div>
                                 </div>
@@ -362,11 +347,7 @@ export default function Dashboard() {
                                 </thead>
                                 <tbody>
                                 {loading ? (
-                                    <tr>
-                                        <td colSpan={6}
-                                            className="text-center py-6 text-muted-foreground">Carregando...
-                                        </td>
-                                    </tr>
+                                    <tr><td colSpan={6} className="text-center py-6 text-muted-foreground">Carregando...</td></tr>
                                 ) : viagens.length > 0 ? (
                                     viagens.map((item) => {
                                         const driver = (item.userId && driversMap[item.userId]) || "—";
@@ -383,11 +364,7 @@ export default function Dashboard() {
                                         );
                                     })
                                 ) : (
-                                    <tr className="bg-card">
-                                        <td colSpan={6} className="text-center py-4 text-muted-foreground">Nenhuma
-                                            viagem encontrada.
-                                        </td>
-                                    </tr>
+                                    <tr className="bg-card"><td colSpan={6} className="text-center py-4 text-muted-foreground">Nenhuma viagem encontrada.</td></tr>
                                 )}
                                 </tbody>
                             </table>
@@ -397,7 +374,7 @@ export default function Dashboard() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                    {/* --- CARD SUBSTITUÍDO: PRÓXIMOS VENCIMENTOS (CNH / SEGURO) --- */}
+                    {/* --- CARD SUBSTITUÍDO: PRÓXIMOS VENCIMENTOS (COM BOTÃO DE EDITAR) --- */}
                     <Card className="shadow-card h-full">
                         <CardHeader>
                             <CardTitle>Próximos Vencimentos</CardTitle>
@@ -413,6 +390,7 @@ export default function Dashboard() {
                                 </div>
                             ) : (
                                 <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+
                                     {/* Lista de CNHs */}
                                     {cnhExpiring.length > 0 && (
                                         <div className="space-y-2">
@@ -428,10 +406,19 @@ export default function Dashboard() {
                                                             <p className="text-xs text-muted-foreground">CNH</p>
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
+                                                    <div className="flex items-center gap-2">
                                                         <Badge variant={isExpired(cnh.validadeCnh) ? "destructive" : "outline"} className={!isExpired(cnh.validadeCnh) ? "text-amber-600 border-amber-200 bg-amber-50" : ""}>
                                                             {new Date(cnh.validadeCnh).toLocaleDateString("pt-BR")}
                                                         </Badge>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                            onClick={() => navigate(`/registrarmotoristas/${cnh.id}`)}
+                                                            title="Editar Motorista"
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -453,10 +440,19 @@ export default function Dashboard() {
                                                             <p className="text-xs text-muted-foreground">{seg.modelo}</p>
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
+                                                    <div className="flex items-center gap-2">
                                                         <Badge variant={isExpired(seg.validadeSeguro) ? "destructive" : "outline"} className={!isExpired(seg.validadeSeguro) ? "text-amber-600 border-amber-200 bg-amber-50" : ""}>
                                                             {new Date(seg.validadeSeguro).toLocaleDateString("pt-BR")}
                                                         </Badge>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                            onClick={() => navigate(`/registrarveiculos/${seg.id}`)}
+                                                            title="Editar Veículo"
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -468,7 +464,7 @@ export default function Dashboard() {
                     </Card>
                     {/* --- FIM DO CARD --- */}
 
-                    {/* Próximas Manutenções Agendadas */}
+                    {/* Próximas Manutenções Agendadas (Quick Actions foi substituído) */}
                     <Card className="lg:col-span-2 shadow-card">
                         <CardHeader>
                             <CardTitle>Próximas Manutenções Agendadas</CardTitle>
@@ -477,18 +473,14 @@ export default function Dashboard() {
                         <CardContent>
                             <div className="space-y-4">
                                 {loadingManutencoes ? (
-                                    <div className="text-center py-6 text-muted-foreground">Carregando
-                                        manutenções...</div>
+                                    <div className="text-center py-6 text-muted-foreground">Carregando manutenções...</div>
                                 ) : manutencoesUpcoming.length === 0 ? (
-                                    <div className="text-center py-6 text-muted-foreground">Nenhuma manutenção agendada
-                                        nos próximos dias.</div>
+                                    <div className="text-center py-6 text-muted-foreground">Nenhuma manutenção agendada nos próximos dias.</div>
                                 ) : (
                                     manutencoesUpcoming.map((m) => {
                                         const vehicleLabel = (m.veiculoId && vehiclesMap[m.veiculoId]) || `Veículo ${m.veiculoId}`;
-                                        // const userLabel = (m.userId && driversMap[m.userId]) || "—"; // userLabel não estava sendo usado
                                         return (
-                                            <div key={m.id}
-                                                 className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
+                                            <div key={m.id} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
                                                 <div className="flex-shrink-0">
                                                     <Clock className="h-5 w-5 text-muted-foreground mt-0.5"/>
                                                 </div>
@@ -505,8 +497,7 @@ export default function Dashboard() {
                                                     {m.status !== undefined && m.status !== null ? (
                                                         <Badge variant="default" className="ml-auto">{m.status}</Badge>
                                                     ) : (
-                                                        <Badge variant="secondary" className="ml-auto">Sem
-                                                            Status</Badge>
+                                                        <Badge variant="secondary" className="ml-auto">Sem Status</Badge>
                                                     )}
                                                 </div>
                                             </div>
@@ -530,7 +521,6 @@ export default function Dashboard() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {/* Aumentei a altura do mapa para h-96 (384px) */}
                         <div className="h-96 w-full rounded-lg overflow-hidden">
                             {isLoadingMotoristasLocalizacao && !motoristasComLocalizacao ? (
                                 <div className="h-full w-full bg-muted flex items-center justify-center">
@@ -541,7 +531,6 @@ export default function Dashboard() {
                                 </div>
                             ) : (
                                 <MapContainer
-                                    // Centraliza no Brasil continental
                                     center={[-14.2350, -51.9253]}
                                     zoom={4}
                                     style={{height: '100%', width: '100%'}}
@@ -554,7 +543,6 @@ export default function Dashboard() {
                                     {motoristasNoMapa.map(motorista => (
                                         <Marker
                                             key={motorista.id}
-                                            // position precisa ser [latitude, longitude]
                                             position={[motorista.latitude!, motorista.longitude!]}
                                         >
                                             <Popup>
@@ -570,7 +558,6 @@ export default function Dashboard() {
                         </div>
                     </CardContent>
                 </Card>
-                {/* --- FIM DO MAPA --- */}
             </div>
         </AdminLayout>
     );

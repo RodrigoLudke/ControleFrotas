@@ -87,13 +87,19 @@ export default function RegisterVehicle() {
                 if (res.ok) {
                     const data = await res.json();
 
-                    // mapear campos do backend para formData (sem motoristas)
+                    // --- CORREÇÃO AQUI ---
                     setFormData({
-                        vehicleTypes: data.vehicleTypes ?? undefined,
+                        // 1. Backend manda 'categoria', frontend espera 'vehicleTypes'
+                        vehicleTypes: data.categoria ?? undefined,
+
                         plate: data.placa ?? "",
                         brand: data.marca ?? "",
                         model: data.modelo ?? "",
-                        year: data.ano ? String(data.ano) : "",
+
+                        // 2. Backend manda 'anoFabricacao', frontend espera 'year'
+                        // (Se anoFabricacao não existir, tenta anoModelo, senão vazio)
+                        year: data.anoFabricacao ? String(data.anoFabricacao) : (data.anoModelo ? String(data.anoModelo) : ""),
+
                         color: data.cor ?? "",
                         chassis: data.chassi ?? "",
                         renavam: data.renavam ?? "",
@@ -107,6 +113,8 @@ export default function RegisterVehicle() {
                         insuranceExpiry: data.validadeSeguro ? new Date(data.validadeSeguro).toISOString().slice(0, 10) : "",
                         observations: data.observacoes ?? ""
                     });
+                    // ---------------------
+
                 } else {
                     const err = await res.json().catch(() => ({error: "Veículo não encontrado."}));
                     toast({
