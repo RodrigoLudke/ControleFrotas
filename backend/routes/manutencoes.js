@@ -12,7 +12,7 @@ router.get("/", autenticarToken, async (req, res) => {
     try {
         const { status, from, to, veiculoId, limit } = req.query;
         const isAdmin = req.user && req.user.role === "ADMIN";
-        const companyId = req.user.companyId; // <--- Pega da sessão
+        const companyId = req.user.companyId;
 
         // 1. Filtro base de segurança
         const where = {
@@ -46,7 +46,7 @@ router.get("/", autenticarToken, async (req, res) => {
         const take = limit ? Math.min(100, parseInt(String(limit), 10) || 100) : undefined;
 
         const manutencoes = await prisma.manutencao.findMany({
-            where: where, // <--- Usa o objeto com companyId
+            where: where,
             orderBy: { data: "desc" },
             take,
             include: {
@@ -69,7 +69,6 @@ router.get("/:id", autenticarToken, async (req, res) => {
     const companyId = req.user.companyId;
 
     try {
-        // CORREÇÃO: Usar findFirst para garantir companyId
         const m = await prisma.manutencao.findFirst({
             where: {
                 id: id,
@@ -98,7 +97,7 @@ router.post("/", autenticarToken, async (req, res) => {
     try {
         const {
             veiculoId, data, quilometragem, tipo, descricao, custo, local, observacoes, status, userId,
-            nfNumero, comprovanteUrl // Campos opcionais do schema novo
+            nfNumero, comprovanteUrl
         } = req.body;
 
         const companyId = req.user.companyId;
@@ -121,32 +120,42 @@ router.post("/", autenticarToken, async (req, res) => {
         const dt = new Date(String(data));
         if (Number.isNaN(dt.getTime())) return res.status(400).json({ error: "data inválida." });
 
-        // Lógica de atribuição de usuário (Admin pode definir outro)
+        // Lógica de atribuição de usuário
         let targetUserId = req.user.id;
         if (req.user.role === "ADMIN" && userId) {
             const parsedId = Number.parseInt(String(userId), 10);
-            // Idealmente: verificar se esse userId também é da mesma companyId
             if (!Number.isNaN(parsedId)) targetUserId = parsedId;
         }
 
+        // --- CORREÇÃO: Usando connect para Company, Veiculo e User ---
+        const dadosCriacao = {
+            company: {
+                connect: { id: companyId }
+            },
+            veiculo: {
+                connect: { id: vid }
+            },
+            data: dt,
+            quilometragem: Number(quilometragem),
+            tipo: String(tipo).toUpperCase(),
+            descricao: String(descricao),
+            custo: custo !== undefined && custo !== null ? Number(custo) : null,
+            local: local ?? null,
+            observacoes: observacoes ?? null,
+            status: status ? String(status).toUpperCase() : "AGENDADA",
+            nfNumero: nfNumero ?? null,
+            comprovanteUrl: comprovanteUrl ?? null
+        };
+
+        // Adiciona usuário apenas se tiver um ID válido
+        if (targetUserId) {
+            dadosCriacao.user = {
+                connect: { id: targetUserId }
+            };
+        }
+
         const newManut = await prisma.manutencao.create({
-            data: {
-                company: {
-                    connect: { id: companyId }
-                },
-                veiculoId: vid,
-                userId: targetUserId,
-                data: dt,
-                quilometragem: Number(quilometragem),
-                tipo: String(tipo).toUpperCase(),
-                descricao: String(descricao),
-                custo: custo !== undefined && custo !== null ? Number(custo) : null,
-                local: local ?? null,
-                observacoes: observacoes ?? null,
-                status: status ? String(status).toUpperCase() : "AGENDADA",
-                nfNumero: nfNumero ?? null,
-                comprovanteUrl: comprovanteUrl ?? null
-            }
+            data: dadosCriacao
         });
 
         res.status(201).json(newManut);
@@ -163,7 +172,6 @@ router.patch("/:id", autenticarToken, async (req, res) => {
     const companyId = req.user.companyId;
 
     try {
-        // CORREÇÃO: findFirst com companyId
         const existing = await prisma.manutencao.findFirst({
             where: { id, companyId }
         });
@@ -180,7 +188,6 @@ router.patch("/:id", autenticarToken, async (req, res) => {
 
         const updates = {};
 
-        // Se mudar o veículo, verifica se o novo é da empresa
         if (veiculoId !== undefined) {
             const vid = parseInt(String(veiculoId), 10);
             if (!Number.isNaN(vid)) {
@@ -201,7 +208,6 @@ router.patch("/:id", autenticarToken, async (req, res) => {
         if (nfNumero !== undefined) updates.nfNumero = nfNumero;
         if (comprovanteUrl !== undefined) updates.comprovanteUrl = comprovanteUrl;
 
-        // Permite Admin reatribuir
         if (isAdmin && userId !== undefined) {
             updates.userId = Number.parseInt(String(userId), 10);
         }

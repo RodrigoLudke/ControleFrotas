@@ -126,7 +126,7 @@ router.get("/seguro-vencendo", autenticarToken, autorizarRoles("ADMIN"), async (
             where: {
                 companyId: companyId,
                 deletedAt: null,
-                status: { not: "inativo" }, // Ignora veículos inativos
+                status: { not: "inativo" },
                 validadeSeguro: {
                     lte: daqui30Dias,
                     not: null
@@ -137,7 +137,7 @@ router.get("/seguro-vencendo", autenticarToken, autorizarRoles("ADMIN"), async (
                 placa: true,
                 modelo: true,
                 validadeSeguro: true,
-                seguradora: true // Opcional
+                seguradora: true
             },
             orderBy: {
                 validadeSeguro: 'asc'
@@ -151,13 +151,93 @@ router.get("/seguro-vencendo", autenticarToken, autorizarRoles("ADMIN"), async (
     }
 });
 
+// --- NOVA ROTA: Verificar Revisões Pendentes (Lógica Automática) ---
+router.get("/revisoes-pendentes", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
+    try {
+        const companyId = req.user.companyId;
+
+        // Busca todos os veículos ativos da empresa
+        // Inclui a ÚLTIMA manutenção preventiva concluída para saber quando o ciclo resetou
+        const veiculos = await prisma.veiculo.findMany({
+            where: {
+                companyId,
+                deletedAt: null,
+                status: { not: "inativo" }
+            },
+            include: {
+                manutencoes: {
+                    where: { tipo: "PREVENTIVA", status: "CONCLUIDA" },
+                    orderBy: { data: 'desc' },
+                    take: 1 // Pega só a última
+                }
+            }
+        });
+
+        const pendentes = [];
+        const now = new Date();
+
+        for (const v of veiculos) {
+            let limitKm = 0;
+            let limitMonths = 0;
+
+            // 1. Definir Regras por Categoria
+            if (v.categoria === 'B') {
+                // Carros: 1 ano (12 meses) ou 20.000 km
+                limitKm = 20000;
+                limitMonths = 12;
+            } else if (['C', 'D', 'E'].includes(v.categoria)) {
+                // Pesados: 6 meses ou 10.000 km
+                limitKm = 10000;
+                limitMonths = 6;
+            } else {
+                // Motos (A) ou indefinido: ignorar por enquanto
+                continue;
+            }
+
+            // 2. Determinar ponto de referência (Última manutenção ou Compra)
+            const lastMaint = v.manutencoes[0];
+
+            // Se tem manutenção, usa a data dela. Se não, usa a data de compra ou criação.
+            const refDate = lastMaint ? new Date(lastMaint.data) : (v.dataCompra ? new Date(v.dataCompra) : new Date(v.createdAt));
+
+            // Se tem manutenção, usa a KM que foi feita. Se não, assume 0 como início do ciclo.
+            const refKm = lastMaint ? lastMaint.quilometragem : 0;
+
+            // 3. Calcular Deltas (Diferença)
+            const deltaKm = v.quilometragem - refKm;
+            const diffTimeMs = now.getTime() - refDate.getTime();
+            const deltaMonths = diffTimeMs / (1000 * 60 * 60 * 24 * 30.44); // Aproximação de meses
+
+            // 4. Verificar se estourou algum limite
+            if (deltaKm >= limitKm || deltaMonths >= limitMonths) {
+                pendentes.push({
+                    id: v.id,
+                    placa: v.placa,
+                    modelo: v.modelo,
+                    categoria: v.categoria,
+                    kmAtual: v.quilometragem,
+                    ultimaRevisao: lastMaint ? lastMaint.data : null,
+                    motivo: deltaKm >= limitKm
+                        ? `Atingiu ${deltaKm}km rodados (Limite: ${limitKm}km)`
+                        : `Passou ${Math.floor(deltaMonths)} meses (Limite: ${limitMonths})`,
+                    tipoAlerta: 'REVISAO'
+                });
+            }
+        }
+
+        res.json(pendentes);
+
+    } catch (error) {
+        console.error("Erro ao calcular revisões pendentes:", error);
+        res.status(500).json({ error: "Erro interno." });
+    }
+});
+
 // Handler reutilizável para criação (POST / e POST /cadastrar)
 async function createVehicleHandler(req, res) {
     try {
         const companyId = req.user.companyId;
 
-        // CORREÇÃO: Recebendo anoFabricacao e anoModelo
-        // Se o seu frontend ainda mandar apenas "ano", você pode fazer: const anoFabricacao = req.body.ano;
         const {
             placa, marca, modelo, ano, cor, chassi, renavam, capacidade,
             quilometragem, combustivel, valorCompra, dataCompra, seguradora,
@@ -265,7 +345,6 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
                 placa: true,
                 marca: true,
                 modelo: true,
-                // CORREÇÃO: Selects corrigidos
                 anoFabricacao: true,
                 anoModelo: true,
                 cor: true,
@@ -302,9 +381,8 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
     const companyId = req.user.companyId;
 
     try {
-        // CORREÇÃO: Recebendo campos novos
         const {
-            placa, marca, modelo, anoFabricacao, anoModelo, cor, chassi, renavam, capacidade,
+            placa, marca, modelo, ano, cor, chassi, renavam, capacidade,
             quilometragem, combustivel, valorCompra, dataCompra, seguradora,
             apoliceSeguro, validadeSeguro, observacoes, status, categoria
         } = req.body;
@@ -313,9 +391,12 @@ router.patch("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
         if (placa !== undefined) updates.placa = placa;
         if (marca !== undefined) updates.marca = marca;
         if (modelo !== undefined) updates.modelo = modelo;
-        // CORREÇÃO: Updates mapeados corretamente
-        if (anoFabricacao !== undefined) updates.anoFabricacao = anoFabricacao !== null ? Number(anoFabricacao) : null;
-        if (anoModelo !== undefined) updates.anoModelo = anoModelo !== null ? Number(anoModelo) : null;
+
+        if (ano !== undefined) {
+            const anoInt = Number(ano);
+            updates.anoFabricacao = anoInt;
+            updates.anoModelo = anoInt;
+        }
 
         if (cor !== undefined) updates.cor = cor;
         if (chassi !== undefined) updates.chassi = chassi;

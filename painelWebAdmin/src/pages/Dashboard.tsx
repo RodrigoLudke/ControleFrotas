@@ -4,7 +4,7 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/compo
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
 // Certifique-se de que 'Edit' está importado aqui
-import {AlertTriangle, Clock, MapPin, HelpCircle, Wrench, Truck, Users, CalendarDays, FileText, Shield, Edit} from "lucide-react";
+import {AlertTriangle, Clock, MapPin, HelpCircle, Wrench, Truck, Users, CalendarDays, FileText, Shield, Edit, AlertCircle} from "lucide-react";
 import {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {apiFetch} from "@/services/api";
@@ -65,6 +65,18 @@ interface SeguroVencendo {
     modelo: string;
     validadeSeguro: string;
 }
+
+// NOVA INTERFACE PARA REVISÕES
+interface RevisaoPendente {
+    id: number;
+    placa: string;
+    modelo: string;
+    categoria: string;
+    kmAtual: number;
+    ultimaRevisao: string | null;
+    motivo: string;
+    tipoAlerta: string;
+}
 // --- FIM INTERFACES ---
 
 export default function Dashboard() {
@@ -85,6 +97,10 @@ export default function Dashboard() {
     const [cnhExpiring, setCnhExpiring] = useState<CnhVencendo[]>([]);
     const [insuranceExpiring, setInsuranceExpiring] = useState<SeguroVencendo[]>([]);
     const [loadingVencimentos, setLoadingVencimentos] = useState<boolean>(true);
+
+    // NOVO STATE PARA REVISÕES
+    const [revisoesPendentes, setRevisoesPendentes] = useState<RevisaoPendente[]>([]);
+    const [loadingRevisoes, setLoadingRevisoes] = useState<boolean>(true);
 
     // --- MAPA QUERY ---
     const {data: motoristasComLocalizacao, isLoading: isLoadingMotoristasLocalizacao} = useQuery<DriverLocation[]>({
@@ -254,9 +270,26 @@ export default function Dashboard() {
             }
         };
 
+        // NOVA FUNÇÃO FETCH REVISÕES
+        const fetchRevisoes = async () => {
+            setLoadingRevisoes(true);
+            try {
+                const res = await apiFetch("/veiculos/revisoes-pendentes");
+                if (res.ok) {
+                    const data = await res.json();
+                    setRevisoesPendentes(Array.isArray(data) ? data : []);
+                }
+            } catch (error) {
+                console.error("Erro ao buscar revisões:", error);
+            } finally {
+                setLoadingRevisoes(false);
+            }
+        };
+
         fetchAll();
         fetchManutencoes();
         fetchVencimentos();
+        fetchRevisoes();
     }, []);
 
     const fleetStats = [
@@ -290,14 +323,6 @@ export default function Dashboard() {
         }
     ];
 
-    const quickActions = [
-        {label: "Adicionar Veículo", icon: Truck, variant: "secondary" as const, to: "/registrarveiculos"},
-        {label: "Adicionar Motorista", icon: Users, variant: "secondary" as const, to: "/registrarmotoristas"},
-        {label: "Adicionar Manutenção", icon: Wrench, variant: "secondary" as const, to: "/registrarmanutencoes"},
-        {label: "Ajuda", icon: HelpCircle, variant: "secondary" as const, to: "/ajuda"}
-    ];
-
-    // Helper
     const isExpired = (dateString: string) => {
         return new Date(dateString).getTime() < Date.now();
     };
@@ -317,7 +342,8 @@ export default function Dashboard() {
                                         </p>
                                         <p className="text-2xl font-bold">{stat.value}</p>
                                     </div>
-                                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${stat.bgColorClass}`}>
+                                    <div
+                                        className={`w-12 h-12 rounded-lg flex items-center justify-center ${stat.bgColorClass}`}>
                                         <stat.icon className={`h-6 w-6 ${stat.textColorClass}`} />
                                     </div>
                                 </div>
@@ -347,7 +373,11 @@ export default function Dashboard() {
                                 </thead>
                                 <tbody>
                                 {loading ? (
-                                    <tr><td colSpan={6} className="text-center py-6 text-muted-foreground">Carregando...</td></tr>
+                                    <tr>
+                                        <td colSpan={6}
+                                            className="text-center py-6 text-muted-foreground">Carregando...
+                                        </td>
+                                    </tr>
                                 ) : viagens.length > 0 ? (
                                     viagens.map((item) => {
                                         const driver = (item.userId && driversMap[item.userId]) || "—";
@@ -372,25 +402,25 @@ export default function Dashboard() {
                     </CardContent>
                 </Card>
 
+                {/* --- SEÇÃO DE ALERTAS E MANUTENÇÕES (3 COLUNAS) --- */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                    {/* --- CARD SUBSTITUÍDO: PRÓXIMOS VENCIMENTOS (COM BOTÃO DE EDITAR) --- */}
+                    {/* 1. CARD VENCIMENTOS (CNH / SEGURO) */}
                     <Card className="shadow-card h-full">
                         <CardHeader>
-                            <CardTitle>Próximos Vencimentos</CardTitle>
-                            <CardDescription>CNH e Seguros vencendo em 30 dias</CardDescription>
+                            <CardTitle>Vencimentos</CardTitle>
+                            <CardDescription>CNH e Seguros em 30 dias</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {loadingVencimentos ? (
-                                <div className="text-center py-6 text-muted-foreground">Verificando documentos...</div>
+                                <div className="text-center py-6 text-muted-foreground">Verificando...</div>
                             ) : (cnhExpiring.length === 0 && insuranceExpiring.length === 0) ? (
                                 <div className="text-center py-6 text-muted-foreground flex flex-col items-center">
                                     <CalendarDays className="h-10 w-10 mb-2 opacity-20" />
-                                    <p>Nenhum vencimento próximo.</p>
+                                    <p>Nenhum vencimento.</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-
                                     {/* Lista de CNHs */}
                                     {cnhExpiring.length > 0 && (
                                         <div className="space-y-2">
@@ -407,16 +437,10 @@ export default function Dashboard() {
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <Badge variant={isExpired(cnh.validadeCnh) ? "destructive" : "outline"} className={!isExpired(cnh.validadeCnh) ? "text-amber-600 border-amber-200 bg-amber-50" : ""}>
+                                                        <Badge variant={isExpired(cnh.validadeCnh) ? "destructive" : "outline"}>
                                                             {new Date(cnh.validadeCnh).toLocaleDateString("pt-BR")}
                                                         </Badge>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                            onClick={() => navigate(`/registrarmotoristas/${cnh.id}`)}
-                                                            title="Editar Motorista"
-                                                        >
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => navigate(`/registrarmotoristas/${cnh.id}`)}>
                                                             <Edit className="h-4 w-4" />
                                                         </Button>
                                                     </div>
@@ -441,16 +465,10 @@ export default function Dashboard() {
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <Badge variant={isExpired(seg.validadeSeguro) ? "destructive" : "outline"} className={!isExpired(seg.validadeSeguro) ? "text-amber-600 border-amber-200 bg-amber-50" : ""}>
+                                                        <Badge variant={isExpired(seg.validadeSeguro) ? "destructive" : "outline"}>
                                                             {new Date(seg.validadeSeguro).toLocaleDateString("pt-BR")}
                                                         </Badge>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                            onClick={() => navigate(`/registrarveiculos/${seg.id}`)}
-                                                            title="Editar Veículo"
-                                                        >
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => navigate(`/registrarveiculos/${seg.id}`)}>
                                                             <Edit className="h-4 w-4" />
                                                         </Button>
                                                     </div>
@@ -462,47 +480,101 @@ export default function Dashboard() {
                             )}
                         </CardContent>
                     </Card>
-                    {/* --- FIM DO CARD --- */}
 
-                    {/* Próximas Manutenções Agendadas (Quick Actions foi substituído) */}
-                    <Card className="lg:col-span-2 shadow-card">
+                    {/* 2. NOVO CARD: REVISÕES PENDENTES (AUTOMÁTICAS) */}
+                    <Card className="shadow-card h-full">
                         <CardHeader>
-                            <CardTitle>Próximas Manutenções Agendadas</CardTitle>
-                            <CardDescription>Próximas manutenções com status <strong>AGENDADA</strong></CardDescription>
+                            <CardTitle>Revisões Pendentes</CardTitle>
+                            <CardDescription>Limite de KM ou tempo atingido</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {loadingRevisoes ? (
+                                <div className="text-center py-6 text-muted-foreground">Calculando...</div>
+                            ) : revisoesPendentes.length === 0 ? (
+                                <div className="text-center py-6 text-muted-foreground flex flex-col items-center">
+                                    <Wrench className="h-10 w-10 mb-2 opacity-20" />
+                                    <p>Tudo em dia!</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                                    {revisoesPendentes.map((rev) => (
+                                        <div key={rev.id} className="flex flex-col p-3 rounded-lg bg-amber-50 border border-amber-200">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                                                    <p className="text-sm font-bold text-amber-800">{rev.placa}</p>
+                                                </div>
+                                                <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-100">
+                                                    {rev.modelo}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-xs text-amber-700 mb-3">{rev.motivo}</p>
+                                            <Button
+                                                size="sm"
+                                                className="w-full bg-amber-600 hover:bg-amber-700 text-white h-8"
+                                                onClick={() => navigate('/registrarmanutencoes', {
+                                                    state: {
+                                                        alert: {
+                                                            veiculoId: rev.id,
+                                                            veiculoPlaca: rev.placa,
+                                                            tipo: 'SOLICITACAO', // Preenche como corretiva/agendada
+                                                            descricao: `Revisão Automática: ${rev.motivo}`
+                                                        }
+                                                    }
+                                                })}
+                                            >
+                                                Agendar Revisão
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* 3. CARD MANUTENÇÕES AGENDADAS (AGORA EM 1 COLUNA) */}
+                    <Card className="shadow-card h-full">
+                        <CardHeader>
+                            <CardTitle>Agenda</CardTitle>
+                            <CardDescription>Manutenções marcadas</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
                                 {loadingManutencoes ? (
-                                    <div className="text-center py-6 text-muted-foreground">Carregando manutenções...</div>
+                                    <div className="text-center py-6 text-muted-foreground">Carregando...</div>
                                 ) : manutencoesUpcoming.length === 0 ? (
-                                    <div className="text-center py-6 text-muted-foreground">Nenhuma manutenção agendada nos próximos dias.</div>
+                                    <div className="text-center py-6 text-muted-foreground flex flex-col items-center">
+                                        <Clock className="h-10 w-10 mb-2 opacity-20" />
+                                        <p>Agenda vazia.</p>
+                                    </div>
                                 ) : (
-                                    manutencoesUpcoming.map((m) => {
-                                        const vehicleLabel = (m.veiculoId && vehiclesMap[m.veiculoId]) || `Veículo ${m.veiculoId}`;
-                                        return (
-                                            <div key={m.id} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
-                                                <div className="flex-shrink-0">
-                                                    <Clock className="h-5 w-5 text-muted-foreground mt-0.5"/>
+                                    <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                                        {manutencoesUpcoming.map((m) => {
+                                            const vehicleLabel = (m.veiculoId && vehiclesMap[m.veiculoId]) || `Veículo ${m.veiculoId}`;
+                                            return (
+                                                <div key={m.id} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30 border border-muted">
+                                                    <div className="flex-shrink-0">
+                                                        <Clock className="h-5 w-5 text-muted-foreground mt-0.5"/>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium truncate">
+                                                            {vehicleLabel}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {new Date(m.data).toLocaleDateString("pt-BR")}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground truncate">{m.descricao}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge variant="default">{m.status}</Badge>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => navigate(`/registrarmanutencoes/${m.id}`)}>
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium">
-                                                        {m.tipo === "PREVENTIVA" ? "Preventiva" : "Corretiva"} — {vehicleLabel}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {m.local ? `${m.local} • ` : ""}{new Date(m.data).toLocaleString("pt-BR")}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">{m.descricao ? `${m.descricao}` : ""}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    {m.status !== undefined && m.status !== null ? (
-                                                        <Badge variant="default" className="ml-auto">{m.status}</Badge>
-                                                    ) : (
-                                                        <Badge variant="secondary" className="ml-auto">Sem Status</Badge>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })
+                                            );
+                                        })}
+                                    </div>
                                 )}
                             </div>
                         </CardContent>
@@ -521,14 +593,9 @@ export default function Dashboard() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-96 w-full rounded-lg overflow-hidden">
-                            {isLoadingMotoristasLocalizacao && !motoristasComLocalizacao ? (
-                                <div className="h-full w-full bg-muted flex items-center justify-center">
-                                    <div className="text-center">
-                                        <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-2 animate-pulse"/>
-                                        <p className="text-muted-foreground">Carregando mapa...</p>
-                                    </div>
-                                </div>
+                        <div className="h-96 w-full rounded-lg overflow-hidden bg-muted">
+                            {isLoadingMotoristasLocalizacao ? (
+                                <div className="h-full flex items-center justify-center text-muted-foreground">Carregando mapa...</div>
                             ) : (
                                 <MapContainer
                                     center={[-14.2350, -51.9253]}
