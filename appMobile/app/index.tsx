@@ -85,7 +85,7 @@ export default function LoginScreen() {
 
             // extraScrollHeight: Coloque 0 ou um valor baixo.
             // Isso evita que ele "force" a subida do formulário para o topo da tela.
-            extraScrollHeight={65}
+            extraScrollHeight={20}
 
             enableAutomaticScroll={true}
             keyboardShouldPersistTaps="handled"
