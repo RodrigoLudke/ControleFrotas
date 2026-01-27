@@ -17,7 +17,7 @@ const manutencaoSchema = z.object({
     veiculoId: z.number().int().positive("Selecione um veículo"),
     userId: z.number().int().positive().optional(),
     data: z.string().min(1, "Data/hora é obrigatória"),
-    quilometragem: z.number().int().nonnegative("Quilometragem inválida"),
+    quilometragem: z.number().int().nonnegative("Quilometragem inválida").optional(),
     tipo: z.enum(["PREVENTIVA", "CORRETIVA"], {
         invalid_type_error: "Selecione um tipo de manutenção válido",
         required_error: "Selecione o tipo de manutenção"
@@ -414,30 +414,61 @@ export default function RegisterMaintenance() {
                                         {errors.userId && <p className="text-sm text-destructive">{errors.userId}</p>}
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="data">Data e Horário *</Label>
-                                        <Input
-                                            id="data"
-                                            type="datetime-local"
-                                            value={form.data || ""}
-                                            onChange={(e) => handleChange("data", e.target.value)}
-                                            className={`${errors.data ? "border-destructive" : ""} ${!form.data ? "text-muted-foreground" : ""}`}
-                                        />
-                                        {errors.data && <p className="text-sm text-destructive">{errors.data}</p>}
-                                    </div>
+                                    {/* Container que ocupa as 2 colunas, mas divide internamente em 2 */}
+                                    <div className="md:col-span-2 grid grid-cols-2 gap-4">
+                                        {/* CAMPO DE DATA */}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="data_dia">Data *</Label>
+                                            <Input
+                                                id="data_dia"
+                                                type="date"
+                                                // Extrai apenas a parte da DATA (YYYY-MM-DD) da string ISO
+                                                value={form.data ? form.data.split("T")[0] : ""}
+                                                onChange={(e) => {
+                                                    const newDate = e.target.value;
+                                                    // Pega o horário atual que já estava salvo ou define 08:00 como padrão se estiver vazio
+                                                    const currentTime = form.data && form.data.includes("T")
+                                                        ? form.data.split("T")[1]
+                                                        : "08:00";
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="quilometragem">Quilometragem *</Label>
-                                        <Input
-                                            id="quilometragem"
-                                            type="number"
-                                            value={form.quilometragem ?? ""}
-                                            onChange={(e) => handleChange("quilometragem", e.target.value === "" ? undefined : Number(e.target.value))}
-                                            className={errors.quilometragem ? "border-destructive" : ""}
-                                            placeholder="0"
-                                        />
-                                        {errors.quilometragem &&
-                                            <p className="text-sm text-destructive">{errors.quilometragem}</p>}
+                                                    if (newDate) {
+                                                        handleChange("data", `${newDate}T${currentTime}`);
+                                                    } else {
+                                                        // Se limpar a data, limpa tudo (ou pode decidir manter só a hora, mas datetime precisa dos dois)
+                                                        handleChange("data", "");
+                                                    }
+                                                }}
+                                                className={`${errors.data ? "border-destructive" : ""} ${!form.data ? "text-muted-foreground" : ""}`}
+                                            />
+                                        </div>
+
+                                        {/* CAMPO DE HORA */}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="data_hora">Horário *</Label>
+                                            <Input
+                                                id="data_hora"
+                                                type="time"
+                                                // Extrai apenas a parte da HORA (HH:mm)
+                                                value={form.data && form.data.includes("T") ? form.data.split("T")[1].slice(0, 5) : ""}
+                                                onChange={(e) => {
+                                                    const newTime = e.target.value;
+                                                    // Pega a data atual salva ou a data de hoje como fallback
+                                                    const currentDate = form.data
+                                                        ? form.data.split("T")[0]
+                                                        : new Date().toISOString().split("T")[0];
+
+                                                    if (newTime) {
+                                                        handleChange("data", `${currentDate}T${newTime}`);
+                                                    }
+                                                }}
+                                                className={`${errors.data ? "border-destructive" : ""} ${!form.data ? "text-muted-foreground" : ""}`}
+                                            />
+                                        </div>
+
+                                        {/* Exibe erro geral de data abaixo dos dois campos se houver */}
+                                        {errors.data && (
+                                            <p className="text-sm text-destructive col-span-2 -mt-2">{errors.data}</p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">

@@ -178,16 +178,14 @@ export default function AbastecimentosDetalhes() {
                                         <p className="text-sm text-muted-foreground">Quilometragem</p>
                                         <p className="text-2xl font-bold">{formatNumber(item.quilometragem, 0)} km</p>
                                     </CardContent>
-
-                                    <CardFooter className="bg-muted/50 flex justify-between text-xs text-muted-foreground py-3">
-                                        <span className="flex items-center"><Clock className="h-3 w-3 mr-1"/> Criado em: {formatData(item.createdAt)}</span>
-                                        <span className="flex items-center"><Clock className="h-3 w-3 mr-1"/> Atualizado em: {formatData(item.updatedAt)}</span>
-                                    </CardFooter>
-
                                 </Card>
                             </div>
                         </div>
                     </CardContent>
+                    <CardFooter className="bg-muted/50 flex justify-between text-xs text-muted-foreground py-3">
+                        <span className="flex items-center"><Clock className="h-3 w-3 mr-1"/> Criado em: {formatData(item.createdAt)}</span>
+                        <span className="flex items-center"><Clock className="h-3 w-3 mr-1"/> Atualizado em: {formatData(item.updatedAt)}</span>
+                    </CardFooter>
                 </Card>
             </div>
         </AdminLayout>

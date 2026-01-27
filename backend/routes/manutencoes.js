@@ -102,8 +102,9 @@ router.post("/", autenticarToken, async (req, res) => {
 
         const companyId = req.user.companyId;
 
-        if (!veiculoId || !data || !quilometragem || !tipo || !descricao) {
-            return res.status(400).json({ error: "Campos obrigatórios: veiculoId, data, quilometragem, tipo, descricao." });
+        // 1. ALTERAÇÃO: Removemos 'quilometragem' desta lista de verificação
+        if (!veiculoId || !data || !tipo || !descricao) {
+            return res.status(400).json({ error: "Campos obrigatórios: veiculoId, data, tipo, descricao." });
         }
 
         const vid = parseInt(String(veiculoId), 10);
@@ -113,21 +114,29 @@ router.post("/", autenticarToken, async (req, res) => {
         const veiculoValido = await prisma.veiculo.findFirst({
             where: { id: vid, companyId: companyId }
         });
+
         if (!veiculoValido) {
             return res.status(404).json({ error: "Veículo não encontrado ou não pertence à sua empresa." });
+        }
+
+        // 2. ALTERAÇÃO: Lógica para definir a quilometragem automaticamente
+        let kmFinal = Number(quilometragem);
+
+        // Se não veio no body (NaN) ou é 0, usamos a do veículo
+        if (Number.isNaN(kmFinal) || kmFinal === 0) {
+            kmFinal = Number(veiculoValido.quilometragem || 0);
         }
 
         const dt = new Date(String(data));
         if (Number.isNaN(dt.getTime())) return res.status(400).json({ error: "data inválida." });
 
-        // Lógica de atribuição de usuário
+        // ... (Lógica de usuário permanece igual)
         let targetUserId = req.user.id;
         if (req.user.role === "ADMIN" && userId) {
             const parsedId = Number.parseInt(String(userId), 10);
             if (!Number.isNaN(parsedId)) targetUserId = parsedId;
         }
 
-        // --- CORREÇÃO: Usando connect para Company, Veiculo e User ---
         const dadosCriacao = {
             company: {
                 connect: { id: companyId }
@@ -136,7 +145,7 @@ router.post("/", autenticarToken, async (req, res) => {
                 connect: { id: vid }
             },
             data: dt,
-            quilometragem: Number(quilometragem),
+            quilometragem: kmFinal, // 3. Usamos a variável calculada aqui
             tipo: String(tipo).toUpperCase(),
             descricao: String(descricao),
             custo: custo !== undefined && custo !== null ? Number(custo) : null,
@@ -147,7 +156,7 @@ router.post("/", autenticarToken, async (req, res) => {
             comprovanteUrl: comprovanteUrl ?? null
         };
 
-        // Adiciona usuário apenas se tiver um ID válido
+        // ... (Resto do código de criação permanece igual)
         if (targetUserId) {
             dadosCriacao.user = {
                 connect: { id: targetUserId }
