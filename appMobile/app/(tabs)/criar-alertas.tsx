@@ -3,10 +3,8 @@ import React, {useCallback, useState} from "react";
 import {
     ActivityIndicator,
     Alert,
-    KeyboardAvoidingView,
     Platform,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -21,6 +19,7 @@ import {useColorScheme} from "@/hooks/useColorScheme";
 import {FontAwesome5, MaterialCommunityIcons} from "@expo/vector-icons";
 import {Picker} from "@react-native-picker/picker";
 import {apiFetch} from "@/services/api";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 export default function RegistrarAlertaManutencao() {
     const navigation = useNavigation();
@@ -35,8 +34,8 @@ export default function RegistrarAlertaManutencao() {
     const [data, setData] = useState<Date>(new Date());
 
     // pickers control
-    const [showDatePicker, setShowDatePicker] = useState<boolean>(false); // for iOS: datetime; for Android: date step
-    const [showTimePicker, setShowTimePicker] = useState<boolean>(false); // Android: time step
+    const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+    const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
 
     const [veiculos, setVeiculos] = useState<Array<any>>([]);
     const [loadingVeiculos, setLoadingVeiculos] = useState<boolean>(false);
@@ -46,7 +45,6 @@ export default function RegistrarAlertaManutencao() {
     useFocusEffect(
         useCallback(() => {
             carregarVeiculos();
-            // reset form quando abrir nova criação
             setDescricao("");
             setQuilometragem("");
             setVeiculoId("");
@@ -78,52 +76,37 @@ export default function RegistrarAlertaManutencao() {
     const formatDate = (d?: Date) => (d ? d.toLocaleDateString() : "");
     const formatTime = (d?: Date) => (d ? d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "");
 
-    // Abre o fluxo de seleção de data/hora:
-    // - iOS: abre um único picker em modo "datetime"
-    // - Android: abre date -> depois time
     const openDateTimePicker = () => {
         if (Platform.OS === "android") {
-            setShowDatePicker(true); // abre date primeiro
+            setShowDatePicker(true);
         } else {
-            setShowDatePicker(true); // iOS: we'll render mode="datetime"
+            setShowDatePicker(true);
         }
     };
 
-    // onChange para Date picker
     const onChangeDate = (event: any, selected?: Date) => {
         if (Platform.OS === "android") {
-            // Android: event.type pode ser 'dismissed' ou 'set'
             setShowDatePicker(false);
-            if (event?.type === "dismissed") {
-                // usuário cancelou
-                return;
-            }
+            if (event?.type === "dismissed") return;
+
             const picked = selected ?? data;
-            // guardamos a data (com horas atuais por enquanto) e abrimos o time picker
             const newDate = new Date(picked);
             setData(prev => {
-                // mantém horas/minutos atuais no state se tiver
                 const copy = new Date(newDate);
                 copy.setHours(prev.getHours(), prev.getMinutes(), 0, 0);
                 return copy;
             });
-            // abrir seleção de hora em seguida
             setShowTimePicker(true);
         } else {
-            // iOS: single datetime picker (event fired on change)
             setShowDatePicker(false);
             if (selected) setData(selected);
         }
     };
 
-    // onChange para Time picker (Android)
     const onChangeTime = (event: any, selected?: Date) => {
         setShowTimePicker(false);
-        if (event?.type === "dismissed") {
-            return;
-        }
+        if (event?.type === "dismissed") return;
         if (!selected) return;
-        // ajusta horas/minutos na data atual do estado
         setData(prev => {
             const newDate = new Date(prev);
             newDate.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
@@ -136,12 +119,10 @@ export default function RegistrarAlertaManutencao() {
             Alert.alert("Erro", "Selecione o veículo.");
             return false;
         }
-
         if (!tipo) {
             Alert.alert("Erro", "Selecione o tipo de alerta.");
             return false;
         }
-
         if (!descricao || descricao.trim().length < 6) {
             Alert.alert("Erro", "Descreva o problema com pelo menos 6 caracteres.");
             return false;
@@ -159,7 +140,7 @@ export default function RegistrarAlertaManutencao() {
                 veiculoId: parseInt(veiculoId, 10),
                 data: new Date(data).toISOString(),
                 mensagem: descricao.trim(),
-                tipo, // SOLICITACAO | REGISTRO_RAPIDO
+                tipo,
                 urgente,
             };
             if (quilometragem) payload.quilometragem = parseInt(quilometragem, 10);
@@ -179,7 +160,6 @@ export default function RegistrarAlertaManutencao() {
             }
 
             Alert.alert("Sucesso", "Alerta enviado. A equipe de manutenção será notificada.");
-            // volta para trás
             // @ts-ignore navigation typing
             navigation.goBack?.();
         } catch (err) {
@@ -203,165 +183,175 @@ export default function RegistrarAlertaManutencao() {
 
     return (
         <ThemedView style={[styles.container, {backgroundColor: theme.background}]}>
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}
-                                  style={styles.keyboardAvoidingView}>
-                <ScrollView contentContainerStyle={styles.scrollContainer}>
-                    <ThemedText type="title" style={styles.title}>
-                        <MaterialCommunityIcons name="wrench" size={28}/> Solicitar Manutenção
+
+            {/* 2. Substituição da ScrollView e KeyboardAvoidingView */}
+            <KeyboardAwareScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={[styles.scrollContainer, { flexGrow: 1 }]}
+                enableOnAndroid={true}
+
+                // Configurações de Centralização
+                extraHeight={100}
+                extraScrollHeight={140} // Ajuste este número se quiser que suba mais ou menos
+
+                enableAutomaticScroll={true}
+                keyboardOpeningTime={Number.MAX_SAFE_INTEGER}
+                keyboardShouldPersistTaps="handled"
+            >
+                <ThemedText type="title" style={styles.title}>
+                    <MaterialCommunityIcons name="wrench" size={28}/> Solicitar Manutenção
+                </ThemedText>
+
+                {/* Veículo */}
+                <View style={[styles.section, {backgroundColor: theme.card}]}>
+                    <ThemedText style={styles.sectionTitle}>
+                        <FontAwesome5 name="truck" size={14}/> Veículo
+                    </ThemedText>
+                    {loadingVeiculos ? (
+                        <ActivityIndicator/>
+                    ) : (
+                        <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
+                            <Picker
+                                selectedValue={veiculoId}
+                                onValueChange={(val) => setVeiculoId(String(val))}
+                                mode="dropdown"
+                                style={Platform.OS === "android" ? {color: veiculoId ? theme.text : "#9aa0a6"} : undefined}
+                                dropdownIconColor={Platform.OS === "android" ? theme.text : undefined}
+                            >
+                                <Picker.Item label="Selecione o veículo" value=""/>
+                                {veiculos.map((v: any) => (
+                                    <Picker.Item
+                                        key={String(v.id)}
+                                        label={v.placa ? `${v.placa} — ${v.modelo ?? ""}` : `Veículo ${v.id}`}
+                                        value={String(v.id)}
+                                    />
+                                ))}
+                            </Picker>
+                        </View>
+                    )}
+                </View>
+
+                {/* Data / Urgente / Tipo */}
+                <View style={[styles.section, {backgroundColor: theme.card}]}>
+                    <ThemedText style={styles.sectionTitle}>
+                        <MaterialCommunityIcons name="calendar" size={14}/> Detalhes
                     </ThemedText>
 
-                    {/* Veículo */}
-                    <View style={[styles.section, {backgroundColor: theme.card}]}>
-                        <ThemedText style={styles.sectionTitle}>
-                            <FontAwesome5 name="truck" size={14}/> Veículo
-                        </ThemedText>
-                        {loadingVeiculos ? (
-                            <ActivityIndicator/>
-                        ) : (
-                            <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
-                                <Picker
-                                    selectedValue={veiculoId}
-                                    onValueChange={(val) => setVeiculoId(String(val))}
-                                    mode="dropdown"
-                                    style={Platform.OS === "android" ? {color: veiculoId ? theme.text : "#9aa0a6"} : undefined}
-                                    dropdownIconColor={Platform.OS === "android" ? theme.text : undefined}
-                                >
-                                    <Picker.Item label="Selecione o veículo" value=""/>
-                                    {veiculos.map((v: any) => (
-                                        <Picker.Item
-                                            key={String(v.id)}
-                                            label={v.placa ? `${v.placa} — ${v.modelo ?? ""}` : `Veículo ${v.id}`}
-                                            value={String(v.id)}
-                                        />
-                                    ))}
-                                </Picker>
-                            </View>
-                        )}
-                    </View>
+                    <View style={styles.row}>
+                        <View style={{flex: 1}}>
+                            <ThemedText style={styles.label}>Data / Hora</ThemedText>
+                            <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                       onPress={openDateTimePicker}>
+                                <ThemedText>{`${formatDate(data)} ${formatTime(data)}`}</ThemedText>
+                            </Pressable>
 
-                    {/* Data / Urgente / Tipo */}
-                    <View style={[styles.section, {backgroundColor: theme.card}]}>
-                        <ThemedText style={styles.sectionTitle}>
-                            <MaterialCommunityIcons name="calendar" size={14}/> Detalhes
-                        </ThemedText>
+                            {/* iOS: datetime picker (single) */}
+                            {showDatePicker && Platform.OS === "ios" && (
+                                <DateTimePicker
+                                    value={data}
+                                    mode="datetime"
+                                    display="default"
+                                    onChange={onChangeDate}
+                                />
+                            )}
 
-                        <View style={styles.row}>
-                            <View style={{flex: 1}}>
-                                <ThemedText style={styles.label}>Data / Hora</ThemedText>
-                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
-                                           onPress={openDateTimePicker}>
-                                    <ThemedText>{`${formatDate(data)} ${formatTime(data)}`}</ThemedText>
-                                </Pressable>
+                            {/* Android: date picker */}
+                            {showDatePicker && Platform.OS === "android" && (
+                                <DateTimePicker
+                                    value={data}
+                                    mode="date"
+                                    display="calendar"
+                                    onChange={onChangeDate}
+                                />
+                            )}
 
-                                {/* iOS: datetime picker (single) */}
-                                {showDatePicker && Platform.OS === "ios" && (
-                                    <DateTimePicker
-                                        value={data}
-                                        mode="datetime"
-                                        display="default"
-                                        onChange={onChangeDate}
-                                    />
-                                )}
-
-                                {/* Android: date picker (when showDatePicker true) */}
-                                {showDatePicker && Platform.OS === "android" && (
-                                    <DateTimePicker
-                                        value={data}
-                                        mode="date"
-                                        display="calendar"
-                                        onChange={onChangeDate}
-                                    />
-                                )}
-
-                                {/* Android: time picker (when showTimePicker true) */}
-                                {showTimePicker && Platform.OS === "android" && (
-                                    <DateTimePicker
-                                        value={data}
-                                        mode="time"
-                                        display="spinner"
-                                        onChange={onChangeTime}
-                                    />
-                                )}
-                            </View>
-
-                            <View style={{flex: 1}}>
-                                <ThemedText style={styles.label}>Urgente</ThemedText>
-                                <Pressable
-                                    style={[styles.dateBtn, {borderColor: theme.border, justifyContent: "center"}]}
-                                    onPress={() => setUrgente((s) => !s)}
-                                >
-                                    <ThemedText>{urgente ? "Sim — Urgente" : "Não"}</ThemedText>
-                                </Pressable>
-                            </View>
+                            {/* Android: time picker */}
+                            {showTimePicker && Platform.OS === "android" && (
+                                <DateTimePicker
+                                    value={data}
+                                    mode="time"
+                                    display="spinner"
+                                    onChange={onChangeTime}
+                                />
+                            )}
                         </View>
 
-                        <View style={{marginTop: 8}}>
-                            <ThemedText style={styles.label}>Tipo</ThemedText>
-                            <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
-                                <Picker
-                                    selectedValue={tipo}
-                                    onValueChange={(val) => setTipo(val as any)}
-                                    mode="dropdown"
-                                    style={Platform.OS === "android" ? {color: tipo ? theme.text : "#9aa0a6"} : undefined}
-                                >
-                                    <Picker.Item label="Selecione o tipo" value=""/>
-                                    <Picker.Item label="Solicitação de manutenção (motorista solicita reparo)"
-                                                 value="SOLICITACAO"/>
-                                    <Picker.Item label="Registro rápido (manutenção pequena já realizada)"
-                                                 value="REGISTRO_RAPIDO"/>
-                                </Picker>
-                            </View>
+                        <View style={{flex: 1}}>
+                            <ThemedText style={styles.label}>Urgente</ThemedText>
+                            <Pressable
+                                style={[styles.dateBtn, {borderColor: theme.border, justifyContent: "center"}]}
+                                onPress={() => setUrgente((s) => !s)}
+                            >
+                                <ThemedText>{urgente ? "Sim — Urgente" : "Não"}</ThemedText>
+                            </Pressable>
                         </View>
                     </View>
 
-                    {/* Descrição / Quilometragem */}
-                    <View style={[styles.section, {backgroundColor: theme.card}]}>
-                        <ThemedText style={styles.sectionTitle}>
-                            <MaterialCommunityIcons name="file-document" size={14}/> Descrição
-                        </ThemedText>
-
-                        <TextInput
-                            placeholder="Descreva o problema (ex: pneu furado, barulho no motor, etc.)"
-                            placeholderTextColor="#9aa0a6"
-                            multiline
-                            numberOfLines={4}
-                            style={[styles.textarea, {color: theme.text, borderColor: theme.border}]}
-                            value={descricao}
-                            onChangeText={setDescricao}
-                        />
-
-                        <TextInput
-                            placeholder="Quilometragem atual (opcional)"
-                            placeholderTextColor="#9aa0a6"
-                            keyboardType="numeric"
-                            style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
-                            value={quilometragem}
-                            onChangeText={setQuilometragem}
-                        />
+                    <View style={{marginTop: 8}}>
+                        <ThemedText style={styles.label}>Tipo</ThemedText>
+                        <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
+                            <Picker
+                                selectedValue={tipo}
+                                onValueChange={(val) => setTipo(val as any)}
+                                mode="dropdown"
+                                style={Platform.OS === "android" ? {color: tipo ? theme.text : "#9aa0a6"} : undefined}
+                            >
+                                <Picker.Item label="Selecione o tipo" value=""/>
+                                <Picker.Item label="Solicitação de manutenção"
+                                             value="SOLICITACAO"/>
+                                <Picker.Item label="Registro rápido"
+                                             value="REGISTRO_RAPIDO"/>
+                            </Picker>
+                        </View>
                     </View>
+                </View>
 
-                    {/* Botões */}
-                    <View style={{flexDirection: "row", justifyContent: "space-between", marginTop: 12}}>
-                        <Pressable style={[styles.btnOutline, {borderColor: theme.primary}]}
-                                   onPress={() => navigation.goBack()}>
-                            <ThemedText style={{color: theme.primary}}>Voltar</ThemedText>
-                        </Pressable>
+                {/* Descrição / Quilometragem */}
+                <View style={[styles.section, {backgroundColor: theme.card}]}>
+                    <ThemedText style={styles.sectionTitle}>
+                        <MaterialCommunityIcons name="file-document" size={14}/> Descrição
+                    </ThemedText>
 
-                        <Pressable style={[styles.btnPrimary, {backgroundColor: theme.primary}]} onPress={enviarAlerta}
-                                   disabled={saving}>
-                            {saving ? <ActivityIndicator color="#fff"/> :
-                                <ThemedText style={{color: theme.textBack}}>Enviar Alerta</ThemedText>}
-                        </Pressable>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
+                    <TextInput
+                        placeholder="Descreva o problema (ex: pneu furado, barulho no motor, etc.)"
+                        placeholderTextColor="#9aa0a6"
+                        multiline
+                        numberOfLines={4}
+                        style={[styles.textarea, {color: theme.text, borderColor: theme.border}]}
+                        value={descricao}
+                        onChangeText={setDescricao}
+                    />
+
+                    <TextInput
+                        placeholder="Quilometragem atual (opcional)"
+                        placeholderTextColor="#9aa0a6"
+                        keyboardType="numeric"
+                        style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
+                        value={quilometragem}
+                        onChangeText={setQuilometragem}
+                    />
+                </View>
+
+                {/* Botões */}
+                <View style={{flexDirection: "row", justifyContent: "space-between", marginTop: 12}}>
+                    <Pressable style={[styles.btnOutline, {borderColor: theme.primary}]}
+                               onPress={() => navigation.goBack()}>
+                        <ThemedText style={{color: theme.primary}}>Voltar</ThemedText>
+                    </Pressable>
+
+                    <Pressable style={[styles.btnPrimary, {backgroundColor: theme.primary}]} onPress={enviarAlerta}
+                               disabled={saving}>
+                        {saving ? <ActivityIndicator color="#fff"/> :
+                            <ThemedText style={{color: theme.textBack}}>Enviar Alerta</ThemedText>}
+                    </Pressable>
+                </View>
+            </KeyboardAwareScrollView>
         </ThemedView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {flex: 1},
-    keyboardAvoidingView: {flex: 1},
     scrollContainer: {padding: 20, paddingBottom: 40},
     title: {fontSize: 28, fontWeight: "800", marginBottom: 6},
     section: {borderRadius: 12, padding: 14, marginTop: 12},

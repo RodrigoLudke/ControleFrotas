@@ -3,10 +3,8 @@ import React, {useCallback, useState} from "react";
 import {
     ActivityIndicator,
     Alert,
-    KeyboardAvoidingView,
     Platform,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -21,6 +19,7 @@ import {useColorScheme} from "@/hooks/useColorScheme";
 import {FontAwesome5, MaterialCommunityIcons} from "@expo/vector-icons";
 import {Picker} from "@react-native-picker/picker";
 import {apiFetch} from "@/services/api";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 export default function RegistrarAbastecimento() {
     const navigation = useNavigation();
@@ -31,10 +30,10 @@ export default function RegistrarAbastecimento() {
     const [veiculoId, setVeiculoId] = useState<string>("");
     const [data, setData] = useState<Date>(new Date());
     const [quilometragem, setQuilometragem] = useState<string>("");
-    const [litros, setLitros] = useState<string>(""); // decimal
-    const [valorPorLitro, setValorPorLitro] = useState<string>(""); // decimal
+    const [litros, setLitros] = useState<string>("");
+    const [valorPorLitro, setValorPorLitro] = useState<string>("");
     const [posto, setPosto] = useState<string>("");
-    const [combustivel, setCombustivel] = useState<string>(""); // enum values e.g. GASOLINA
+    const [combustivel, setCombustivel] = useState<string>("");
 
     // pickers & UI state
     const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
@@ -47,7 +46,6 @@ export default function RegistrarAbastecimento() {
     useFocusEffect(
         useCallback(() => {
             carregarVeiculos();
-            // reset form
             setVeiculoId("");
             setData(new Date());
             setQuilometragem("");
@@ -80,24 +78,21 @@ export default function RegistrarAbastecimento() {
     const formatDate = (d?: Date) => (d ? d.toLocaleDateString() : "");
     const formatTime = (d?: Date) => (d ? d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "");
 
-    // Date/Time flow (same logic as alert screen)
     const openDateTimePicker = () => {
         if (Platform.OS === "android") {
-            setShowDatePicker(true); // date first, then time
+            setShowDatePicker(true);
         } else {
-            setShowDatePicker(true); // iOS single datetime
+            setShowDatePicker(true);
         }
     };
 
     const onChangeDate = (event: any, selected?: Date) => {
         if (Platform.OS === "android") {
             setShowDatePicker(false);
-            if (event?.type === "dismissed") {
-                return;
-            }
+            if (event?.type === "dismissed") return;
+
             const picked = selected ?? data;
             const newDate = new Date(picked);
-            // keep existing time if present
             setData(prev => {
                 const copy = new Date(newDate);
                 copy.setHours(prev.getHours(), prev.getMinutes(), 0, 0);
@@ -123,7 +118,6 @@ export default function RegistrarAbastecimento() {
 
     const parseDecimal = (s: string) => {
         if (!s) return NaN;
-        // accept comma as decimal separator
         const normalized = s.replace(/\s+/g, "").replace(",", ".");
         const n = Number(normalized);
         return Number.isFinite(n) ? n : NaN;
@@ -172,7 +166,7 @@ export default function RegistrarAbastecimento() {
                 litros: l,
                 valorPorLitro: vpl,
                 custoTotal,
-                combustivel, // string enum
+                combustivel,
                 posto: posto?.trim() || undefined,
             };
 
@@ -214,154 +208,164 @@ export default function RegistrarAbastecimento() {
 
     return (
         <ThemedView style={[styles.container, {backgroundColor: theme.background}]}>
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}
-                                  style={styles.keyboardAvoidingView}>
-                <ScrollView contentContainerStyle={styles.scrollContainer}>
-                    <ThemedText type="title" style={styles.title}>
-                        <MaterialCommunityIcons name="fuel" size={28}/> Registrar Abastecimento
+
+            {/* 2. Substituição da ScrollView e KeyboardAvoidingView */}
+            <KeyboardAwareScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={[styles.scrollContainer, { flexGrow: 1 }]}
+                enableOnAndroid={true}
+
+                // --- Configuração de Centralização ---
+                extraHeight={100}
+                extraScrollHeight={140} // Força o scroll a subir mais para centralizar
+
+                enableAutomaticScroll={true}
+                keyboardOpeningTime={Number.MAX_SAFE_INTEGER}
+                keyboardShouldPersistTaps="handled"
+            >
+                <ThemedText type="title" style={styles.title}>
+                    <MaterialCommunityIcons name="fuel" size={28}/> Registrar Abastecimento
+                </ThemedText>
+
+                {/* Veículo */}
+                <View style={[styles.section, {backgroundColor: theme.card}]}>
+                    <ThemedText style={styles.sectionTitle}>
+                        <FontAwesome5 name="truck" size={14}/> Veículo
+                    </ThemedText>
+                    {loadingVeiculos ? (
+                        <ActivityIndicator/>
+                    ) : (
+                        <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
+                            <Picker
+                                selectedValue={veiculoId}
+                                onValueChange={(val) => setVeiculoId(String(val))}
+                                mode="dropdown"
+                                style={Platform.OS === "android" ? {color: veiculoId ? theme.text : "#9aa0a6"} : undefined}
+                                dropdownIconColor={Platform.OS === "android" ? theme.text : undefined}
+                            >
+                                <Picker.Item label="Selecione o veículo" value=""/>
+                                {veiculos.map((v: any) => (
+                                    <Picker.Item
+                                        key={String(v.id)}
+                                        label={v.placa ? `${v.placa} — ${v.modelo ?? ""}` : `Veículo ${v.id}`}
+                                        value={String(v.id)}
+                                    />
+                                ))}
+                            </Picker>
+                        </View>
+                    )}
+                </View>
+
+                {/* Data / Combustível */}
+                <View style={[styles.section, {backgroundColor: theme.card}]}>
+                    <ThemedText style={styles.sectionTitle}>
+                        <MaterialCommunityIcons name="calendar" size={14}/> Detalhes
                     </ThemedText>
 
-                    {/* Veículo */}
-                    <View style={[styles.section, {backgroundColor: theme.card}]}>
-                        <ThemedText style={styles.sectionTitle}>
-                            <FontAwesome5 name="truck" size={14}/> Veículo
-                        </ThemedText>
-                        {loadingVeiculos ? (
-                            <ActivityIndicator/>
-                        ) : (
+                    <View style={styles.row}>
+                        <View style={{flex: 0.8}}>
+                            <ThemedText style={styles.label}>Data / Hora</ThemedText>
+                            <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                       onPress={openDateTimePicker}>
+                                <ThemedText>{`${formatDate(data)} ${formatTime(data)}`}</ThemedText>
+                            </Pressable>
+
+                            {showDatePicker && Platform.OS === "ios" && (
+                                <DateTimePicker value={data} mode="datetime" display="default"
+                                                onChange={onChangeDate}/>
+                            )}
+                            {showDatePicker && Platform.OS === "android" && (
+                                <DateTimePicker value={data} mode="date" display="calendar"
+                                                onChange={onChangeDate}/>
+                            )}
+                            {showTimePicker && Platform.OS === "android" && (
+                                <DateTimePicker value={data} mode="time" display="spinner" onChange={onChangeTime}/>
+                            )}
+                        </View>
+
+                        <View style={{flex: 1}}>
+                            <ThemedText style={styles.label}>Combustível</ThemedText>
                             <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
                                 <Picker
-                                    selectedValue={veiculoId}
-                                    onValueChange={(val) => setVeiculoId(String(val))}
+                                    selectedValue={combustivel}
+                                    onValueChange={(val) => setCombustivel(String(val))}
                                     mode="dropdown"
-                                    style={Platform.OS === "android" ? {color: veiculoId ? theme.text : "#9aa0a6"} : undefined}
-                                    dropdownIconColor={Platform.OS === "android" ? theme.text : undefined}
+                                    style={Platform.OS === "android" ? {color: combustivel ? theme.text : "#9aa0a6"} : undefined}
                                 >
-                                    <Picker.Item label="Selecione o veículo" value=""/>
-                                    {veiculos.map((v: any) => (
-                                        <Picker.Item
-                                            key={String(v.id)}
-                                            label={v.placa ? `${v.placa} — ${v.modelo ?? ""}` : `Veículo ${v.id}`}
-                                            value={String(v.id)}
-                                        />
-                                    ))}
+                                    <Picker.Item label="Selecione o combustível" value=""/>
+                                    <Picker.Item label="Gasolina" value="gasolina"/>
+                                    <Picker.Item label="Alcool" value="álcool"/>
+                                    <Picker.Item label="Flex" value="flex"/>
+                                    <Picker.Item label="Diesel" value="diesel"/>
+                                    <Picker.Item label="Elétrico" value="eletrico"/>
                                 </Picker>
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Data / Combustível */}
-                    <View style={[styles.section, {backgroundColor: theme.card}]}>
-                        <ThemedText style={styles.sectionTitle}>
-                            <MaterialCommunityIcons name="calendar" size={14}/> Detalhes
-                        </ThemedText>
-
-                        <View style={styles.row}>
-                            <View style={{flex: 0.8}}>
-                                <ThemedText style={styles.label}>Data / Hora</ThemedText>
-                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
-                                           onPress={openDateTimePicker}>
-                                    <ThemedText>{`${formatDate(data)} ${formatTime(data)}`}</ThemedText>
-                                </Pressable>
-
-                                {showDatePicker && Platform.OS === "ios" && (
-                                    <DateTimePicker value={data} mode="datetime" display="default"
-                                                    onChange={onChangeDate}/>
-                                )}
-                                {showDatePicker && Platform.OS === "android" && (
-                                    <DateTimePicker value={data} mode="date" display="calendar"
-                                                    onChange={onChangeDate}/>
-                                )}
-                                {showTimePicker && Platform.OS === "android" && (
-                                    <DateTimePicker value={data} mode="time" display="spinner" onChange={onChangeTime}/>
-                                )}
-                            </View>
-
-                            <View style={{flex: 1}}>
-                                <ThemedText style={styles.label}>Combustível</ThemedText>
-                                <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
-                                    <Picker
-                                        selectedValue={combustivel}
-                                        onValueChange={(val) => setCombustivel(String(val))}
-                                        mode="dropdown"
-                                        style={Platform.OS === "android" ? {color: combustivel ? theme.text : "#9aa0a6"} : undefined}
-                                    >
-                                        <Picker.Item label="Selecione o combustível" value=""/>
-                                        <Picker.Item label="Gasolina" value="gasolina"/>
-                                        <Picker.Item label="Alcool" value="álcool"/>
-                                        <Picker.Item label="Flex" value="flex"/>
-                                        <Picker.Item label="Diesel" value="diesel"/>
-                                        <Picker.Item label="Elétrico" value="eletrico"/>
-                                    </Picker>
-                                </View>
                             </View>
                         </View>
                     </View>
+                </View>
 
-                    {/* Valores / Quilometragem */}
-                    <View style={[styles.section, {backgroundColor: theme.card}]}>
-                        <ThemedText style={styles.sectionTitle}>
-                            <MaterialCommunityIcons name="speedometer" size={14}/> Medidas e Valores
-                        </ThemedText>
+                {/* Valores / Quilometragem */}
+                <View style={[styles.section, {backgroundColor: theme.card}]}>
+                    <ThemedText style={styles.sectionTitle}>
+                        <MaterialCommunityIcons name="speedometer" size={14}/> Medidas e Valores
+                    </ThemedText>
 
-                        <TextInput
-                            placeholder="Quilometragem"
-                            placeholderTextColor="#9aa0a6"
-                            keyboardType="numeric"
-                            style={[styles.input, {color: theme.text, borderColor: theme.border}]}
-                            value={quilometragem}
-                            onChangeText={setQuilometragem}
-                        />
+                    <TextInput
+                        placeholder="Quilometragem"
+                        placeholderTextColor="#9aa0a6"
+                        keyboardType="numeric"
+                        style={[styles.input, {color: theme.text, borderColor: theme.border}]}
+                        value={quilometragem}
+                        onChangeText={setQuilometragem}
+                    />
 
-                        <TextInput
-                            placeholder="Litros abastecidos (ex: 45.32)"
-                            placeholderTextColor="#9aa0a6"
-                            keyboardType="numeric"
-                            style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
-                            value={litros}
-                            onChangeText={setLitros}
-                        />
+                    <TextInput
+                        placeholder="Litros abastecidos (ex: 45.32)"
+                        placeholderTextColor="#9aa0a6"
+                        keyboardType="numeric"
+                        style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
+                        value={litros}
+                        onChangeText={setLitros}
+                    />
 
-                        <TextInput
-                            placeholder="Valor por litro (ex: 5.599)"
-                            placeholderTextColor="#9aa0a6"
-                            keyboardType="numeric"
-                            style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
-                            value={valorPorLitro}
-                            onChangeText={setValorPorLitro}
-                        />
+                    <TextInput
+                        placeholder="Valor por litro (ex: 5.599)"
+                        placeholderTextColor="#9aa0a6"
+                        keyboardType="numeric"
+                        style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
+                        value={valorPorLitro}
+                        onChangeText={setValorPorLitro}
+                    />
 
-                        <TextInput
-                            placeholder="Posto (opcional)"
-                            placeholderTextColor="#9aa0a6"
-                            style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
-                            value={posto}
-                            onChangeText={setPosto}
-                        />
-                    </View>
+                    <TextInput
+                        placeholder="Posto (opcional)"
+                        placeholderTextColor="#9aa0a6"
+                        style={[styles.input, {color: theme.text, borderColor: theme.border, marginTop: 8}]}
+                        value={posto}
+                        onChangeText={setPosto}
+                    />
+                </View>
 
-                    {/* Botões */}
-                    <View style={{flexDirection: "row", justifyContent: "space-between", marginTop: 12}}>
-                        <Pressable style={[styles.btnOutline, {borderColor: theme.primary}]}
-                                   onPress={() => navigation.goBack()}>
-                            <ThemedText style={{color: theme.primary}}>Voltar</ThemedText>
-                        </Pressable>
+                {/* Botões */}
+                <View style={{flexDirection: "row", justifyContent: "space-between", marginTop: 12}}>
+                    <Pressable style={[styles.btnOutline, {borderColor: theme.primary}]}
+                               onPress={() => navigation.goBack()}>
+                        <ThemedText style={{color: theme.primary}}>Voltar</ThemedText>
+                    </Pressable>
 
-                        <Pressable style={[styles.btnPrimary, {backgroundColor: theme.primary}]}
-                                   onPress={enviarAbastecimento} disabled={saving}>
-                            {saving ? <ActivityIndicator color="#fff"/> :
-                                <ThemedText style={{color: theme.textBack}}>Registrar Abastecimento</ThemedText>}
-                        </Pressable>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
+                    <Pressable style={[styles.btnPrimary, {backgroundColor: theme.primary}]}
+                               onPress={enviarAbastecimento} disabled={saving}>
+                        {saving ? <ActivityIndicator color="#fff"/> :
+                            <ThemedText style={{color: theme.textBack}}>Registrar Abastecimento</ThemedText>}
+                    </Pressable>
+                </View>
+            </KeyboardAwareScrollView>
         </ThemedView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {flex: 1},
-    keyboardAvoidingView: {flex: 1},
     scrollContainer: {padding: 20, paddingBottom: 40},
     title: {fontSize: 28, fontWeight: "800", marginBottom: 6},
     section: {borderRadius: 12, padding: 14, marginTop: 12},

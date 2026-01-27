@@ -1,3 +1,4 @@
+// backend/routes/abastecimentos.js
 import express from "express";
 import pkg from "@prisma/client";
 import {autenticarToken} from "../index.js";
@@ -138,13 +139,18 @@ router.post("/", autenticarToken, async (req, res) => {
 
         const custoTotal = litrosNum * valorNum;
 
+        // CORREÇÃO: Usando connect para todos os relacionamentos
         const novo = await prisma.abastecimento.create({
             data: {
                 company: {
                     connect: { id: companyId }
                 },
-                veiculoId: vid,
-                userId: req.user.id,
+                veiculo: {
+                    connect: { id: vid }
+                },
+                user: {
+                    connect: { id: req.user.id }
+                },
                 data: dt,
                 quilometragem: Number(quilometragem),
                 litros: litrosNum,

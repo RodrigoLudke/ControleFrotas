@@ -3,9 +3,7 @@ import {
     ActivityIndicator,
     Alert,
     Image,
-    KeyboardAvoidingView,
     Platform,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -19,6 +17,7 @@ import {Lock, Mail, Truck} from "lucide-react-native";
 
 import {Colors} from "@/constants/Colors";
 import {useColorScheme} from "@/hooks/useColorScheme";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
 
@@ -32,7 +31,6 @@ export default function LoginScreen() {
     const theme = Colors[colorScheme ?? "light"];
 
     const handleSupport = async () => {
-        // OPÇÃO A: WhatsApp (Recomendado)
         const SUPPORT_PHONE = process.env.EXPO_PUBLIC_SUPPORT_PHONE;
         const message = "Olá, estou com problemas para acessar o App de Frotas.";
         const url = `whatsapp://send?phone=${SUPPORT_PHONE}&text=${encodeURIComponent(message)}`;
@@ -42,12 +40,12 @@ export default function LoginScreen() {
         if (supported) {
             await Linking.openURL(url);
         } else {
-            // Se não tiver o app instalado, abre o link web ou tenta e-mail
             await Linking.openURL(`https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent(message)}`);
         }
     };
 
     const handleLogin = async () => {
+        setIsLoading(true);
         try {
             const response = await fetch(`${BASE_URL}/index`, {
                 method: "POST",
@@ -69,120 +67,131 @@ export default function LoginScreen() {
         } catch (error) {
             Alert.alert("Erro", "Não foi possível conectar ao servidor ");
             console.error("Erro de login:", error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={-50}
-            style={[styles.keyboardAvoidingView, {backgroundColor: theme.primary}]}
+        <KeyboardAwareScrollView
+            style={{ flex: 1, backgroundColor: theme.primary }}
+            contentContainerStyle={styles.scrollContainer}
+
+            enableOnAndroid={true}
+
+            // ALTERAÇÃO AQUI:
+            // extraHeight: Mantém uma distância de segurança entre o teclado e o input (ex: 120px)
+            extraHeight={120}
+
+            // extraScrollHeight: Coloque 0 ou um valor baixo.
+            // Isso evita que ele "force" a subida do formulário para o topo da tela.
+            extraScrollHeight={65}
+
+            enableAutomaticScroll={true}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
         >
-            <ScrollView contentContainerStyle={styles.scrollContainer}>
-                <View style={styles.contentContainer}>
-                    {/* Logo + título */}
-                    <View style={styles.header}>
-                        <Image
-                            source={require("@/assets/images/CF-logoWhite.png")}
-                            style={styles.logo}
-                        />
-                        {/*<Text style={[styles.title, { color: theme.textBack }]}>Controle de Frotas</Text>*/}
-                        <Text style={[styles.subtitle, {color: theme.iconBack}]}>
-                            Sistema profissional de gestão de veículos
-                        </Text>
-                    </View>
-                    {/* Card */}
-                    <View style={[styles.card, {backgroundColor: theme.background}]}>
-                        <Text style={[styles.cardTitle, {color: theme.text}]}>Entrar</Text>
-                        <Text style={[styles.cardDescription, {color: theme.icon}]}>
-                            Acesse sua conta para gerenciar a frota
-                        </Text>
+            <View style={styles.contentContainer}>
+                {/* Logo + título */}
+                <View style={styles.header}>
+                    <Image
+                        source={require("@/assets/images/CF-logoWhite.png")}
+                        style={styles.logo}
+                    />
+                    <Text style={[styles.subtitle, {color: theme.iconBack}]}>
+                        Sistema profissional de gestão de veículos
+                    </Text>
+                </View>
 
-                        {/* Form */}
-                        <View style={styles.form}>
-                            {/* Campo email */}
-                            <View
-                                style={[
-                                    styles.inputGroup,
-                                    {backgroundColor: theme.card, borderColor: theme.border},
-                                ]}
-                            >
-                                <Mail size={18} color={theme.icon} style={styles.icon}/>
-                                <TextInput
-                                    style={[styles.input, {color: theme.text}]}
-                                    placeholder="Email"
-                                    placeholderTextColor={theme.icon}
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                />
-                            </View>
+                {/* Card */}
+                <View style={[styles.card, {backgroundColor: theme.background}]}>
+                    <Text style={[styles.cardTitle, {color: theme.text}]}>Entrar</Text>
+                    <Text style={[styles.cardDescription, {color: theme.icon}]}>
+                        Acesse sua conta para gerenciar a frota
+                    </Text>
 
-                            {/* Campo senha */}
-                            <View
-                                style={[
-                                    styles.inputGroup,
-                                    {backgroundColor: theme.card, borderColor: theme.border},
-                                ]}
-                            >
-                                <Lock size={18} color={theme.icon} style={styles.icon}/>
-                                <TextInput
-                                    style={[styles.input, {color: theme.text}]}
-                                    placeholder="Senha"
-                                    placeholderTextColor={theme.icon}
-                                    secureTextEntry
-                                    value={senha}
-                                    onChangeText={setSenha}
-                                />
-                            </View>
-
-                            {/* Botão */}
-                            <TouchableOpacity
-                                style={[styles.button, {backgroundColor: theme.primary}]}
-                                onPress={handleLogin}
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <ActivityIndicator color="#fff"/>
-                                ) : (
-                                    <View style={styles.buttonContent}>
-                                        <Truck size={18} color="#fff" style={{marginRight: 6}}/>
-                                        <Text style={styles.buttonText}>Entrar</Text>
-                                    </View>
-                                )}
-                            </TouchableOpacity>
+                    {/* Form */}
+                    <View style={styles.form}>
+                        {/* Campo email */}
+                        <View
+                            style={[
+                                styles.inputGroup,
+                                {backgroundColor: theme.card, borderColor: theme.border},
+                            ]}
+                        >
+                            <Mail size={18} color={theme.icon} style={styles.icon}/>
+                            <TextInput
+                                style={[styles.input, {color: theme.text}]}
+                                placeholder="Email"
+                                placeholderTextColor={theme.icon}
+                                value={email}
+                                onChangeText={setEmail}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
                         </View>
-                    </View>
 
-                    {/* Rodapé */}
-                    <View style={styles.footer}>
-                        <Text style={[styles.footerText, {color: theme.iconBack}]}>
-                            Problemas para acessar?{" "}
-                            <Text style={[styles.footerLink, {color: theme.textBack}]} onPress={handleSupport}>
-                                Entre em contato
-                            </Text>
-                        </Text>
+                        {/* Campo senha */}
+                        <View
+                            style={[
+                                styles.inputGroup,
+                                {backgroundColor: theme.card, borderColor: theme.border},
+                            ]}
+                        >
+                            <Lock size={18} color={theme.icon} style={styles.icon}/>
+                            <TextInput
+                                style={[styles.input, {color: theme.text}]}
+                                placeholder="Senha"
+                                placeholderTextColor={theme.icon}
+                                secureTextEntry
+                                value={senha}
+                                onChangeText={setSenha}
+                            />
+                        </View>
+
+                        {/* Botão */}
+                        <TouchableOpacity
+                            style={[styles.button, {backgroundColor: theme.primary}]}
+                            onPress={handleLogin}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator color="#fff"/>
+                            ) : (
+                                <View style={styles.buttonContent}>
+                                    <Truck size={18} color="#fff" style={{marginRight: 6}}/>
+                                    <Text style={styles.buttonText}>Entrar</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
                     </View>
                 </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+
+                {/* Rodapé */}
+                <View style={styles.footer}>
+                    <Text style={[styles.footerText, {color: theme.iconBack}]}>
+                        Problemas para acessar?{" "}
+                        <Text style={[styles.footerLink, {color: theme.textBack}]} onPress={handleSupport}>
+                            Entre em contato
+                        </Text>
+                    </Text>
+                </View>
+            </View>
+        </KeyboardAwareScrollView>
     );
 }
 
 const styles = StyleSheet.create({
-    keyboardAvoidingView: {
-        flex: 1,
-    },
     scrollContainer: {
         flexGrow: 1,
         justifyContent: "center",
         alignItems: "center",
+        paddingVertical: 20,
     },
     contentContainer: {
         width: "100%",
-        maxWidth: 400, // opcional, para telas maiores
-        padding: 20,
+        maxWidth: 400,
+        paddingHorizontal: 20,
         alignItems: 'center',
     },
     header: {
@@ -193,10 +202,6 @@ const styles = StyleSheet.create({
         width: 264,
         height: 264,
         marginBottom: -40,
-    },
-    title: {
-        fontSize: 26,
-        fontWeight: "bold",
     },
     subtitle: {
         fontSize: 14,

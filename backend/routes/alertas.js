@@ -15,7 +15,7 @@ const router = express.Router();
 router.post("/", autenticarToken, async (req, res) => {
     try {
         const userId = req.user?.id;
-        const companyId = req.user?.companyId; // <--- Pega da sessão
+        const companyId = req.user?.companyId;
         const { veiculoId, mensagem, tipo } = req.body;
 
         if (!mensagem || String(mensagem).trim().length === 0) {
@@ -23,8 +23,9 @@ router.post("/", autenticarToken, async (req, res) => {
         }
 
         // Se informou veículo, valida se pertence à empresa
+        let vid = null;
         if (veiculoId) {
-            const vid = Number(veiculoId);
+            vid = Number(veiculoId);
             const veiculoValido = await prisma.veiculo.findFirst({
                 where: { id: vid, companyId: companyId }
             });
@@ -33,17 +34,28 @@ router.post("/", autenticarToken, async (req, res) => {
             }
         }
 
-        const alerta = await prisma.alerta.create({
-            data: {
-                company: {
-                    connect: { id: companyId }
-                },
-                userId,
-                veiculoId: veiculoId ? Number(veiculoId) : null,
-                mensagem,
-                tipo: tipo === "REGISTRO_RAPIDO" ? "REGISTRO_RAPIDO" : "SOLICITACAO",
-                status: "PENDENTE",
+        // CORREÇÃO: Usando connect
+        const dadosCriacao = {
+            company: {
+                connect: { id: companyId }
             },
+            user: {
+                connect: { id: userId } // Relacionamento obrigatório com o criador
+            },
+            mensagem,
+            tipo: tipo === "REGISTRO_RAPIDO" ? "REGISTRO_RAPIDO" : "SOLICITACAO",
+            status: "PENDENTE",
+        };
+
+        // Relacionamento opcional com veículo
+        if (vid) {
+            dadosCriacao.veiculo = {
+                connect: { id: vid }
+            };
+        }
+
+        const alerta = await prisma.alerta.create({
+            data: dadosCriacao,
             include: {
                 user: { select: { id: true, nome: true, email: true } },
             },
@@ -67,7 +79,7 @@ router.get("/", autenticarToken, async (req, res) => {
         const alertas = await prisma.alerta.findMany({
             where: {
                 userId,
-                companyId: companyId // <--- Segurança extra (filtro por empresa)
+                companyId: companyId
             },
             orderBy: { createdAt: "desc" },
             include: {
@@ -92,7 +104,7 @@ router.get("/admin", autenticarToken, autorizarRoles("ADMIN"), async (req, res) 
         const companyId = req.user.companyId;
 
         const where = {
-            companyId: companyId // <--- Filtro OBRIGATÓRIO
+            companyId: companyId
         };
 
         if (status) {
@@ -126,7 +138,6 @@ router.get("/:id", autenticarToken, autorizarRoles("ADMIN"), async (req, res) =>
 
         if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido." });
 
-        // CORREÇÃO: findFirst com companyId
         const alerta = await prisma.alerta.findFirst({
             where: {
                 id: id,
@@ -191,39 +202,40 @@ router.post("/:id/decidir", autenticarToken, autorizarRoles("ADMIN"), async (req
 
             const veiculoIdFinal = alerta.veiculoId ?? (agendar.veiculoId ? Number(agendar.veiculoId) : null);
 
-            // Validação extra: se o veiculoId vier do 'agendar' (manual) e não do alerta,
-            // verificar se pertence à empresa
+            // Validação extra
             if (!alerta.veiculoId && veiculoIdFinal) {
                 const vCheck = await prisma.veiculo.findFirst({ where: { id: veiculoIdFinal, companyId }});
                 if (!vCheck) return res.status(400).json({ error: "Veículo informado no agendamento não pertence à empresa." });
             }
 
-            if (!veiculoIdFinal) {
-                // Se não tiver veículo no alerta nem no agendamento, não dá pra criar manutenção
-                // (Depende da regra de negócio, mas geralmente manutenção precisa de veículo)
-            } else {
+            if (veiculoIdFinal) {
+                // CORREÇÃO: Usando connect na criação da manutenção também
+                const dadosManutencao = {
+                    company: { connect: { id: companyId } },
+                    veiculo: { connect: { id: veiculoIdFinal } },
+                    data: dataAgendamento ? new Date(dataAgendamento) : new Date(),
+                    quilometragem: quilometragem ? Number(quilometragem) : 0,
+                    tipo: tipo === "PREVENTIVA" ? "PREVENTIVA" : "CORRETIVA",
+                    descricao: descricao ?? alerta.mensagem ?? "Manutenção agendada a partir de alerta",
+                    custo: agendar.custo ? Number(agendar.custo) : undefined,
+                    local: agendar.local ?? undefined,
+                    observacoes: agendar.observacoes ?? undefined,
+                    status: statusManut
+                };
+
+                const userIdFinal = agendar.userId ?? alerta.userId;
+                if (userIdFinal) {
+                    dadosManutencao.user = { connect: { id: userIdFinal } };
+                }
+
                 manutencaoCriada = await prisma.manutencao.create({
-                    data: {
-                        company: {
-                            connect: { id: companyId }
-                        },
-                        veiculoId: veiculoIdFinal,
-                        userId: agendar.userId ?? alerta.userId ?? null,
-                        data: dataAgendamento ? new Date(dataAgendamento) : new Date(),
-                        quilometragem: quilometragem ? Number(quilometragem) : 0,
-                        tipo: tipo === "PREVENTIVA" ? "PREVENTIVA" : "CORRETIVA",
-                        descricao: descricao ?? alerta.mensagem ?? "Manutenção agendada a partir de alerta",
-                        custo: agendar.custo ? Number(agendar.custo) : undefined,
-                        local: agendar.local ?? undefined,
-                        observacoes: agendar.observacoes ?? undefined,
-                        status: statusManut
-                    }
+                    data: dadosManutencao
                 });
 
                 // Atualizar status do veículo para 'manutencao' se necessário
                 try {
                     await prisma.veiculo.update({
-                        where: { id: veiculoIdFinal }, // Seguro pois validamos acima
+                        where: { id: veiculoIdFinal },
                         data: { status: "manutencao" }
                     });
                 } catch (e) {

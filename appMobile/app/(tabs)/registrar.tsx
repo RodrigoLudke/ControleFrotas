@@ -3,10 +3,8 @@ import React, {useCallback, useState} from "react";
 import {
     ActivityIndicator,
     Alert,
-    KeyboardAvoidingView,
     Platform,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -21,11 +19,11 @@ import {useColorScheme} from "@/hooks/useColorScheme";
 import {FontAwesome5, MaterialCommunityIcons} from "@expo/vector-icons";
 import {Picker} from "@react-native-picker/picker";
 import {apiFetch} from "@/services/api";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 export default function RegistrarViagem() {
     const route = useRoute();
     const navigation = useNavigation();
-    // se navegação mandar { id: 3 } — usamos isso para editar
     const params: any = (route.params as any) || {};
     const editingId: number | null = params?.id ? Number(params.id) : null;
 
@@ -52,7 +50,6 @@ export default function RegistrarViagem() {
 
     useFocusEffect(
         useCallback(() => {
-            // carregar veículos sempre que a tela entra em foco
             carregarVeiculos();
             if (!editingId) resetForm();
             else carregarViagem(editingId);
@@ -98,7 +95,6 @@ export default function RegistrarViagem() {
                 return;
             }
             const trip = await res.json();
-            // preenche campos (tolerante a nomes)
             const ds = trip.dataSaida ? new Date(trip.dataSaida) : new Date();
             const dc = trip.dataChegada ? new Date(trip.dataChegada) : new Date();
 
@@ -222,7 +218,6 @@ export default function RegistrarViagem() {
         ]);
     };
 
-    // handlers DateTimePickers
     const onChangeData = (_: any, selected?: Date) => {
         setShowDatePicker(false);
         if (selected) setData(selected);
@@ -253,134 +248,149 @@ export default function RegistrarViagem() {
 
     return (
         <ThemedView style={[styles.container, {backgroundColor: theme.background}]}>
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}
-                                  style={styles.keyboardAvoidingView}>
-                <ScrollView contentContainerStyle={styles.scrollContainer}>
-                    <ThemedText type="title" style={styles.title}>
-                        <MaterialCommunityIcons name="map-marker"
-                                                size={28}/> {editingId ? "Editar Viagem" : "Nova Viagem"}
-                    </ThemedText>
+            <KeyboardAwareScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={[styles.scrollContainer, { flexGrow: 1 }]} // flexGrow ajuda no calculo
+                enableOnAndroid={true}
 
-                    {/* Veículo */}
-                    <View style={[styles.section, {backgroundColor: theme.card}]}>
-                        <ThemedText style={styles.sectionTitle}><FontAwesome5 name="truck" size={14}/> Informações do
-                            Veículo</ThemedText>
-                        {loadingVeiculos ? (
-                            <ActivityIndicator/>
-                        ) : (
-                            <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
-                                <Picker
-                                    selectedValue={veiculoId}
-                                    onValueChange={(val) => setVeiculoId(String(val))}
-                                    mode="dropdown"
-                                    style={Platform.OS === 'android' ? {color: veiculoId ? theme.text : "#9aa0a6"} : undefined}
-                                    dropdownIconColor={Platform.OS === 'android' ? theme.text : undefined}
-                                >
-                                    <Picker.Item label="Selecione o veículo" value=""/>
-                                    {veiculos.map((v: any) => (
-                                        <Picker.Item
-                                            key={String(v.id)}
-                                            label={v.placa ? `${v.placa} - ${v.modelo}` : `${v.id} - Veículo`}
-                                            value={String(v.id)}
-                                        />
-                                    ))}
-                                </Picker>
-                            </View>
-                        )}
-                    </View>
+                // --- CONFIGURAÇÃO PARA CENTRALIZAR ---
+                // extraHeight: Adiciona uma margem extra abaixo do input focado para ele não colar no teclado
+                extraHeight={100}
 
-                    {/* Datas e horários */}
-                    <View style={[styles.section, {backgroundColor: theme.card}]}>
-                        <ThemedText style={styles.sectionTitle}><MaterialCommunityIcons name="calendar" size={14}/> Rota
-                            e Data</ThemedText>
-                        <View style={styles.row}>
-                            <View style={{flex: 1}}>
-                                <ThemedText style={styles.label}>Data Saída</ThemedText>
-                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
-                                           onPress={() => setShowDatePicker(true)}>
-                                    <ThemedText>{formatDate(data)}</ThemedText>
-                                </Pressable>
-                                {showDatePicker && <DateTimePicker value={data} mode="date" display="default"
-                                                                   onChange={onChangeData}/>}
-                            </View>
-                            <View style={{flex: 1}}>
-                                <ThemedText style={styles.label}>Horário Saída</ThemedText>
-                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
-                                           onPress={() => setShowSaidaPicker(true)}>
-                                    <ThemedText>{formatTime(horarioSaida)}</ThemedText>
-                                </Pressable>
-                                {showSaidaPicker && <DateTimePicker value={horarioSaida} mode="time" display="spinner"
-                                                                    onChange={onChangeHorarioSaida}/>}
-                            </View>
+                // extraScrollHeight: É isso que faz o input subir mais.
+                // Aumente este valor (ex: 120 a 160) para empurrar o campo para o MEIO da tela livre.
+                extraScrollHeight={140}
+
+                enableAutomaticScroll={true}
+                keyboardOpeningTime={Number.MAX_SAFE_INTEGER} // Truque para melhorar animação no Android
+                keyboardShouldPersistTaps="handled"
+                enableResetScrollToCoords={false} // Evita que a tela pule de volta indesejadamente
+            >
+                <ThemedText type="title" style={styles.title}>
+                    <MaterialCommunityIcons name="map-marker"
+                                            size={28}/> {editingId ? "Editar Viagem" : "Nova Viagem"}
+                </ThemedText>
+
+                {/* Veículo */}
+                <View style={[styles.section, {backgroundColor: theme.card}]}>
+                    <ThemedText style={styles.sectionTitle}><FontAwesome5 name="truck" size={14}/> Informações do
+                        Veículo</ThemedText>
+                    {loadingVeiculos ? (
+                        <ActivityIndicator/>
+                    ) : (
+                        <View style={[styles.pickerWrap, {borderColor: theme.border}]}>
+                            <Picker
+                                selectedValue={veiculoId}
+                                onValueChange={(val) => setVeiculoId(String(val))}
+                                mode="dropdown"
+                                style={Platform.OS === 'android' ? {color: veiculoId ? theme.text : "#9aa0a6"} : undefined}
+                                dropdownIconColor={Platform.OS === 'android' ? theme.text : undefined}
+                            >
+                                <Picker.Item label="Selecione o veículo" value=""/>
+                                {veiculos.map((v: any) => (
+                                    <Picker.Item
+                                        key={String(v.id)}
+                                        label={v.placa ? `${v.placa} - ${v.modelo}` : `${v.id} - Veículo`}
+                                        value={String(v.id)}
+                                    />
+                                ))}
+                            </Picker>
                         </View>
+                    )}
+                </View>
 
-                        <View style={styles.row}>
-                            <View style={{flex: 1}}>
-                                <ThemedText style={styles.label}>Data Chegada</ThemedText>
-                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
-                                           onPress={() => setShowDataChegadaPicker(true)}>
-                                    <ThemedText>{formatDate(dataChegada)}</ThemedText>
-                                </Pressable>
-                                {showDataChegadaPicker &&
-                                    <DateTimePicker value={dataChegada} mode="date" display="default"
-                                                    onChange={onChangeDataChegada}/>}
-                            </View>
-                            <View style={{flex: 1}}>
-                                <ThemedText style={styles.label}>Horário Chegada</ThemedText>
-                                <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
-                                           onPress={() => setShowChegadaPicker(true)}>
-                                    <ThemedText>{formatTime(horarioChegada)}</ThemedText>
-                                </Pressable>
-                                {showChegadaPicker &&
-                                    <DateTimePicker value={horarioChegada} mode="time" display="spinner"
-                                                    onChange={onChangeHorarioChegada}/>}
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* Dados da viagem */}
-                    <View style={[styles.section, {backgroundColor: theme.card}]}>
-                        <ThemedText style={styles.sectionTitle}><MaterialCommunityIcons name="file-document"
-                                                                                        size={14}/> Dados da
-                            Viagem</ThemedText>
-                        <TextInput placeholder="Finalidade" placeholderTextColor="#9aa0a6"
-                                   style={[styles.input, {color: theme.text, borderColor: theme.border}]}
-                                   value={finalidade} onChangeText={setFinalidade}/>
-                        <TextInput placeholder="KM Final" placeholderTextColor="#9aa0a6" keyboardType="numeric"
-                                   style={[styles.input, {color: theme.text, borderColor: theme.border}]}
-                                   value={kmFinal} onChangeText={setKmFinal}/>
-                    </View>
-
-                    {/* Botões */}
-                    <View style={{flexDirection: "row", justifyContent: "space-between", marginTop: 12}}>
-                        <Pressable style={[styles.btnOutline, {borderColor: theme.primary}]}
-                                   onPress={() => navigation.goBack()}>
-                            <ThemedText style={{color: theme.primary}}>Voltar</ThemedText>
-                        </Pressable>
-
-                        {!!editingId && (
-                            <Pressable style={[styles.btnOutline, {borderColor: "#e53e3e"}]} onPress={excluirViagem}
-                                       disabled={saving}>
-                                {saving ? <ActivityIndicator/> :
-                                    <ThemedText style={{color: "#e53e3e"}}>Deletar</ThemedText>}
+                {/* Datas e horários */}
+                <View style={[styles.section, {backgroundColor: theme.card}]}>
+                    <ThemedText style={styles.sectionTitle}><MaterialCommunityIcons name="calendar" size={14}/> Rota
+                        e Data</ThemedText>
+                    <View style={styles.row}>
+                        <View style={{flex: 1}}>
+                            <ThemedText style={styles.label}>Data Saída</ThemedText>
+                            <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                       onPress={() => setShowDatePicker(true)}>
+                                <ThemedText>{formatDate(data)}</ThemedText>
                             </Pressable>
-                        )}
-
-                        <Pressable style={[styles.btnPrimary, {backgroundColor: theme.primary}]} onPress={salvarViagem}
-                                   disabled={saving}>
-                            {saving ? <ActivityIndicator color="#fff"/> : <ThemedText
-                                style={{color: theme.textBack}}>{editingId ? "Atualizar" : "Registrar Viagem"}</ThemedText>}
-                        </Pressable>
+                            {showDatePicker && <DateTimePicker value={data} mode="date" display="default"
+                                                               onChange={onChangeData}/>}
+                        </View>
+                        <View style={{flex: 1}}>
+                            <ThemedText style={styles.label}>Horário Saída</ThemedText>
+                            <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                       onPress={() => setShowSaidaPicker(true)}>
+                                <ThemedText>{formatTime(horarioSaida)}</ThemedText>
+                            </Pressable>
+                            {showSaidaPicker && <DateTimePicker value={horarioSaida} mode="time" display="spinner"
+                                                                onChange={onChangeHorarioSaida}/>}
+                        </View>
                     </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
+
+                    <View style={styles.row}>
+                        <View style={{flex: 1}}>
+                            <ThemedText style={styles.label}>Data Chegada</ThemedText>
+                            <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                       onPress={() => setShowDataChegadaPicker(true)}>
+                                <ThemedText>{formatDate(dataChegada)}</ThemedText>
+                            </Pressable>
+                            {showDataChegadaPicker &&
+                                <DateTimePicker value={dataChegada} mode="date" display="default"
+                                                onChange={onChangeDataChegada}/>}
+                        </View>
+                        <View style={{flex: 1}}>
+                            <ThemedText style={styles.label}>Horário Chegada</ThemedText>
+                            <Pressable style={[styles.dateBtn, {borderColor: theme.border}]}
+                                       onPress={() => setShowChegadaPicker(true)}>
+                                <ThemedText>{formatTime(horarioChegada)}</ThemedText>
+                            </Pressable>
+                            {showChegadaPicker &&
+                                <DateTimePicker value={horarioChegada} mode="time" display="spinner"
+                                                onChange={onChangeHorarioChegada}/>}
+                        </View>
+                    </View>
+                </View>
+
+                {/* Dados da viagem */}
+                <View style={[styles.section, {backgroundColor: theme.card}]}>
+                    <ThemedText style={styles.sectionTitle}><MaterialCommunityIcons name="file-document"
+                                                                                    size={14}/> Dados da
+                        Viagem</ThemedText>
+
+                    <TextInput placeholder="Finalidade" placeholderTextColor="#9aa0a6"
+                               style={[styles.input, {color: theme.text, borderColor: theme.border}]}
+                               value={finalidade} onChangeText={setFinalidade}/>
+
+                    <TextInput placeholder="KM Final" placeholderTextColor="#9aa0a6" keyboardType="numeric"
+                               style={[styles.input, {color: theme.text, borderColor: theme.border}]}
+                               value={kmFinal} onChangeText={setKmFinal}/>
+                </View>
+
+                {/* Botões */}
+                <View style={{flexDirection: "row", justifyContent: "space-between", marginTop: 12}}>
+                    <Pressable style={[styles.btnOutline, {borderColor: theme.primary}]}
+                               onPress={() => navigation.goBack()}>
+                        <ThemedText style={{color: theme.primary}}>Voltar</ThemedText>
+                    </Pressable>
+
+                    {!!editingId && (
+                        <Pressable style={[styles.btnOutline, {borderColor: "#e53e3e"}]} onPress={excluirViagem}
+                                   disabled={saving}>
+                            {saving ? <ActivityIndicator/> :
+                                <ThemedText style={{color: "#e53e3e"}}>Deletar</ThemedText>}
+                        </Pressable>
+                    )}
+
+                    <Pressable style={[styles.btnPrimary, {backgroundColor: theme.primary}]} onPress={salvarViagem}
+                               disabled={saving}>
+                        {saving ? <ActivityIndicator color="#fff"/> : <ThemedText
+                            style={{color: theme.textBack}}>{editingId ? "Atualizar" : "Registrar Viagem"}</ThemedText>}
+                    </Pressable>
+                </View>
+            </KeyboardAwareScrollView>
         </ThemedView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {flex: 1},
-    keyboardAvoidingView: {flex: 1},
     scrollContainer: {padding: 20, paddingBottom: 40},
     title: {fontSize: 28, fontWeight: "800", marginBottom: 6},
     section: {borderRadius: 12, padding: 14, marginTop: 12},
