@@ -151,7 +151,7 @@ router.get("/seguro-vencendo", autenticarToken, autorizarRoles("ADMIN"), async (
     }
 });
 
-// --- NOVA ROTA: Verificar Revisões Pendentes (Melhorada) ---
+// --- ROTA ATUALIZADA COM LÓGICA DE CARGA INICIAL ---
 router.get("/revisoes-pendentes", autenticarToken, autorizarRoles("ADMIN"), async (req, res) => {
     try {
         const companyId = req.user.companyId;
@@ -163,6 +163,7 @@ router.get("/revisoes-pendentes", autenticarToken, autorizarRoles("ADMIN"), asyn
                 status: { not: "inativo" }
             },
             include: {
+                // Pegamos a última feita DENTRO do sistema
                 manutencoes: {
                     where: { tipo: "PREVENTIVA", status: "CONCLUIDA" },
                     orderBy: { data: 'desc' },
@@ -175,10 +176,10 @@ router.get("/revisoes-pendentes", autenticarToken, autorizarRoles("ADMIN"), asyn
         const now = new Date();
 
         for (const v of veiculos) {
+            // 1. Regras de Limite (Carro vs Pesado)
             let limitKm = 0;
             let limitMonths = 0;
 
-            // 1. Regras (Mantenha conforme sua lógica)
             if (v.categoria === 'B') {
                 limitKm = 20000;
                 limitMonths = 12;
@@ -189,63 +190,50 @@ router.get("/revisoes-pendentes", autenticarToken, autorizarRoles("ADMIN"), asyn
                 continue;
             }
 
-            const lastMaint = v.manutencoes[0];
+            // --- DEFINIÇÃO DO PONTO DE REFERÊNCIA (ZERO) ---
 
-            // 2. CORREÇÃO DA REFERÊNCIA DE KM
-            // Se tiver manutenção, usa a KM da manutenção.
-            // Se NÃO tiver, usa a 'kmInicial' (do cadastro) ou 'quilometragem' (se acabou de cadastrar).
-            // NOTA: Certifique-se de que seu modelo 'veiculo' tenha 'kmInicial'. Se não tiver,
-            // considere adicionar ou usar a lógica abaixo.
+            const lastSystemMaint = v.manutencoes[0];
 
             let refKm = 0;
+            let refDate = null;
+            let origemReferencia = ""; // Para debug ou mensagem
 
-            if (lastMaint) {
-                refKm = lastMaint.quilometragem;
+            if (lastSystemMaint) {
+                // PRIORIDADE 1: O sistema já tem histórico registrado
+                refKm = lastSystemMaint.quilometragem;
+                refDate = new Date(lastSystemMaint.data);
+                origemReferencia = "última revisão (sistema)";
+
+            } else if (v.ultimaRevisaoExternaKm && v.ultimaRevisaoExternaData) {
+                // PRIORIDADE 2: Carga Inicial (Dados trazidos de fora)
+                refKm = v.ultimaRevisaoExternaKm;
+                refDate = new Date(v.ultimaRevisaoExternaData);
+                origemReferencia = "última revisão (importada)";
+
             } else {
-                // Cenário: Veículo novo no sistema sem revisões.
-                // O ciclo começa na KM de compra/entrada.
-                // Se 'kmInicial' não existir no banco, fallback para 0 (mas isso causa o bug)
-                // Se você não tiver o campo kmInicial, uma solução paliativa é:
-                // assumir que se não tem manutenção, o ciclo é "Ciclo de Fabricante" (usando resto da divisão)
-                refKm = v.kmInicial ?? 0;
+                // PRIORIDADE 3: Não tem histórico nenhum (Veículo Novo ou Sem Dados)
+                // Tenta usar a data de compra, senão a data de criação do registro
+                refDate = v.dataCompra ? new Date(v.dataCompra) : new Date(v.createdAt);
+
+                // Se tiver kmInicial, usa ele. Se não, cai na lógica de fabricante (modulo)
+                if (v.kmInicial !== undefined && v.kmInicial !== null) {
+                    refKm = v.kmInicial;
+                    origemReferencia = "aquisição";
+                } else {
+                    // Fallback Lógica de Fabricante (ex: tem 55k, limite 10k -> considera que revisou aos 50k)
+                    const kmNoCiclo = v.quilometragem % limitKm;
+                    refKm = v.quilometragem - kmNoCiclo;
+                    origemReferencia = "estimativa pelo odômetro";
+                }
             }
 
-            // 3. Referência de DATA
-            const refDate = lastMaint
-                ? new Date(lastMaint.data)
-                : (v.dataCompra ? new Date(v.dataCompra) : new Date(v.createdAt));
-
-            // 4. Cálculos
-
-            // Lógica Híbrida Inteligente:
-            let deltaKm = 0;
-            let motivoKm = "";
-
-            if (lastMaint || (v.kmInicial !== undefined && v.kmInicial !== null)) {
-                // Lógica Relativa: Temos um ponto de partida claro (última revisão ou compra)
-                deltaKm = v.quilometragem - refKm;
-                motivoKm = `Rodou ${deltaKm}km desde ${lastMaint ? 'última revisão' : 'a compra'}`;
-            } else {
-                // Lógica de Fabricante (Fallback se não tivermos histórico nem kmInicial):
-                // Se o carro tem 55.000km e o limite é 10.000km, ele está no meio do ciclo (5.000km rodados).
-                // Isso evita o alerta falso de "atrasado 45.000km".
-                const kmNoCicloAtual = v.quilometragem % limitKm;
-
-                // O delta será o quanto ele rodou dentro deste ciclo de 10k/20k
-                deltaKm = kmNoCicloAtual;
-
-                // O "refKm" virtual seria a última virada de ciclo (ex: 50.000)
-                refKm = v.quilometragem - kmNoCicloAtual;
-                motivoKm = `Ciclo atual: ${deltaKm}km rodados (Total: ${v.quilometragem}km)`;
-            }
+            // 4. Cálculos dos Deltas
+            const deltaKm = v.quilometragem - refKm;
 
             const diffTimeMs = now.getTime() - refDate.getTime();
             const deltaMonths = diffTimeMs / (1000 * 60 * 60 * 24 * 30.44);
 
-            // 5. Verificar Limites
-            // Adicionei uma margem de tolerância (ex: avisar se passou ou se está > 95% do limite)
-            // Mas mantendo sua lógica estrita de ">= limit":
-
+            // 5. Verificar se estourou
             if (deltaKm >= limitKm || deltaMonths >= limitMonths) {
                 pendentes.push({
                     id: v.id,
@@ -253,11 +241,11 @@ router.get("/revisoes-pendentes", autenticarToken, autorizarRoles("ADMIN"), asyn
                     modelo: v.modelo,
                     categoria: v.categoria,
                     kmAtual: v.quilometragem,
-                    ultimaRevisao: lastMaint ? lastMaint.data : null,
-                    refKm: refKm, // Útil para debug
+                    ultimaRevisao: refDate, // Manda a data de referência usada
+                    origemReferencia: origemReferencia,
                     motivo: deltaKm >= limitKm
-                        ? `${motivoKm} (Limite: ${limitKm}km)`
-                        : `Passou ${Math.floor(deltaMonths)} meses desde ${lastMaint ? 'revisão' : 'aquisição'} (Limite: ${limitMonths})`,
+                        ? `Rodou ${deltaKm}km desde ${origemReferencia} (Limite: ${limitKm}km)`
+                        : `Passou ${Math.floor(deltaMonths)} meses desde ${origemReferencia} (Limite: ${limitMonths} meses)`,
                     tipoAlerta: 'REVISAO'
                 });
             }

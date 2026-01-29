@@ -1,4 +1,3 @@
-// src/pages/RegistrarVeiculos.tsx
 import {useEffect, useState} from "react";
 import {AdminLayout} from "@/components/layout/AdminLayout";
 import {Button} from "@/components/ui/button";
@@ -42,6 +41,8 @@ const vehicleCreateSchema = z.object({
     insurancePolicy: z.string().max(50, "Número da apólice muito longo").optional(),
     insuranceExpiry: z.string().optional(),
     observations: z.string().max(500, "Observações muito longas").optional(),
+    lastRevisionKm: z.string().optional(),
+    lastRevisionDate: z.string().optional(),
 });
 
 // Para edição: todos os campos opcionais (permite PATCH parcial)
@@ -69,9 +70,7 @@ export default function RegisterVehicle() {
         vehicleTypes: undefined,
     });
     const [errors, setErrors] = useState<Partial<Record<keyof VehicleFormData, string>>>({});
-    const [popoverOpen, setPopoverOpen] = useState(false);
 
-    // escolhe schema conforme modo (create vs edit)
     const activeSchema = id ? vehicleEditSchema : vehicleCreateSchema;
 
     useEffect(() => {
@@ -87,19 +86,12 @@ export default function RegisterVehicle() {
                 if (res.ok) {
                     const data = await res.json();
 
-                    // --- CORREÇÃO AQUI ---
                     setFormData({
-                        // 1. Backend manda 'categoria', frontend espera 'vehicleTypes'
                         vehicleTypes: data.categoria ?? undefined,
-
                         plate: data.placa ?? "",
                         brand: data.marca ?? "",
                         model: data.modelo ?? "",
-
-                        // 2. Backend manda 'anoFabricacao', frontend espera 'year'
-                        // (Se anoFabricacao não existir, tenta anoModelo, senão vazio)
                         year: data.anoFabricacao ? String(data.anoFabricacao) : (data.anoModelo ? String(data.anoModelo) : ""),
-
                         color: data.cor ?? "",
                         chassis: data.chassi ?? "",
                         renavam: data.renavam ?? "",
@@ -111,9 +103,10 @@ export default function RegisterVehicle() {
                         insuranceCompany: data.seguradora ?? "",
                         insurancePolicy: data.apoliceSeguro ?? "",
                         insuranceExpiry: data.validadeSeguro ? new Date(data.validadeSeguro).toISOString().slice(0, 10) : "",
-                        observations: data.observacoes ?? ""
+                        observations: data.observacoes ?? "",
+                        lastRevisionKm: data.ultimaRevisaoExternaKm !== undefined && data.ultimaRevisaoExternaKm !== null ? String(data.ultimaRevisaoExternaKm) : "",
+                        lastRevisionDate: data.ultimaRevisaoExternaData ? new Date(data.ultimaRevisaoExternaData).toISOString().slice(0, 10) : "",
                     });
-                    // ---------------------
 
                 } else {
                     const err = await res.json().catch(() => ({error: "Veículo não encontrado."}));
@@ -143,7 +136,6 @@ export default function RegisterVehicle() {
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
     const validateField = (name: keyof VehicleFormData, value: any) => {
         try {
-            // cria um schema parcial para validar só o campo
             //eslint-disable-next-line @typescript-eslint/no-explicit-any
             const single = z.object({[name]: (activeSchema as any).shape[name]});
             single.parse({[name]: value});
@@ -168,6 +160,7 @@ export default function RegisterVehicle() {
         try {
             const finalData = {...formData};
             const validatedData = id ? vehicleEditSchema.parse(finalData) : vehicleCreateSchema.parse(finalData);
+
             //eslint-disable-next-line @typescript-eslint/no-explicit-any
             const vehicleData: any = {
                 placa: validatedData.plate,
@@ -186,7 +179,9 @@ export default function RegisterVehicle() {
                 apoliceSeguro: validatedData.insurancePolicy || "",
                 validadeSeguro: validatedData.insuranceExpiry || "",
                 observacoes: validatedData.observations || "",
-                categoria: validatedData.vehicleTypes // caso queira persistir tipos
+                categoria: validatedData.vehicleTypes,
+                ultimaRevisaoExternaKm: validatedData.lastRevisionKm ? Number(validatedData.lastRevisionKm) : null,
+                ultimaRevisaoExternaData: validatedData.lastRevisionDate ? validatedData.lastRevisionDate : null,
             };
 
             let response;
@@ -197,7 +192,6 @@ export default function RegisterVehicle() {
                     body: JSON.stringify(vehicleData),
                 });
             } else {
-                // criação (usa /veiculos/cadastrar para compatibilidade com backend)
                 response = await apiFetch("/veiculos/cadastrar", {
                     method: "POST",
                     headers: {"Content-Type": "application/json"},
@@ -416,6 +410,43 @@ export default function RegisterVehicle() {
                                                placeholder="50000.00"/>
                                         {errors.purchaseValue &&
                                             <p className="text-sm text-destructive">{errors.purchaseValue}</p>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* --- NOVA SEÇÃO: Histórico de Manutenção (Opcional) --- */}
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">
+                                    Histórico de Manutenção (Opcional)
+                                </h3>
+                                <p className="text-sm text-muted-foreground -mt-2">
+                                    Preencha se o veículo já teve revisões feitas antes de entrar neste sistema.
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="lastRevisionKm">KM da Última Revisão</Label>
+                                        <Input
+                                            id="lastRevisionKm"
+                                            type="number"
+                                            value={formData.lastRevisionKm || ""}
+                                            onChange={(e) => handleInputChange("lastRevisionKm", e.target.value)}
+                                            className={errors.lastRevisionKm ? "border-destructive" : ""}
+                                            placeholder="Ex: 48000"
+                                        />
+                                        {errors.lastRevisionKm &&
+                                            <p className="text-sm text-destructive">{errors.lastRevisionKm}</p>}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="lastRevisionDate">Data da Última Revisão</Label>
+                                        <Input
+                                            id="lastRevisionDate"
+                                            type="date"
+                                            value={formData.lastRevisionDate || ""}
+                                            onChange={(e) => handleInputChange("lastRevisionDate", e.target.value)}
+                                            className={errors.lastRevisionDate ? "border-destructive" : ""}
+                                        />
+                                        {errors.lastRevisionDate &&
+                                            <p className="text-sm text-destructive">{errors.lastRevisionDate}</p>}
                                     </div>
                                 </div>
                             </div>

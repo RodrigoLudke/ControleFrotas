@@ -110,6 +110,10 @@ model Veiculo {
   capacidade       Int            // Passageiros
   combustivel      Combustivel
   categoria        CNHCategory?   // Categoria necessária para dirigir
+
+  // Info Externa
+  ultimaRevisaoExternaKm   Int?      // KM da última revisão feita fora do sistema
+  ultimaRevisaoExternaData DateTime? // Data dessa revisão
   
   // Estado Atual
   quilometragem    Int            // Hodômetro atual
